@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Storage Model
@@ -25,11 +25,12 @@ urls (
   source_run_id     INT  NOT NULL,
   discovered_from   TEXT NULL,            -- parent url_identity
   attempts          INT  NOT NULL DEFAULT 0,
-  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4]; NULL after operator reset and for crash-exhausted records [R-060]
+  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4]; NULL after operator reset, for crash-exhausted records [R-060], and after a success upsert of a terminal record [R-062]
   consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
+  once_retried_classes TEXT NOT NULL DEFAULT '[]', -- JSON array: yes-once error classes [R-232] already retried in the current attempt cycle; cleared when attempts resets to 0
   due_at_mono       INT NULL,             -- scheduler key component
-  last_fetch_mono   INT NULL,
+  last_fetch_mono   INT NULL,             -- completion time of the most recent fetch attempt (set in [T-2])
   last_seen_at      TEXT NULL,            -- most recent rediscovery [FR-051], [INV-5]
   created_at        TEXT NOT NULL,
   updated_at        TEXT NOT NULL
@@ -121,7 +122,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, pages insert, fetch_event insert, hosts.inflight−1 for every slot the attempt still holds, hosts counters} — single commit. Held slots at completion: the source Host's [T-1] slot plus, for cross-host redirect chains, the final hop's target-Host slot [R-131] (intermediate hop slots are acquired and released per hop); decrementing only once would leak a target-Host slot per cross-host completion. Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112]. The `pages` insert applies to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert.
+- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for every slot the attempt still holds, hosts counters} — single commit. Held slots at completion: the source Host's [T-1] slot plus, for cross-host redirect chains, the final hop's target-Host slot [R-131] (intermediate hop slots are acquired and released per hop); decrementing only once would leak a target-Host slot per cross-host completion. Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112]. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer

@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Scheduling and Recrawl
@@ -41,7 +41,8 @@ priority = clamp(500
          , 0, 1000)
 ```
 
-Manual boosts [CFG-031]: if several prefixes match a URL, the largest single
+Manual boosts [CFG-031]: a prefix matches when it is a case-sensitive string
+prefix of the URL identity; if several prefixes match, the largest single
 boost applies (matches are never summed); the boost term remains within 0–300.
 
 - R-200: Priority never affects politeness or caps; it only reorders due work.
@@ -51,8 +52,8 @@ boost applies (matches are never summed); the boost term remains within 0–300.
 
 ```
 loop:
-  wait until ∃ candidate c ∈ frontier where due(c) and gates pass for c.host
-      gates = [FR-011] a–d          // (e) is not a wait condition — see below
+  wait until ∃ candidate c ∈ frontier where due(c) and gates [FR-011] a–d pass
+      // a–c are per-Host gates; (d) is per-URL; (e) is not a wait condition — see below
   pick c = highest-priority gate-passing candidate (ties: lexicographically smallest identity)
   if gate [FR-011](e) fails for c:              // registrable-domain cap [FR-005]
       move c → ST-190/CAP_REACHED               // exclusion, not deferral
@@ -103,7 +104,9 @@ due_at_mono     = fetch_complete_mono + interval
 ```
 
 - R-220: Recrawl respects caps [FR-005] and robots at dispatch time [DOC-08 §3].
-- R-221: `Cache-Control: no-store` responses are not refetched automatically (treated as one-shot).
+- R-221: `Cache-Control: no-store` responses are not refetched automatically
+  (treated as one-shot). In v1 this affects recrawl eligibility only: the
+  payload is fetched, stored [FR-043], and extracted normally.
 - R-222: Recrawl of a page whose URL Record was deleted by retention does not happen (records are the source of truth).
 
 ## 5. Backoff interplay

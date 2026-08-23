@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Politeness and robots.txt
@@ -32,7 +32,12 @@ Per Host `(scheme, host, port)`:
    UNKNOWN/deferral per item 3 (fail closed [DEC-007]). robots.txt exchanges
    are not page fetches: they create no
    fetch_events rows (visibility is via robots_queries_total [DOC-15 §1])
-   and never modify consecutive_failures or pages_crawled [R-112].
+   and never modify consecutive_failures or pages_crawled [R-112]. Their
+   politeness advance and slot acquisition/release mirror the host-side
+   effects of [T-1]/[T-2] — the window advances before the robots request is
+   sent, and the slot is released when the exchange completes and its
+   verdict/cache update commits — but no URL Record participates: robots
+   exchanges commit neither [T-1] nor [T-2].
 3. Interpret the HTTP status of the robots request per RFC 9309:
    - `2xx` → parse per RFC 9309. Parsing is error-tolerant (NFR-014):
      unrecognized or malformed lines are ignored, so a 2xx body always yields
@@ -42,7 +47,7 @@ Per Host `(scheme, host, port)`:
      size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
-     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts 60 s, ×2 per consecutive failure, cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
+     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure, cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
 4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at; persisted on the Host row (`robots_rules`) [DOC-11 §1].
 
 - R-100: Group selection (RFC 9309): a group matches the crawler when its
@@ -71,6 +76,12 @@ Per Host `(scheme, host, port)`:
   records (ST-110/ST-120) are never affected; ST-130 records complete normally.
   The threshold expiry (`robots_deferred_since_mono + [CFG-040]`) is a
   scheduler wake source [R-211], and the scheduling loop performs the sweep.
+  The sweep condition is re-evaluated on every scheduler iteration (its wake
+  sources — discovery, deferral-expiry retries, due-time promotions — recur
+  while the Host stays deferred): records that enter a gated state after the
+  threshold first passed (new discoveries, ST-140→ST-100 recrawl promotions)
+  are excluded by the next evaluation, not only those already gated at the
+  threshold expiry.
 - R-104: Revalidation (stale-while-revalidate): when the cached entry has
   expired ([CFG-008] TTL) but exists, the refetch is scheduled per items 1–3
   above; while it is in flight, the previous entry's rules remain authoritative

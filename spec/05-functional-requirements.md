@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Functional Requirements
@@ -63,5 +63,7 @@ ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The see
 ## Recrawl & lifecycle
 
 - FR-050: Pages successfully fetched become eligible for recrawl after `recrawl_interval_s × (1 ± jitter)` [CFG-025], [CFG-026], unless freshness headers dictate otherwise per [DOC-12 §4].
-- FR-051: Rediscovery of an existing terminal-success URL sets `last_seen_at`; if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now, attempts := 0, priority recomputed per [R-052], [R-201]). Rediscovery of a record in any other state updates `last_seen_at` only and MUST NOT change its state: DEAD and EXCLUDED records are never re-activated automatically [DOC-13 §4], and scope/trap verdicts are final [R-031], [R-041].
+- FR-051: Rediscovery of an existing terminal-success URL sets `last_seen_at`; if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now, attempts := 0, priority recomputed per [R-052], [R-201]). Rediscovery of a record in any other state updates `last_seen_at` only and MUST NOT change its state: DEAD and EXCLUDED records are never re-activated automatically [DOC-13 §4], and scope/trap verdicts are final [R-031], [R-041]. The redirect
+  final-target completion upsert [R-062] is not a rediscovery: its effects
+  on a pre-existing target record are governed by [R-062].
 - FR-052: Retryable failures follow [DOC-13 §3]: attempts up to [CFG-020], backoff per [CFG-022..CFG-024]; budget exhausted ⇒ ST-180 (DEAD).

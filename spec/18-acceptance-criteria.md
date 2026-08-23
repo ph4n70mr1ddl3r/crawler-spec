@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Acceptance Criteria
@@ -40,10 +40,10 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-021: Redirect loop (A→B→A) detected at first repetition.
 - AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded.
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
-- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3].
+- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3]. A yes-once class failing twice — e.g. two ERR-003 outcomes with [CFG-020]=5 — reaches DEAD at the second occurrence [R-232]; after a success and a recrawl promotion ([R-052] attempts reset), the class is eligible for one retry again.
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
-- AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133]; both Hosts' concurrency slots are released exactly once at completion [T-2].
-- AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs (ST-100 and ST-150) transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103]; the sweep fires at the threshold expiry itself (a scheduler wake source [R-211]).
+- AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133]; both Hosts' concurrency slots are released exactly once at completion [T-2]. If the final target's identity already has a terminal record (e.g. ST-190/`CAP_REACHED`), the upsert overwrites it with the fetch outcome [R-062] — a completed, gate-verified fetch is not automated re-activation [DOC-13 §4], and `last_error_class` is cleared on success; if it is independently in flight ({ST-110, ST-120}), its state and `attempts` are untouched and the chain records `last_seen_at` plus its `pages` row only. On chain success both page rows (source's and target's) commit in one [T-2].
+- AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs (ST-100 and ST-150) transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103]; the sweep fires at the threshold expiry itself (a scheduler wake source [R-211]). Records entering gated states after the threshold passed (a new discovery, a ST-140→ST-100 recrawl promotion) are excluded by the next sweep evaluation [R-103].
 - AC-028: A 3xx response with a missing or unparsable `Location` header yields outcome=PERMANENT with error_class=ERR-011; no follow occurs [DOC-09 §4].
 - AC-029: With [CFG-028]=false, fetching an allowed non-HTML type (e.g. `application/pdf`) stores no blob, records error_class=ERR-008, and the URL → ST-180; with [CFG-028]=true the payload is stored and no parse artifacts are produced [R-143].
 

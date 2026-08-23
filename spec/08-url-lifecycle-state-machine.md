@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.8.0
+version: 1.9.0
 ---
 
 # URL Lifecycle State Machine
@@ -128,3 +128,23 @@ exactly once [R-051].
   final target is exempt from the trap filters ([DOC-06 §5] items 2–4) at
   this creation point (it was already fetched); scope, robots, SSRF, and
   the URL blocklist were verified per hop [R-030], [R-131].
+
+  On chain success, [T-2] commits two `pages` rows in the same transaction:
+  the source's (with `final_url_identity` = the target identity [FR-044]) and
+  the target's (with `final_url_identity` = itself); both records move to
+  ST-130 and progress to ST-140 via their own extraction passes — identical
+  payload and resolution base ⇒ identical artifacts, upsert-idempotent
+  [R-157].
+
+  If a URL Record for the target identity already exists, the upsert's state
+  effect depends on that record's state. Terminal records (ST-180, ST-190)
+  are overwritten with the fetch outcome: this records a completed,
+  gate-verified fetch (scope, robots, SSRF, and blocklist were re-checked per
+  hop [R-131]) and is neither the forbidden automated re-activation of
+  [DOC-13 §4] nor a rediscovery under [FR-051]; a success upsert also clears
+  `last_error_class`. A record in {ST-110, ST-120} — an independent fetch in
+  flight — MUST NOT have its state or `attempts` modified (overwriting it
+  would corrupt its slot accounting [R-051]): the chain records `last_seen_at`
+  and its `pages` row only, and the concurrent attempt's own [T-2] governs
+  the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
+  takes the fetch-outcome state as above.

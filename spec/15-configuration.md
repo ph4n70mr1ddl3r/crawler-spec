@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Configuration
@@ -31,6 +31,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-010 | global_concurrency | int | 64 | 1–1024 |
 | CFG-011 | dynamic_backoff_enabled | bool | true | |
 | CFG-040 | robots_defer_max_s | int | 86400 (24 h) | 60–604800; cap for robots-deferral exponential backoff [DOC-08 §2], and the continuous-deferral duration after which gated URLs go ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103] |
+| CFG-044 | robots_defer_backoff_start_s | int | 60 | 1–3600; initial robots-deferral backoff [DOC-08 §2] (the ×2 doubling factor is fixed) |
 
 ## Fetching
 
@@ -70,9 +71,9 @@ Every parameter is referenced elsewhere only by its CFG id.
 |----|------|------|---------|-------|
 | CFG-027 | retention_days | int | 90 | 0 = keep forever |
 | CFG-028 | store_non_html | bool | true | allowed types [R-143] |
-| CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names |
+| CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names (names extracted per [DOC-06 §5] filter 2) |
 | CFG-030 | max_similar_paths_per_host | int | 500 | >0; trap guard [DOC-06 §5] — at most [CFG-030] URLs per Host may share a path shape |
-| CFG-031 | manual_boosts | list | `[]` | `{prefix, boost}` pairs, boost 0–300; multiple matches ⇒ largest single boost [DOC-12 §2] |
+| CFG-031 | manual_boosts | list | `[]` | `{prefix, boost}` pairs, boost 0–300; a prefix matches as a case-sensitive string prefix of the URL identity; multiple matches ⇒ largest single boost [DOC-12 §2] |
 | CFG-043 | url_record_retention_days | int | 180 | 0 = keep forever; DEAD/EXCLUDED record retention basis [DOC-11 §6] |
 
 ## Operations

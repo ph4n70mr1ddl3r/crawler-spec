@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.4.0
+version: 1.9.0
 ---
 
 # Observability
@@ -13,7 +13,7 @@ Counters:
 | Metric | Labels | Meaning |
 |---|---|---|
 | urls_discovered_total | outcome{ingested,duplicate,excluded} | [FR-003..FR-004] |
-| state_transitions_total | from,to | every legal transition pair [ST-*] |
+| state_transitions_total | from,to | every legal transition pair [ST-*]; `from=creation` labels the two record-creating transitions ([DOC-07 §2]) |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
 | bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + rss + atom) |
 | robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
@@ -52,4 +52,7 @@ frontier_size, inflight_global, version, config_hash}`.
 
 On graceful shutdown or every N=1000 completions, emit a `run_summary` event:
 counts by final state, by error class, elapsed time, bytes total. This event is
-the operator's primary progress signal.
+the operator's primary progress signal. Process-level counters are
+monotonic within a Run and reset on restart; `run_summary` events and the
+`runs` table [DOC-11 §1] are the durable aggregate record referenced by
+retention [DOC-11 §6].

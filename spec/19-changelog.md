@@ -1,10 +1,80 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Changelog
+
+## 1.9.0 — 2026-08-23 (review pass v9: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- R-062 redirect final-target upsert was undefined for pre-existing records,
+  with two hazardous readings: overwriting a record in {ST-110, ST-120} (an
+  independent fetch in flight) would corrupt its slot accounting [R-051] and
+  `attempts`, while blanket-applying FR-051's "never re-activated" rule would
+  discard a completed, gate-verified fetch. Now: terminal records are
+  overwritten with the fetch outcome (all per-hop gates were re-checked
+  [R-131]; success clears `last_error_class`) — explicitly not the forbidden
+  automated re-activation [DOC-13 §4] nor a rediscovery [FR-051 gained the
+  disambiguating cross-reference]; in-flight records keep their state and
+  `attempts` (the chain records `last_seen_at` and its `pages` row only);
+  other non-terminal records take the outcome state. AC-026 extended.
+- Redirect-chain success accounting was unstated: T-2 described a single
+  `pages` insert and R-062 said only "state per the fetch outcome" — leaving
+  open whether the source, the target, or both get page rows and ST-130
+  transitions. Now both rows commit in one [T-2] (source's with
+  `final_url_identity` = target [FR-044]; target's with itself), and both
+  records progress ST-130→ST-140 (identical payload + resolution base ⇒
+  identical, upsert-idempotent artifacts [R-157]).
+- R-232 ("yes (once)" classes) was ambiguous and unimplementable as written:
+  "effective retry budget of 2 total attempts" reads both as a per-class
+  occurrence rule and as an attempts-based cutoff (which would permanently
+  fail a first-occurrence ERR-003 appearing at attempts=2), and no persisted
+  state existed to count occurrences — fetch_events are retention-bounded
+  [CFG-033]. Now: per class, at most one retry per attempt cycle, tracked in
+  the new `urls.once_retried_classes` column, cleared exactly when `attempts`
+  resets to 0; a repeat occurrence ⇒ PERMANENT. AC-024 extended.
+
+### Completeness additions
+
+- R-103 covered only records gated at the threshold expiry: discoveries and
+  ST-140→ST-100 recrawl promotions arriving on a Host already past [CFG-040]
+  of continuous deferral had no defined treatment. The sweep condition is now
+  re-evaluated on every scheduler iteration; AC-027 extended.
+- Robots-exchange slot lifecycle was dangling: §2.2 acquires a politeness
+  advance plus a concurrency slot, but neither [T-1] nor [T-2] covers robots
+  exchanges (no URL Record participates). The advance/acquire/release
+  mapping is now stated explicitly (release when the exchange completes and
+  its verdict/cache update commits).
+- `urls.last_fetch_mono` had no writer (phantom column, same class as the
+  v1.2.0 schema-gap fixes): now set to the attempt completion time in [T-2].
+- New CFG-044 `robots_defer_backoff_start_s` (default 60): the robots-
+  deferral backoff start was a hardcoded constant violating DOC-14's
+  every-tunable-has-a-CFG-id rule (same class as the v1.1.0 CFG-035/036
+  fixes); the ×2 doubling factor is now labeled fixed.
+- CFG-031 boost prefixes: the matched string was never stated — now the
+  case-sensitive URL-identity prefix [DOC-12 §2].
+- [CFG-029] parameter-name extraction defined [DOC-06 §5]: split the query
+  on `&`; name = text before the first `=`, or the whole token when no `=`.
+- DOC-15: `state_transitions_total` gains the `from=creation` label for the
+  two record-creating transitions (R-240's closed-enum rule had no value for
+  them); counter lifetime across restarts defined (reset per Run;
+  `run_summary` events and the `runs` table are the durable aggregates).
+- R-221: `Cache-Control: no-store` now explicitly affects recrawl
+  eligibility only in v1 — the payload is fetched, stored [FR-043], and
+  extracted normally (the storage question was left implicit).
+
+### Consistency fixes
+
+- DOC-12 §3 pseudocode: "gates pass for c.host" contradicted gate (d) being
+  per-URL [FR-011]; the wait condition now reads "gates [FR-011] a–d pass"
+  with the per-Host (a–c) vs per-URL (d) split noted.
+
+### Versioning
+
+- KB version 1.8.0 → 1.9.0; all touched documents bumped accordingly.
 
 ## 1.8.0 — 2026-08-23 (review pass v8: correctness, completeness, consistency, unambiguity)
 

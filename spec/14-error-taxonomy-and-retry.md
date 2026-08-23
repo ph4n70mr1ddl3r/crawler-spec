@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.8.0
+version: 1.9.0
 ---
 
 # Errors and Retry
@@ -60,9 +60,15 @@ on PERMANENT outcome:               → ST-180 immediately
 
 - R-230: Backoff is per-URL; host-level dynamic backoff ([DOC-08 §4]) applies
   additionally and independently at scheduling time.
-- R-232: Classes marked "yes (once)" (ERR-003, ERR-013) have an effective
-  retry budget of 2 total attempts (initial + 1 retry), regardless of
-  [CFG-020]; further occurrences are permanent.
+- R-232: Classes marked "yes (once)" (ERR-003, ERR-013) are retryable at
+  most once per attempt cycle and per class: when such an outcome occurs and
+  its class is already listed in `urls.once_retried_classes` [DOC-11 §1], the
+  outcome is PERMANENT (ST-180, `last_error_class` := that class); otherwise
+  the class is appended to the list and the normal §3 retry procedure
+  applies. The general budget [CFG-020] still applies independently. The
+  list is cleared exactly when `attempts` is reset to 0 (ST-140→ST-100
+  [R-052]; operator reset §4), so the rule needs no fetch_events history and
+  cannot be affected by [CFG-033] retention.
 - R-231: Any successful page fetch resets host `consecutive_failures` to 0; the full increment/reset semantics are defined by [R-112] (robots.txt exchanges never modify it). The URL `attempts` counter resets to 0 only when the record leaves ST-140 for ST-100 (recrawl [R-052] or rediscovery refresh [FR-051]); it is never reset by a retry-path success.
 
 ## 4. Dead-letter semantics
