@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Parsing and Extraction
@@ -50,6 +50,10 @@ Stored in Metadata Store as JSON document keyed by payload hash:
 | word_count | token count of main_text |
 | outlinks | list of `{url_identity, anchor_text, nofollow}` (capped 1000/page; overflow flagged) |
 | truncated | `true` iff any per-page cap (outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
+
+`outlinks` records all extracted anchor candidates — including `nofollow`
+ones, flagged — regardless of ingestion [R-155]; a page-level `nofollow` page
+[FR-045] stores its full flagged outlink list while ingesting none.
 
 - R-157: Extraction is deterministic: same input bytes ⇒ byte-identical artifact JSON (stable key ordering).
 - R-158: Pages > [CFG-016] never reach parsing [FR-023].

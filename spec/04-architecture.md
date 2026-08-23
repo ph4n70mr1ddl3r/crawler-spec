@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Architecture
@@ -56,7 +56,8 @@ version: 1.4.0
 
 ### C2 FRONTIER
 - A persistent, ordered collection of URL Records awaiting scheduling.
-- Ordering key: `(due_at_monotonic, priority DESC, url_identity ASC)` [DOC-12].
+- Candidacy: `due_at_mono ≤ now`; selection order among due candidates:
+  `(priority DESC, url_identity ASC)` [FR-010], [DOC-12 §1].
 - Backed by the Metadata Store; MAY keep in-memory indexes for speed, but the
   store is authoritative at all times [G-2].
 

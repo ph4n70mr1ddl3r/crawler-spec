@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Security and Abuse Prevention
@@ -30,7 +30,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
      several validated addresses remain, the selection is deterministic
      (sorted ascending), preserving replay determinism [NFR-006].
 - R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
-- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the host is flagged `suspicious=true` (operator-visible metric only).
+- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the referring URL's Host is flagged `suspicious=true` (operator-visible metric only).
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
 - R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted);
   it exists solely so the acceptance-test fixture server [DOC-17] is

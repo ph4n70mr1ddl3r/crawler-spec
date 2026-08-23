@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Scheduling and Recrawl
@@ -9,8 +9,10 @@ version: 1.4.0
 ## 1. Model
 
 Time in the scheduler is a single monotonic counter [DEC-012]. The Frontier is
-conceptually a min-heap on `due_at_mono` with tie-break `(priority DESC, url_identity ASC)`
-[FR-010]. Only ST-100 records with `due_at_mono ≤ now` are dispatch candidates.
+a persistent index on `due_at_mono`; only ST-100 records with
+`due_at_mono ≤ now` are dispatch candidates. Among due candidates, selection
+order is `(priority DESC, url_identity ASC)` [FR-010], [§3] — `due_at_mono`
+governs when a record becomes due, never the ordering of already-due work.
 A newly created ST-100 record is immediately due: `due_at_mono` is set to its
 enqueue time (later transitions overwrite it: backoff [DOC-07 §2], recrawl [§4]).
 
@@ -25,6 +27,9 @@ priority = clamp(500
            + 50 if host.pages_crawled > 0                // host has prior success [DOC-11 §1]
          , 0, 1000)
 ```
+
+Manual boosts [CFG-031]: if several prefixes match a URL, the largest single
+boost applies (matches are never summed); the boost term remains within 0–300.
 
 - R-200: Priority never affects politeness or caps; it only reorders due work.
 - R-201: Priority is recomputed on each ST-140→ST-100 recrawl transition.

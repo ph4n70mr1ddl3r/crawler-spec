@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Politeness and robots.txt
@@ -22,7 +22,11 @@ Per Host `(scheme, host, port)`:
    safety cap [DOC-16 §3] still applies (security precedence [R-000]). It obeys
    the host politeness window, advances `next_allowed_fetch_at` identically to
    a page dispatch [FR-012], and holds one per-host/global concurrency slot
-   while in flight.
+   while in flight. Redirect responses for the robots request itself are
+   followed per [DOC-09 §3] hop rules — SSRF [R-400], politeness, and caps
+   apply — but scope [R-030] and robots gates are not applied recursively
+   (there is no robots-for-robots); the verdict is taken from the final
+   response.
 3. Interpret the HTTP status of the robots request per RFC 9309:
    - `2xx` → parse per RFC 9309 (groups matching UA Token, falling back to `*` group if no specific match); only the first 500 KiB of the body is processed (RFC 9309 size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
@@ -31,7 +35,7 @@ Per Host `(scheme, host, port)`:
 
 - R-100: If multiple groups match (specific token present), the `*` group MUST be ignored entirely (RFC 9309).
 - R-101: The longest-match rule applies to path prefixes; `Allow` and `Disallow` compared by longest path, tie ⇒ `Allow`.
-- R-102: `Crawl-delay` values > 60 s are honored exactly (no clamping); missing ⇒ use [CFG-007].
+- R-102: `Crawl-delay` is honored exactly as received — no clamping, including values > 60 s; a missing `Crawl-delay` ⇒ use [CFG-007].
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
   [CFG-040] — measured from `robots_deferred_since_mono` [DOC-11 §1] — every
   URL Record on that Host in a gated state (ST-100 or ST-150) MUST be moved
@@ -48,7 +52,9 @@ The robots verdict gates:
 (b) every redirect hop target [FR-021];
 (c) recrawl eligibility re-check at dispatch time (verdicts can change between runs).
 A verdict that changes after [T-1] but before the request is sent is handled
-by the ST-110→ST-190 transition [DOC-07 §2] with slot release [R-051].
+by [R-054]: DISALLOW ⇒ ST-110→ST-190 with slot release; UNKNOWN (Host
+deferred) ⇒ compensated back to ST-100 and reconsidered after deferral
+expiry.
 
 ## 4. Rate limiting math
 

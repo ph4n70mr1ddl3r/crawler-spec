@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Storage Model
@@ -72,7 +72,7 @@ hosts (
   next_allowed_fetch_at_mono INT NOT NULL DEFAULT 0,
   inflight          INT  NOT NULL DEFAULT 0,
   consecutive_failures INT NOT NULL DEFAULT 0,
-  pages_crawled     INT  NOT NULL DEFAULT 0,
+  pages_crawled     INT  NOT NULL DEFAULT 0,   -- lifetime successful page fetches (SUCCESS|UNCHANGED) on this host; priority input [DOC-12 §2]
   suspicious        BOOL NOT NULL DEFAULT FALSE   -- set by R-402 [DOC-16 §2]
 )
 
@@ -133,7 +133,11 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
   - a page_artifacts row or blob file MAY be deleted only when NO remaining
     `pages` row references its payload_sha256 (payloads are shared across URL
     identities via dedup [AC-042] — age alone never justifies deletion);
-  - DEAD/EXCLUDED url records with `updated_at` older than 180 days deleted.
+  - DEAD/EXCLUDED url records not re-discovered for [CFG-043] days —
+    `last_seen_at` when set, else `updated_at` — deleted. A deleted record
+    MAY be re-created by later discovery; that bounded re-evaluation
+    (≤ [CFG-020] attempts per [CFG-043]-day cycle) is not automated
+    re-activation [DOC-13 §4].
 - Deletion order within each sweep: pages rows → page_artifacts rows and blobs
   left unreferenced by those deletions → url records. Each step commits before
   the next begins, so the Consumer never sees dangling references. (Deleting

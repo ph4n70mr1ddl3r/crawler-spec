@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Functional Requirements
@@ -12,17 +12,18 @@ Numbering is grouped by component area. "The system" = the Crawler.
 
 - FR-001: The system MUST accept a non-empty list of Seed URLs from configuration [CFG-001] and normalize each per [DOC-06 §2].
 - FR-002: The system MUST reject, at startup, any seed that is not an absolute, parseable http(s) URL (there is no base to resolve against), whose scheme ∉ allowed schemes [CFG-003], or whose URL contains userinfo [R-002]; rejection of ≥1 seed aborts startup [DEC-011].
-- FR-003: For every normalized URL passing the Scope predicate ([DOC-06 §4]) the system MUST create or refresh a URL Record and set state ST-100. Seed URLs have depth 0; discovered URLs have depth = parent depth + 1 [FR-042].
+- FR-003: For every normalized URL passing the Scope predicate ([DOC-06 §4]) the system MUST create a URL Record in state ST-100 — new identities only; rediscovery of an existing record never re-creates it and instead follows [FR-051]/[INV-5]. Seed URLs have depth 0; discovered URLs have depth = parent depth + 1 [FR-042].
 - FR-004: URLs failing the Scope predicate MUST be recorded as ST-190 with reason `OUT_OF_SCOPE` only if [CFG-038]=true; otherwise silently dropped. They MUST NOT be stored in the Frontier.
-- FR-005: The system MUST enforce global caps before enqueueing: total URL records in non-EXCLUDED states ≤ [CFG-005]; per-Registrable-Domain page successes ≤ [CFG-006]. At cap, new discoveries are recorded as ST-190/`CAP_REACHED` and never fetched (ST-190 audit records do not consume the [CFG-005] budget).
+- FR-005: The system MUST enforce global caps at two points. (1) Enqueue time (early exclusion): total URL records in non-EXCLUDED states ≤ [CFG-005]; and per-Registrable-Domain budget — with D the candidate's Registrable Domain, if successes(D) + inflight(D) ≥ [CFG-006], where successes(D) = URL Records for D in {ST-130, ST-140} and inflight(D) = URL Records for D in {ST-110, ST-120}, the discovery is recorded ST-190/`CAP_REACHED` and never fetched. (2) Dispatch time (authoritative gate [FR-011(e)]): a due candidate satisfying successes(D) + inflight(D) ≥ [CFG-006] moves to ST-190/`CAP_REACHED` and is never fetched — the enqueue-time check alone cannot bound successes, because discoveries routinely enqueue before any fetch completes. ST-190 audit records do not consume the [CFG-005] budget. Redirect final-target upserts [R-062] are exempt from [CFG-005] (bounded by in-flight chains) and count toward the target domain's [CFG-006] budget from completion; a domain can exceed the cap only by chains already in flight when it was reached.
 - FR-006: Runtime seed injection via the operator API MUST behave identically to config seeds (same normalization, filtering, caps).
 
 ## Frontier & scheduling (C2/C3)
 
-- FR-010: The Frontier MUST order due work by `(due_at_monotonic ASC, priority DESC, url_identity ASC)` [DOC-12 §1].
+- FR-010: The Frontier MUST make dispatch candidates (ST-100 records with `due_at_mono ≤ now`) selectable in `(priority DESC, url_identity ASC)` order; `due_at_mono` determines candidacy, never the ordering of already-due work [DOC-12 §1], [DOC-12 §3].
 - FR-011: The Scheduler MUST NOT dispatch a fetch to a Host unless all hold:
   (a) host inflight < [CFG-009]; (b) global inflight < [CFG-010];
-  (c) monotonic now ≥ host.next_allowed_fetch_at; (d) robots gate = ALLOW for that URL [DOC-08 §3].
+  (c) monotonic now ≥ host.next_allowed_fetch_at; (d) robots gate = ALLOW for that URL [DOC-08 §3];
+  (e) registrable-domain budget [FR-005]: successes(D) + inflight(D) < [CFG-006] — failure ⇒ ST-190/`CAP_REACHED` (exclusion, not deferral).
 - FR-012: On dispatch, the system MUST atomically set the URL Record to ST-110,
   increment `urls.attempts` by one (so the attempt is counted even if the process
   dies mid-fetch [DOC-13 §5]), increment host inflight, and set
@@ -57,5 +58,5 @@ Numbering is grouped by component area. "The system" = the Crawler.
 ## Recrawl & lifecycle
 
 - FR-050: Pages successfully fetched become eligible for recrawl after `recrawl_interval_s × (1 ± jitter)` [CFG-025], [CFG-026], unless freshness headers dictate otherwise per [DOC-12 §4].
-- FR-051: Rediscovery of an existing terminal-success URL sets `last_seen_at`; if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now, attempts := 0, priority recomputed per [R-052], [R-201]).
+- FR-051: Rediscovery of an existing terminal-success URL sets `last_seen_at`; if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now, attempts := 0, priority recomputed per [R-052], [R-201]). Rediscovery of a record in any other state updates `last_seen_at` only and MUST NOT change its state: DEAD and EXCLUDED records are never re-activated automatically [DOC-13 §4], and scope/trap verdicts are final [R-031], [R-041].
 - FR-052: Retryable failures follow [DOC-13 §3]: attempts up to [CFG-020], backoff per [CFG-022..CFG-024]; budget exhausted ⇒ ST-180 (DEAD).

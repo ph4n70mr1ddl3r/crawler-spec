@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Acceptance Criteria
@@ -19,9 +19,9 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-003: A page containing 100 duplicate links yields exactly one new URL Record.
 - AC-004: With scope_mode=SEED_DOMAINS, a link from sub.example.org to example.org is IN_SCOPE; to other.org is OUT_OF_SCOPE and never fetched.
 - AC-005: Startup with scope_mode=PREFIX_LIST where a seed matches no entry of [CFG-039] aborts with exit code ≠ 0 before any network I/O [V-4].
-- AC-006: With [CFG-006]=2, exactly two page successes per Registrable Domain are fetched; further in-scope discoveries on that domain are recorded ST-190/`CAP_REACHED` and never fetched, other domains are unaffected, and ST-190 audit records do not consume the [CFG-005] budget [FR-005].
+- AC-006: With [CFG-006]=2, exactly two page successes per Registrable Domain are fetched; further in-scope discoveries on that domain are recorded ST-190/`CAP_REACHED` and never fetched, other domains are unaffected, and ST-190 audit records do not consume the [CFG-005] budget [FR-005]. The bound holds even when all discoveries enqueue before the first fetch on the domain completes (dispatch-time gate [FR-011(e)]).
 
-## Politeness & robots
+## Politeness, robots & scheduling
 
 - AC-010: With two workers and CFG-007=5000ms, request starts to one host are ≥ 5000 ms apart across 20 fetches (start-to-start).
 - AC-011: Per-host inflight never exceeds CFG-009 under any fixture; global inflight never exceeds CFG-010.
@@ -29,6 +29,9 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-013: robots.txt returning 503 defers ALL host fetches; retry after backoff succeeds once robots returns 200; no page was fetched during deferral.
 - AC-014: Crawl-delay=12s honored over CFG-007=5s; Retry-After=120s overrides backoff when larger.
 - AC-015: A redirect whose hop target is disallowed by the target Host's robots.txt terminates the chain with outcome=PERMANENT and error_class=ERR-017; the source URL → ST-180; the target is never fetched; the hop appears in the source's `redirect_chain` [R-131].
+- AC-016: Between dispatch [T-1] and request send, a robots cache refresh to DISALLOW moves the record ST-110→ST-190/`ROBOTS_DISALLOW` and releases its slot; a refresh to UNKNOWN (Host deferred) compensates the record back to ST-100 with the attempts increment rolled back [R-054]; no request is sent while the Host is deferred.
+- AC-017: A redirect hop whose target Host is robots-deferred (verdict UNKNOWN) aborts the chain with outcome=RETRYABLE and error_class=ERR-010; the source → ST-150; no request is sent to the target Host during deferral [R-131].
+- AC-018: With two due candidates on different Hosts — priorities 900 and 100, the lower-priority one due earlier — the higher-priority candidate is dispatched first: `due_at_mono` never orders already-due work [FR-010].
 
 ## Fetching & errors
 
@@ -36,7 +39,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-021: Redirect loop (A→B→A) detected at first repetition.
 - AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded.
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
-- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD.
+- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3].
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
 - AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133].
 - AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103].
@@ -62,3 +65,4 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-050: SIGTERM triggers drain: no new dispatches, in-flight complete ≤ total_transfer_timeout, exit code 0, run_summary emitted.
 - AC-051: Startup with 1M-record store reaches first fetch within 60 s [NFR-005].
 - AC-052: All metrics counters appear after exercise; state_transitions_total contains only legal transition pairs.
+- AC-053: Operator reset of a DEAD URL via the runtime API returns the record to ST-100 with attempts=0 and last error class cleared, emits the ST-180→ST-100 transition metric [DOC-15 §1], and writes an audit log entry [DOC-13 §4].

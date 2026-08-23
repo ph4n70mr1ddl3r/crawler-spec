@@ -1,10 +1,114 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Changelog
+
+## 1.5.0 — 2026-08-23 (review pass v5: correctness, completeness, consistency)
+
+### Correctness fixes
+
+- FR-005 / FR-011: the per-Registrable-Domain cap [CFG-006] was enforced only
+  at enqueue time — a TOCTOU race. Discoveries routinely enqueue before any
+  fetch completes, so a domain could fetch far beyond [CFG-006] while the
+  success counter was still zero (AC-006's "exactly two page successes" could
+  be violated by concurrent dispatch). Caps are now enforced at two points:
+  enqueue time (early exclusion) and dispatch time as a new authoritative
+  gate [FR-011(e)], with `successes(D)` ({ST-130, ST-140}) and `inflight(D)`
+  ({ST-110, ST-120}) defined precisely. Redirect final-target upserts [R-062]
+  are exempt from [CFG-005] and count toward the target domain from
+  completion (bounded overshoot documented).
+- FR-010 vs DOC-12 §1 vs §3 vs DOC-03 C2: the Frontier ordering key
+  `(due_at_mono ASC, priority DESC, …)` contradicted the dispatch rule
+  "pick the highest-priority candidate" whenever two candidates with
+  different due times and priorities were simultaneously due. Unified:
+  `due_at_mono` determines candidacy only; selection among due candidates is
+  `(priority DESC, url_identity ASC)`. Also fixes the `due_at_monotonic` vs
+  `due_at_mono` column-name drift in DOC-03 C2.
+- DOC-13 §3: `max(delay, Retry-After)` followed by `min(delay, CFG-035)`
+  clamped `Retry-After` values larger than [CFG-035], contradicting
+  "honor Retry-After" (the host-level rule [R-111] applies it unclamped).
+  The clamp now applies to the computed backoff only; Retry-After is applied
+  last, as a never-clamped floor.
+- DOC-07 §2: the ST-110→ST-190 edge label included "UNKNOWN-timeout", yet
+  R-103 states in-flight records are never affected by the deferral
+  threshold — and a send-time robots refresh to UNKNOWN (Host deferred) had
+  no legal handling at all: sending would violate "no page fetches while
+  deferred" [DOC-08 §2.3], permanent exclusion was premature, and no
+  ST-110→ST-100 transition existed. New R-054: DISALLOW ⇒ ST-110→ST-190;
+  UNKNOWN ⇒ the dispatch is compensated (state → ST-100, attempts rolled
+  back because no request was sent, slot released) and the record is
+  reconsidered after deferral expiry [R-103]. R-051's release-target list and
+  R-053 updated; the politeness advance is never rolled back.
+- DOC-13 §4 / DOC-16 §5 vs DOC-07 §2: the operator reset of a DEAD URL to
+  ST-100 was required but absent from the state machine, which declares every
+  other transition a defect. The ST-180→ST-100 transition is now explicit
+  (audited; attempts := 0; last error class cleared).
+- FR-003: "create or refresh a URL Record and set state ST-100" forced
+  already-terminal records back to ST-100 on rediscovery, contradicting
+  FR-051/INV-5. Creation is now scoped to new identities.
+- DOC-11 §6: DEAD/EXCLUDED deletion keyed on `updated_at` while FR-051/INV-5
+  update `last_seen_at` on rediscovery — the two columns could diverge and
+  the intended semantics were ambiguous. Deletion now keys on `last_seen_at`
+  when set, else `updated_at`, and the deleted-then-recreated re-evaluation
+  loop is documented as bounded and distinct from forbidden automated
+  re-activation [DOC-13 §4].
+
+### Completeness additions
+
+- New CFG-043 `url_record_retention_days` (default 180): parameterizes the
+  previously hardcoded 180-day DEAD/EXCLUDED retention [DOC-11 §6], per
+  DOC-14's every-tunable-has-a-CFG-id rule.
+- Redirect hops whose target Host is robots-deferred (verdict UNKNOWN) had no
+  outcome: R-131 now aborts the chain as RETRYABLE/ERR-010 (source → ST-150,
+  next attempt re-runs the chain), so no concurrency slot is held for a
+  [CFG-040] deferral; ERR-010's note updated accordingly. New AC-017.
+- Redirect responses for the robots.txt request itself were undefined
+  ("same machinery as pages" would recurse robots-for-robots): followed per
+  [DOC-09 §3] hop rules with SSRF/politeness/caps; scope and robots gates do
+  not apply recursively; verdict from the final response [DOC-08 §2.2].
+- R-144: the 304-after-retention refetch is defined mechanically — modeled
+  like a redirect hop (politeness/caps respected), completing the same fetch
+  attempt (no extra `attempts` increment).
+- FR-051: rediscovery of records in non-success states now specified —
+  `last_seen_at` only, state unchanged; DEAD/EXCLUDED re-activation stays
+  operator-only [DOC-13 §4].
+- DOC-06 §5 filter 3: "shape count" made precise — shape = normalized path
+  with each maximal digit run replaced by one `N` (query excluded); count =
+  URL Records on the Host sharing the shape (any state, per [R-042]).
+- DOC-12 §2: multiple matching manual-boost prefixes — the largest single
+  boost applies, never summed.
+- `hosts.pages_crawled` defined (lifetime successful page fetches,
+  SUCCESS|UNCHANGED; priority input) — referenced by the priority formula but
+  never defined before.
+- New AC-016 (send-time robots re-check), AC-018 (priority-first selection),
+  AC-053 (operator DEAD reset — previously untested operator-API behavior);
+  AC-006 extended to the dispatch-time cap gate; AC-024 extended to the
+  unclamped-Retry-After case.
+
+### Consistency fixes
+
+- DOC-10 §3: `outlinks` includes all extracted anchor candidates — including
+  `nofollow` ones, flagged — regardless of ingestion [R-155]; the `nofollow`
+  flag in the tuple is now meaningful, and page-level `nofollow` pages
+  [FR-045] store a fully flagged list while ingesting none.
+- R-102 reworded: Crawl-delay honored exactly as received (the "> 60 s"
+  phrasing implied smaller values might not be).
+- R-402: "the host is flagged suspicious" → the referring URL's Host (the
+  host that served the malicious redirect).
+- Glossary "Page": the identity formula `(final URL identity, SHA-256)` —
+  clashing with the actual `pages` primary key `(url_identity, run_id)` —
+  replaced by a definition aligned to the storage model.
+- DOC-07 §2 edge labels aligned with the rules that trigger them:
+  creation→ST-190 gains enqueue-time `CAP_REACHED` [FR-005]; ST-100→ST-190
+  gains the dispatch-time cap gate [FR-011(e)]; ST-140→ST-100 gains
+  rediscovery refresh [FR-051].
+
+### Versioning
+
+- KB version 1.4.0 → 1.5.0; all touched documents bumped accordingly.
 
 ## 1.4.0 — 2026-08-23 (review pass v4: correctness, completeness, consistency)
 

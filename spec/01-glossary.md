@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Glossary
@@ -22,7 +22,7 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | **Frontier** | The ordered collection of discovered URLs pending fetch. |
 | **Host** | A `(scheme, hostname, port)` triple. |
 | **Registrable Domain** | The effective top-level domain plus one label (eTLD+1), computed with the Public Suffix List. |
-| **Page** | A fetched, successfully transferred response body identified by `(final URL identity, SHA-256 of body bytes)`. |
+| **Page** | One successfully transferred response body of a URL, persisted per Run in the `pages` table; payloads are content-deduplicated by SHA-256 [DOC-11]. |
 | **Fetch** | One attempt to retrieve the representation of a URL over HTTP(S). |
 | **Crawl Session** | A period during which the crawler runs continuously; may span process restarts. |
 

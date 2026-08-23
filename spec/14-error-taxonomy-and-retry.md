@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.4.0
+version: 1.5.0
 ---
 
 # Errors and Retry
@@ -19,7 +19,7 @@ version: 1.4.0
 | ERR-007 | PAYLOAD_TOO_LARGE | no | [FR-023] |
 | ERR-008 | UNSUPPORTED_TYPE | no | content type outside the effective allowed list ([R-143] list intersected with [CFG-028]); not stored or parsed; ST-180 [FR-041] |
 | ERR-009 | PARSE_FAILED | no | page stored with parse_ok=false |
-| ERR-010 | ROBOTS_DEFERRED | n/a | host-level, not URL-level [DOC-08 §2.3] |
+| ERR-010 | ROBOTS_DEFERRED | n/a | host-level for page dispatches: no URL state change, the Host defers [DOC-08 §2.3]. URL-level only as the redirect-hop abort class [R-131] |
 | ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | also covers 3xx responses with a missing or unparsable `Location` [DOC-09 §4] |
 | ERR-012 | TIMEOUT_HEADERS / TIMEOUT_TOTAL | yes | |
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |
@@ -45,8 +45,9 @@ on RETRYABLE outcome:
     delay = CFG-022 × CFG-023^(attempts−1)
     delay = delay × (1 + U(−1, +1)×CFG-024)     // full jitter band, seeded by
                                                  // hash(url_identity, attempt) [NFR-006]
-    delay = max(delay, Retry-After if present)
-    delay = min(delay, CFG-035)
+    delay = min(delay, CFG-035)                 // clamp applies to the computed backoff only
+    delay = max(delay, Retry-After if present)  // Retry-After is a floor and is never
+                                                 // clamped — harmonized with host-level [R-111]
     state → ST-150, next_attempt_mono = now + delay
 on PERMANENT outcome:               → ST-180 immediately
 ```
