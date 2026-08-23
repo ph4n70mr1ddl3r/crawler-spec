@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Configuration
@@ -16,7 +16,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-001 | seeds | URL list | — required, ≥1 | normalized+filtered at load |
 | CFG-002 | scope_mode | enum | `SEED_DOMAINS` | `SEED_DOMAINS \| SEED_HOSTS \| PREFIX_LIST` |
 | CFG-003 | allowed_schemes | list | `[https, http]` | subset of {http, https} |
-| CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries are absolute http(s) URLs — only scheme, host, and path participate in matching (query/fragment ignored) [DOC-06 §4] |
+| CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries are absolute http(s) URLs used verbatim (not normalized) — only scheme, host, and path participate in matching (query/fragment ignored); scheme/host compare case-insensitively, path verbatim; an empty entry path matches every path on its host, an entry path of `/` matches only the root [DOC-06 §4] |
 | CFG-004 | max_depth | int | 5 | 0–50 |
 | CFG-005 | max_urls_total | int | 100000 | >0 |
 | CFG-006 | max_pages_per_registrable_domain | int | 10000 | >0; per Registrable Domain [FR-005] |
@@ -54,7 +54,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-022 | retry_backoff_base_ms | int | 2000 | 100–60000 |
 | CFG-023 | retry_backoff_factor | float | 2.0 | 1.0–10.0 |
 | CFG-024 | retry_backoff_jitter | float | 0.25 | 0–0.5 (fraction) |
-| CFG-035 | max_backoff_delay_ms | int | 3600000 (1 h) | 1000–86400000; cap for per-URL retry delay [DOC-13 §3] and per-host dynamic backoff [DOC-08 §4] |
+| CFG-035 | max_backoff_delay_ms | int | 3600000 (1 h) | 1000–86400000; cap for per-URL retry delay [DOC-13 §3] and per-host dynamic backoff [DOC-08 §4], and the redirect-hop politeness-wait threshold ([ERR-018] [R-131]) |
 
 ## Recrawl & refresh
 
@@ -98,3 +98,4 @@ Every parameter is referenced elsewhere only by its CFG id.
 - V-2: `total_transfer_timeout_ms ≥ response_header_timeout_ms` required.
 - V-3: Config hash (SHA-256 of canonical serialization) recorded in every `runs` row.
 - V-4: If scope_mode=PREFIX_LIST, every seed MUST match ≥1 entry of [CFG-039]; violation aborts startup [DEC-011] (a seed that is out of scope would otherwise silently crawl nothing).
+- V-5: [CFG-018] MUST match the UA Token pattern `name/version (+url)` [R-120], and [CFG-019], when set, MUST be a valid email address; violation ⇒ abort per [V-1].

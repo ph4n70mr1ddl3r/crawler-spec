@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Scheduling and Recrawl
@@ -53,7 +53,7 @@ boost applies (matches are never summed); the boost term remains within 0–300.
 loop:
   wait until ∃ candidate c ∈ frontier where due(c) and gates pass for c.host
       gates = [FR-011] a–d          // (e) is not a wait condition — see below
-  pick c = highest-priority candidate (ties: lexicographically smallest identity)
+  pick c = highest-priority gate-passing candidate (ties: lexicographically smallest identity)
   if gate [FR-011](e) fails for c:              // registrable-domain cap [FR-005]
       move c → ST-190/CAP_REACHED               // exclusion, not deferral
       continue                                  // re-select without waiting;
@@ -68,10 +68,16 @@ loop:
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
   (next `due_at_mono` over ST-100, next `next_attempt_mono` over ST-150,
   next recrawl `due_at_mono` over ST-140 [FR-050], next politeness expiry,
-  next robots-deferral expiry), and is woken
-  immediately by any event that creates or re-due-s a candidate —
-  discovery/ingestion [C1], operator actions (seed injection [FR-006], DEAD
-  reset [DOC-13 §4]) — so an empty frontier never causes an unbounded sleep.
+  next robots-deferral expiry, next robots-unknown threshold expiry
+  (`robots_deferred_since_mono + [CFG-040]` [R-103])), and is woken
+  immediately by any event that creates or re-due-s a candidate or changes
+  a sleep-list key or a gate verdict — discovery/ingestion [C1], operator
+  actions (seed injection [FR-006], DEAD reset [DOC-13 §4]), extraction
+  completion (ST-130→ST-140 installs a recrawl due time that may precede
+  the current sleep target), and robots revalidation completion ([R-104] —
+  a verdict change can gate or un-gate candidates) — so an empty frontier
+  never causes an unbounded sleep and no scheduler-relevant time is slept
+  past.
 
 ## 4. Freshness & recrawl
 

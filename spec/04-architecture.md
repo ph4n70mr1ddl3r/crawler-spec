@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.6.0
+version: 1.8.0
 ---
 
 # Architecture
@@ -124,4 +124,6 @@ died is finalized by the next startup. A Crawl Session [DOC-00] spans all
 Runs of one crawl lineage — restarts open new Runs within the same session.
 Crash recovery on startup: rebuild HOST REGISTRY and in-memory indexes from
 Metadata Store; any URL Record left in {ST-110 (SCHEDULED), ST-120 (FETCHING)}
-is reset to ST-100 (QUEUED), keeping its attempt count [DOC-07 §4].
+is reclassified per the crash rule [DOC-13 §5] — ST-150 (RETRY_WAIT) with
+backoff, or ST-180 (DEAD) when the retry budget was exhausted [R-060] —
+keeping its attempt count [DOC-07 §4].

@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Errors and Retry
@@ -55,6 +55,7 @@ on RETRYABLE outcome:
                                                  // host-level rule [R-111]
     state → ST-150, next_attempt_mono = now + delay
 on PERMANENT outcome:               → ST-180 immediately
+                                     (`urls.last_error_class` recorded)
 ```
 
 - R-230: Backoff is per-URL; host-level dynamic backoff ([DOC-08 §4]) applies
@@ -75,4 +76,7 @@ DEAD URLs is forbidden.
 ## 5. Crash classification
 
 Any crash mid-fetch is equivalent to a RETRYABLE outcome for that URL
-(attempt already counted at dispatch [T-1]); recovery path [R-060].
+(attempt already counted at dispatch [T-1]); the reclassification is
+applied at startup by [R-060]: attempts ≥ [CFG-020] ⇒ ST-180 (with
+`last_error_class` = NULL — the crash wrote no fetch_event, and no class is
+fabricated), else ST-150 with backoff per §3 computed as of restart time.

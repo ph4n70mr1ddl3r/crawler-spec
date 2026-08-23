@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Security and Abuse Prevention
@@ -54,7 +54,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 | URLs per page | 1000 extracted + overflow flag | [DOC-10 §3 outlinks cap] |
 | path shapes per host | [CFG-030] | trap guard [DOC-06 §5] |
 | total records | [CFG-005] | [FR-005] |
-| metadata row size | artifacts JSON ≤ 2 MiB | truncate deterministic fields, flag `truncated` |
+| metadata row size | artifacts JSON ≤ 2 MiB | tail-truncate per the fixed order in [DOC-10 §3] (headings → main_text → outlinks), flag `truncated` |
 
 - R-310: Decompression bomb defense: decoded size counts toward [CFG-016];
   decoding streams MUST abort as soon as the running byte count exceeds it.

@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Politeness and robots.txt
@@ -26,7 +26,11 @@ Per Host `(scheme, host, port)`:
    followed per [DOC-09 §3] hop rules — SSRF [R-400], politeness, and caps
    apply — but scope [R-030] and robots gates are not applied recursively
    (there is no robots-for-robots); the verdict is taken from the final
-   response. robots.txt exchanges are not page fetches: they create no
+   response. A robots fetch that terminates without a final response —
+   redirect cap exhausted [R-130], hop SSRF block [R-400], or [ERR-018]
+   hop-wait abort — is a network-class failure: the Host moves to
+   UNKNOWN/deferral per item 3 (fail closed [DEC-007]). robots.txt exchanges
+   are not page fetches: they create no
    fetch_events rows (visibility is via robots_queries_total [DOC-15 §1])
    and never modify consecutive_failures or pages_crawled [R-112].
 3. Interpret the HTTP status of the robots request per RFC 9309:
@@ -65,6 +69,8 @@ Per Host `(scheme, host, port)`:
   robots failure [G-4]); until that threshold is reached, gated URLs stay in
   their current state and are reconsidered after each deferral expiry. In-flight
   records (ST-110/ST-120) are never affected; ST-130 records complete normally.
+  The threshold expiry (`robots_deferred_since_mono + [CFG-040]`) is a
+  scheduler wake source [R-211], and the scheduling loop performs the sweep.
 - R-104: Revalidation (stale-while-revalidate): when the cached entry has
   expired ([CFG-008] TTL) but exists, the refetch is scheduled per items 1–3
   above; while it is in flight, the previous entry's rules remain authoritative
@@ -108,7 +114,7 @@ and inflight < CFG-009, then set
 
 - R-110: Start-to-start spacing between two requests to one Host ≥ EffectiveDelay — guaranteed by construction above. The request for a dispatched URL MUST be sent immediately after [T-1] commits; the only permitted pre-send step is the [R-054] re-check (which, when it fires, sends nothing), so dispatch-to-send latency cannot erode the guarantee.
 - R-111: HTTP `Retry-After` on 429/503 responses overrides computed backoff when larger: `next_allowed_fetch_at = max(computed, now + Retry-After)`. `Retry-After` is parsed as delta-seconds or HTTP-date (RFC 9110); unparseable values are ignored (computed backoff applies).
-- R-112: `consecutive_failures(h)` is incremented exactly by retryable page-fetch failures completed against Host h — outcome RETRYABLE with error_class ∈ {ERR-001 (transient resolution failure; permanent NXDOMAIN excluded), ERR-002, ERR-003, ERR-005, ERR-006, ERR-012, ERR-013}. ERR-010 (deferral) and every PERMANENT outcome leave it unchanged; any SUCCESS/UNCHANGED page fetch resets it to 0 [R-231]. robots.txt exchanges never modify it (their failure semantics are the deferral streak, §2.3).
+- R-112: `consecutive_failures(h)` is incremented exactly by retryable page-fetch failures completed against Host h — outcome RETRYABLE with error_class ∈ {ERR-001 (transient resolution failure; permanent NXDOMAIN excluded), ERR-002, ERR-003, ERR-005, ERR-006, ERR-012, ERR-013}. ERR-010 (deferral) and every PERMANENT outcome leave it unchanged; any SUCCESS/UNCHANGED page fetch resets it to 0 [R-231]. robots.txt exchanges never modify it (their failure semantics are the deferral streak, §2.3). For redirect chains crossing Hosts, all host-counter effects (`consecutive_failures`, `pages_crawled`) attribute to the Host of the final hop — the exchange that produced the outcome; the source Host's counters are unaffected ([T-2]).
 
 ## 5. Honesty
 

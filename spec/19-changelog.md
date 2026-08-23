@@ -1,10 +1,128 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Changelog
+
+## 1.8.0 — 2026-08-23 (review pass v8: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- Crash recovery could exceed the Retry Budget and skipped retry backoff
+  ([R-060] vs [DOC-13 §5]): resetting in-flight {ST-110, ST-120} records
+  directly to ST-100 — a state that is immediately due — (a) re-dispatches a
+  record whose final allowed attempt was in flight at crash time, so
+  `attempts` would exceed [CFG-020] (violating the glossary Retry Budget
+  invariant and FR-052), and (b) retries immediately with no per-URL backoff,
+  contradicting §5's "equivalent to a RETRYABLE outcome". R-060 now
+  reclassifies at startup per [DOC-13 §5]: budget exhausted ⇒ ST-180, else
+  ST-150 with backoff per §3 (jitter seeded by hash(url_identity, attempt),
+  as for any retry). The ST-110→ST-150 edge was added to the state machine
+  (crash while ST-110 had no retryable exit; ST-120 used the existing edge);
+  DOC-03's deployment text and AC-030 aligned. Crash-exhausted DEAD records
+  carry `last_error_class` = NULL — the crash wrote no fetch_event and no
+  class is fabricated (§5).
+- Missing legal transition ST-100→ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103]:
+  the sweep covers gated records in ST-100 or ST-150, but the state machine
+  listed only the ST-150 edge and declares every unlisted transition a
+  defect — a compliant R-103 sweep of queued records would itself be a
+  "defect", and AC-027 exercises exactly that path. The ST-100→ST-190 edge
+  label now includes the robots-unknown threshold; AC-027 extended to cover
+  both gated states and to require the sweep to fire at the threshold expiry.
+- NFR-004 generation bound ignored recrawl jitter: ceil([CFG-027] × 86400 /
+  [CFG-025]) divides by the base interval, but jitter ([CFG-026], up to 0.9)
+  only ever shrinks intervals — a URL jittered to the minimum retains
+  1/(1−jitter)× more generations, so the "at most" disk bound was understated
+  up to 10× at range extremes (same dimensional-analysis class as the v1.7.0
+  fix). Divisor corrected to the minimum jittered interval
+  [CFG-025] × (1 − [CFG-026]).
+- T-2 released only one host slot for cross-host redirect chains: [R-131]
+  (since v1.6.0/v1.7.0) holds one concurrency slot per in-flight hop on the
+  target Host plus the source Host's [T-1] slot, but the completion
+  transaction decremented "hosts.inflight−1" once — leaking a target-Host
+  slot per cross-host completion until restart (same leak class as the v1.3.0
+  R-051 fix). T-2 now decrements once per held slot and assigns host-counter
+  attribution (final hop's Host), with the matching rule added to [R-112];
+  AC-026 extended to verify both releases.
+- `hosts.crawl_delay_s` was INT, truncating fractional `Crawl-delay` values
+  (e.g. 0.5) and violating [R-102]'s "honored exactly as received" — with
+  [CFG-007]=0 a truncated 0.5 s delay under-waits. Column is now REAL
+  (seconds, exactly as received).
+
+### Completeness additions
+
+- `urls.last_error_class` column added [DOC-11 §1]: [DOC-13 §4] requires DEAD
+  records to "retain last error class" and the operator reset to clear it
+  (verified by AC-053), but no column existed and `fetch_events` (the only
+  error-class bearer) are retention-bounded [CFG-033] — the value was
+  unrecoverable after retention. The PERMANENT path of [DOC-13 §3] now names
+  the column it writes.
+- FR-006 recorded runtime seeds violating [FR-002] as ST-190 "with the
+  applicable reason", but no reason code exists for invalid URLs and an
+  unparseable URL has no URL Identity to store — [R-001]/[R-002] mandate
+  discard-with-no-record. [FR-002] violations are now rejected with an error
+  response and never recorded; [V-4] violations keep the
+  ST-190/`OUT_OF_SCOPE` treatment (iff [CFG-038]=true). AC-058 aligned.
+- [R-211] wake/sleep gaps (same class as the v1.6.0/v1.7.0 fixes):
+  (a) the [R-103] threshold expiry (`robots_deferred_since_mono + [CFG-040])
+  was not a sleep target — the sweep could fire a full deferral-backoff
+  period late; (b) extraction completion (ST-130→ST-140) installs recrawl
+  due times that may precede the current sleep target — with no ST-100/ST-150
+  work pending, the loop could sleep past them; (c) robots revalidation
+  completion ([R-104]) can gate or un-gate candidates but was not a wake
+  source. All three added; R-103 now names the scheduling loop as the sweep
+  actor.
+- Robots fetches that terminate without a final response (redirect cap
+  exhausted [R-130], hop SSRF block [R-400], [ERR-018] hop-wait abort) had no
+  defined verdict: now a network-class failure ⇒ UNKNOWN/deferral, fail
+  closed [DEC-007] [DOC-08 §2.2].
+- R-144: a politeness wait > [CFG-035] during a 304 cache-miss refetch now
+  aborts RETRYABLE/ERR-018 exactly like a redirect hop — the "modeled like
+  [R-131]" phrase left the abort case implicit.
+- New V-5 [DOC-14]: [CFG-018] must match the UA Token pattern [R-120] and
+  [CFG-019] (when set) must be a valid email — both were described in the
+  parameter table but never validated at startup.
+- `<area href>` added as a discovery source [DOC-10 §2] — image-map links, a
+  standard HTML link vector the candidate table omitted.
+- Artifacts JSON truncation made deterministic [DOC-10 §3], [DOC-16 §3]:
+  `headings` capped at 1000 entries (it was the one unbounded list, and is
+  added to the `truncated` flag's cap list); when the serialized JSON still
+  exceeds the 2 MiB row cap, fields are tail-truncated in a fixed order
+  (headings → main_text → outlinks) — the old "truncate deterministic fields"
+  named no order, so two conformant implementations could diverge and break
+  [R-157]/AC-040.
+
+### Consistency fixes
+
+- PREFIX_LIST matching precision [DOC-06 §4], [CFG-039]: scheme/host compare
+  case-insensitively (candidates are normalized lowercase; entries are used
+  verbatim) and the path verbatim/case-sensitively; an entry with an empty
+  path matches every path on its host while an entry path of `/` matches only
+  the root — the surprising asymmetry is now stated instead of left to be
+  inferred.
+- DOC-12 §3 pseudocode: "pick c = highest-priority candidate" now says
+  "gate-passing candidate" — the wait condition admits candidates by gates,
+  and the pick must be from that same set (otherwise gates would be
+  re-evaluated implicitly and [R-210]'s one-iteration bound is ambiguous).
+- NFR-015: "within one scheduling round" → "one scheduling-loop iteration"
+  (terminology drift vs [R-210]).
+- DOC-06 §5 filter 2: "drop URLs …" → "exclude URLs …" — "drop" suggested
+  no-record discard, contradicting the → ST-190/`TRAP_PARAM` outcome and
+  [R-041] (same wording class as the v1.7.0 R-143 fix).
+- DOC-09 §1: "no request headers beyond those specified" now exempts
+  transport-mandated headers (`Host`/`:authority`, `Content-Length`,
+  connection management) — as written, even HTTP itself was forbidden.
+- `word_count` defined as the count of whitespace-separated tokens in
+  `main_text` — AC-040's exact-JSON comparison was untestable without a
+  tokenization rule.
+- CFG-035's notes now mention its third role: the [ERR-018] hop-wait
+  threshold [R-131].
+
+### Versioning
+
+- KB version 1.7.0 → 1.8.0; all touched documents bumped accordingly.
 
 ## 1.7.0 — 2026-08-23 (review pass v7: correctness, completeness, consistency, unambiguity)
 

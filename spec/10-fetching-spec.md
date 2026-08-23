@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Fetching
@@ -14,7 +14,7 @@ version: 1.7.0
 | HTTP versions | HTTP/1.1 mandatory; HTTP/2 optional via ALPN; no h2c upgrade; HTTP/2 server push, if negotiated, MUST be disabled (no unsolicited resources are fetched). |
 | TLS | TLS 1.2 minimum; certificate verification is mandatory and fail-closed [ERR-003]. |
 | Headers | `User-Agent` = [CFG-018] exact; `Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`; `Accept-Encoding: gzip, deflate, br`; `From` iff [CFG-019]; conditional validators on refetches [R-121]. |
-| Forbidden | Cookies, Authorization, custom fingerprint headers, referer spoofing; no request headers beyond those specified here. |
+| Forbidden | Cookies, Authorization, custom fingerprint headers, referer spoofing; no request headers beyond those specified here (transport-mandated headers — `Host`/`:authority`, `Content-Length`, connection management — are exempt). |
 | Body | None. |
 
 - R-160: The crawler MUST be stateless with respect to site state: it MUST NOT store cookies, MUST NOT transmit any cookie received from any site, and MUST ignore `Set-Cookie` headers entirely.
@@ -88,7 +88,9 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   miss: refetch with a full GET and store a fresh payload. The refetch is
   modeled like a redirect hop [R-131]: a new request respecting the Host's
   politeness window and caps, completing the same fetch attempt (no
-  additional `attempts` increment).
+  additional `attempts` increment). A politeness wait that would exceed
+  [CFG-035] aborts the attempt RETRYABLE/ERR-018 exactly like a redirect
+  hop [R-131].
 
 ## 6. FetchResult contract
 

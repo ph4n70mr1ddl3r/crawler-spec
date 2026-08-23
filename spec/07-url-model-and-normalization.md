@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.7.0
+version: 1.8.0
 ---
 
 # URL Model and Normalization
@@ -54,7 +54,7 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 |---|---|
 | IN_SCOPE | scope_mode=SEED_DOMAINS: URL's Registrable Domain ∈ seed Registrable Domains set |
 | IN_SCOPE | scope_mode=SEED_HOSTS: URL's Host ∈ seed Hosts set |
-| IN_SCOPE | scope_mode=PREFIX_LIST: URL's (scheme, host, path) matches ≥1 entry of [CFG-039]: identical scheme+host and a path equal to the entry's path or beginning with it followed by `/` (segment-boundary prefix; query string ignored) |
+| IN_SCOPE | scope_mode=PREFIX_LIST: URL's (scheme, host, path) matches ≥1 entry of [CFG-039]: identical scheme+host — both compared case-insensitively (candidate identities are lowercase after §2; entry scheme/host are lowercased before comparison) — and a path equal to the entry's path or beginning with it followed by `/` (segment-boundary prefix; the path itself compares verbatim, case-sensitively; query string ignored). Entry paths are used verbatim: an entry with an empty path matches every path on its host, while an entry whose path is `/` matches only the root path |
 | OUT_OF_SCOPE | otherwise |
 
 - R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome PERMANENT and error_class ERR-015; no fetch of the target occurs.
@@ -65,7 +65,7 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 Applied to IN_SCOPE URLs in order; first match wins:
 
 1. **URL blocklist**: URL matches any [CFG-037] glob pattern → ST-190/`BLOCKLIST`.
-2. **Param blocklist**: drop URLs whose query contains a parameter name matching [CFG-029] patterns → ST-190/`TRAP_PARAM`.
+2. **Param blocklist**: exclude URLs whose query contains a parameter name matching [CFG-029] patterns → ST-190/`TRAP_PARAM`.
 3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of existing URL Records on that Host sharing the shape — each identity counted once, any state [R-042]; the candidate itself is not yet a record, since filters run before insertion [R-040] — is ≥ [CFG-030] → ST-190/`TRAP_PATH_BUDGET` (at most [CFG-030] URLs may share one shape per Host).
 4. **Depth**: depth > [CFG-004] → ST-190/`DEPTH_LIMIT`. Seeds have depth 0.
 

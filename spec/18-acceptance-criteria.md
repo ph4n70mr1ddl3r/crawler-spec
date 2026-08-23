@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Acceptance Criteria
@@ -42,14 +42,14 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
 - AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3].
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
-- AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133].
-- AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103].
+- AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133]; both Hosts' concurrency slots are released exactly once at completion [T-2].
+- AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs (ST-100 and ST-150) transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103]; the sweep fires at the threshold expiry itself (a scheduler wake source [R-211]).
 - AC-028: A 3xx response with a missing or unparsable `Location` header yields outcome=PERMANENT with error_class=ERR-011; no follow occurs [DOC-09 §4].
 - AC-029: With [CFG-028]=false, fetching an allowed non-HTML type (e.g. `application/pdf`) stores no blob, records error_class=ERR-008, and the URL → ST-180; with [CFG-028]=true the payload is stored and no parse artifacts are produced [R-143].
 
 ## State machine & durability
 
-- AC-030: kill -9 during ST-120 leaves record resumable; after restart it re-enters ST-100 with attempts preserved and no politeness violation (next_allowed_fetch_at respected).
+- AC-030: kill -9 during ST-120 leaves the record resumable; after restart it is reclassified per the crash rule [DOC-13 §5], [R-060]: attempts preserved, state ST-150 with backoff-scheduled retry (ST-180 when the budget was exhausted by the crash), no politeness violation (persisted next_allowed_fetch_at respected), and `inflight` rebuilt to 0.
 - AC-031: kill -9 after blob write but before T-2 commit leaves an orphan blob that the retention sweep removes; no pages row references a missing blob ever (invariant scan passes).
 - AC-032: Full restart with unchanged config produces zero duplicate ingestions [NFR-012].
 - AC-033: Replay of a recorded fixture produces identical fetch decision sequences across three runs [NFR-006].
@@ -71,4 +71,4 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-055: A redirect hop whose target Host's Crawl-delay implies a politeness wait > [CFG-035] aborts the chain with outcome=RETRYABLE and error_class=ERR-018; the source → ST-150; no worker slot or host concurrency slot is held during the wait; `next_attempt_mono` is floored at the target Host's window opening; if the window never opens within the retry budget, the URL reaches ST-180 [R-131], [DOC-13 §3].
 - AC-056: Hop-target acceptance [R-130], [R-131], one fixture per case: (a) a relative `Location` value resolves against the hop URL to the correct absolute target (chain follows it); (b) a `Location` with a non-http(s) scheme yields outcome=PERMANENT, error_class=ERR-011, no follow; (c) a hop target matching a [CFG-037] pattern yields outcome=PERMANENT, error_class=ERR-019, source → ST-180, target never fetched, hop recorded in `redirect_chain`.
 - AC-057: With scope_mode=SEED_DOMAINS and an IP-literal seed (e.g. `http://93.184.216.34/`), other URLs on the same IP literal are IN_SCOPE and every named host is OUT_OF_SCOPE [DOC-00]; `[2001:0DB8::1]` and `[2001:db8::1]` normalize to one URL Identity [R-003].
-- AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190 (`OUT_OF_SCOPE` where applicable and [CFG-038]=true); a valid injection behaves identically to a config seed [FR-006].
+- AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190/`OUT_OF_SCOPE` only for the [V-4] case with [CFG-038]=true ([FR-002] violations record nothing — no identity, no reason code [FR-006]); a valid injection behaves identically to a config seed [FR-006].

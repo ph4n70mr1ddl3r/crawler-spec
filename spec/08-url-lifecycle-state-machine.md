@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.7.0
+version: 1.8.0
 ---
 
 # URL Lifecycle State Machine
@@ -29,14 +29,20 @@ Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIME
 (creation)          ─► ST-190   scope/trap/blocklist filter failed [FR-004],
                                 [DOC-06 §5], or enqueue-time cap reached [FR-005]
 ST-100 ─► ST-110                scheduler dispatch [FR-012], atomic
-ST-100 ─► ST-190                robots DISALLOW at gate time [FR-031], or
-                                dispatch-time domain cap [FR-011(e)] (`CAP_REACHED`)
+ST-100 ─► ST-190                robots DISALLOW at gate time [FR-031],
+                                dispatch-time domain cap [FR-011(e)]
+                                (`CAP_REACHED`), or robots-unknown
+                                threshold [R-103] (`ROBOTS_UNKNOWN_TIMEOUT`)
 ST-110 ─► ST-120                robots ALLOW confirmed, request sent
 ST-110 ─► ST-190                robots DISALLOW at send-time re-check [R-054]
 ST-110 ─► ST-100                send-time robots UNKNOWN (deferral) compensation [R-054]
 ST-120 ─► ST-130                success — 2xx with payload stored [FR-043],
                                 or 304 UNCHANGED reusing the existing payload
                                 [R-121], [R-144]
+ST-110 ─► ST-150                crash recovery reclassification [R-060],
+                                [DOC-13 §5] (applies from ST-120
+                                identically; request-sent status unknown,
+                                conservatively retryable)
 ST-120 ─► ST-150                retryable failure [DOC-13 §3]
 ST-120 ─► ST-180                permanent failure or retry budget exhausted
 ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
@@ -93,12 +99,22 @@ exactly once [R-051].
 
 ## 4. Recovery and redirect completion
 
-- R-060: On startup, every record in {ST-110, ST-120} MUST be reset to ST-100,
-  keeping its attempt count. Because dispatch advanced `next_allowed_fetch_at`
-  transactionally [FR-012], politeness cannot be violated by this reset.
+- R-060: On startup, every record in {ST-110, ST-120} is reclassified per
+  the crash rule [DOC-13 §5]: the attempt was already counted at dispatch
+  [T-1] and whether the request was sent is unknowable, so the outcome is
+  conservatively RETRYABLE — attempts ≥ [CFG-020] ⇒ ST-180 (DEAD,
+  `last_error_class` := NULL: the crash wrote no fetch_event and no ERR-nnn
+  class is fabricated); otherwise ST-150 with `next_attempt_mono` =
+  restart time + backoff computed per [DOC-13 §3] (jitter seeded by
+  hash(url_identity, attempt), as for any retry). Resetting directly to
+  ST-100 would (a) exceed the Retry Budget — a record whose final allowed
+  attempt was in flight at crash time would be re-dispatched — and (b)
+  retry immediately with no per-URL backoff, contradicting [DOC-13 §5].
+  Because dispatch advanced `next_allowed_fetch_at` transactionally
+  [FR-012], politeness cannot be violated by this reclassification.
   Host rows are rebuilt conservatively in the same recovery pass: `inflight` is
-  recomputed as the count of records still in {ST-110, ST-120} after the reset
-  (i.e., 0 for a clean recovery), restoring INV-3 [NFR-011].
+  recomputed as the count of records still in {ST-110, ST-120} after the
+  reclassification (i.e., 0 for a clean recovery), restoring INV-3 [NFR-011].
 - R-061: ST-130 records at startup resume extraction (idempotent: re-running
   extraction overwrites artifacts deterministically).
 - R-062: On completion of a redirect chain, the system MUST upsert a URL Record

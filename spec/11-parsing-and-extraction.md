@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.6.0
+version: 1.8.0
 ---
 
 # Parsing and Extraction
@@ -21,6 +21,7 @@ Candidate sources, in order of processing:
 | Source | Attribute | Notes |
 |---|---|---|
 | anchors | `href` of `<a>` | primary discovery |
+| area | `href` of `<area>` | image-map links; discovered like anchors |
 | images | `src`, `srcset` entries | discovered like anchors (same filters; typically stored-not-parsed under [R-143]) |
 | iframes | `src` | treated as pages |
 | link elements | `href` where rel ∈ {canonical, alternate} | canonical → metadata; alternate → discovery |
@@ -49,15 +50,22 @@ blob [FR-043] but hold distinct artifacts when their resolved outlinks differ:
 | meta_refresh | first `http-equiv=refresh` target URL (normalized) and delay, if present |
 | lang | `lang` attribute of `<html>`, lowercased |
 | meta_robots | union value(s) of `meta[name=robots]` |
-| headings | ordered list of `{level, text}` for h1–h3 |
+| headings | ordered list of `{level, text}` for h1–h3 (capped at 1000 entries; overflow sets `truncated`) |
 | main_text | text content of `<body>` after removing script/style/nav/footer/aside/template/noscript, whitespace-normalized, capped at 1 MiB characters |
-| word_count | token count of main_text |
+| word_count | count of whitespace-separated tokens in `main_text` |
 | outlinks | list of `{url_identity, anchor_text, nofollow}` (capped 1000/page; overflow flagged) |
-| truncated | `true` iff any per-page cap (outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
+| truncated | `true` iff any per-page cap (headings, outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
 
 `outlinks` records all extracted anchor candidates — including `nofollow`
 ones, flagged — regardless of ingestion [R-155]; a page-level `nofollow` page
 [FR-045] stores its full flagged outlink list while ingesting none.
+
+Serialization cap: when the serialized artifacts JSON would exceed the
+2 MiB row cap [DOC-16 §3], fields are tail-truncated in a fixed order —
+`headings` first, then `main_text`, then `outlinks` (each dropping from its
+end) — until the document fits, and `truncated=true`. The order and the
+tail-truncation are normative so that [R-157]'s byte-identical guarantee
+extends to capped pages.
 
 - R-157: Extraction is deterministic: same input bytes and same resolution base (final URL) ⇒ byte-identical artifact JSON (stable key ordering).
 - R-158: Pages > [CFG-016] never reach parsing [FR-023].

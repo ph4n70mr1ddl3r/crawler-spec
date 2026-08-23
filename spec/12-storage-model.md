@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.7.0
+version: 1.8.0
 ---
 
 # Storage Model
@@ -25,6 +25,7 @@ urls (
   source_run_id     INT  NOT NULL,
   discovered_from   TEXT NULL,            -- parent url_identity
   attempts          INT  NOT NULL DEFAULT 0,
+  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4]; NULL after operator reset and for crash-exhausted records [R-060]
   consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
   due_at_mono       INT NULL,             -- scheduler key component
@@ -67,7 +68,7 @@ page_artifacts (
 hosts (
   host_key          TEXT PRIMARY KEY,      -- (scheme, hostname, port) [glossary]; same key as urls.host_key
   robots_state      TEXT NOT NULL,        -- INITIAL|OK|ALLOW_ALL|DEFERRED
-  crawl_delay_s     INT NULL,
+  crawl_delay_s     REAL NULL,           -- group Crawl-delay, seconds, exactly as received [R-102] (fractional values preserved)
   robots_rules      TEXT NULL,            -- parsed robots.txt rules JSON [DOC-08 §2.4]
   robots_fetched_at TEXT NULL,
   robots_deferred_until_mono INT NULL,
@@ -120,7 +121,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, pages insert, fetch_event insert, hosts.inflight−1, hosts counters} — single commit. The `pages` insert applies to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert.
+- T-2: Completion transaction = {urls.state update, pages insert, fetch_event insert, hosts.inflight−1 for every slot the attempt still holds, hosts counters} — single commit. Held slots at completion: the source Host's [T-1] slot plus, for cross-host redirect chains, the final hop's target-Host slot [R-131] (intermediate hop slots are acquired and released per hop); decrementing only once would leak a target-Host slot per cross-host completion. Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112]. The `pages` insert applies to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert.
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
