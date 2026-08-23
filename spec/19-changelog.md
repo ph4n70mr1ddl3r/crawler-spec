@@ -1,10 +1,89 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Changelog
+
+## 1.10.0 — 2026-08-23 (review pass v10: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- Redirect-hop concurrency accounting could deadlock (R-131/T-2/R-051):
+  the model had a task hold its source Host's [T-1] unit for the whole
+  chain AND acquire a target-Host unit per hop AND a second global unit
+  per hop. Two cross-host chains A→B and B→A under [CFG-009]=1 each hold
+  their source Host's unit while waiting for the other's — a wait cycle
+  with no timeout covering slot waits (fetch timers only run during HTTP
+  exchanges); a same-host redirect self-deadlocks at [CFG-009]=1, and small
+  [CFG-010] deadlocks on the phantom second global unit (a chain runs in
+  one worker and cannot consume two). Replaced with release-before-acquire
+  unit transfers [R-051]: one global unit per task spanning [T-1]..[T-2]
+  ([DOC-00] glossary now defines Global/Per-Host Concurrency in task/request
+  terms); at most one Host unit per task, released when its response is
+  received and re-acquired immediately before the next request, so a
+  waiting task holds no Host unit and waits cannot cycle. T-2 decrements
+  exactly the one unit still held (Host of the most recent request — which
+  is also [R-112]'s counter-attribution Host); hop window advance made
+  explicit (identical to [FR-012]); R-060's inflight rebuild restated as an
+  exact reset-to-0 (a crashed record's unit Host is unrecoverable under
+  transfers, and every unit-owning record is reclassified anyway). AC-011,
+  AC-026, AC-055 aligned, incl. a new A↔B deadlock fixture.
+- EffectiveDelay unit mismatch [DOC-08 §4]: `max(CFG-007 /*ms*/,
+  crawl_delay(h) /*seconds*/, backoff_ms(h))` compared a raw seconds value
+  against millisecond terms — a `Crawl-delay: 5` would be honored as 5 ms
+  (same dimensional class as the v1.7.0 NFR-004 fix). The formula now
+  converts: `1000 × crawl_delay_s(h)`, with all three terms annotated in
+  milliseconds; FR-032 and AC-014 aligned (AC-014 previously wrote
+  "CFG-007=5s" for a ms-valued parameter).
+
+### Completeness additions
+
+- New R-105: robots acquisition is single-flight per Host and lazily
+  initiated (first gate query against an INITIAL Host, or first query after
+  TTL expiry [R-104]); concurrent queries await the in-flight exchange;
+  acquisition completion is a scheduler wake source. Previously nothing
+  defined who initiates the robots fetch or deduplicated concurrent gate
+  queries, and R-211's wake list covered only revalidation completions.
+- Robots deferral-backoff streak persisted: `hosts.robots_defer_failures`
+  column added [DOC-11 §1] — the "×2 per consecutive failure" escalation
+  [DOC-08 §2.3] otherwise resets on restart (same phantom-state class as
+  the v1.9.0 once_retried_classes fix).
+- R-144 generalized to all 304s with no usable stored payload: retention-
+  deleted blobs (already covered) plus first-fetch/unconditional 304s
+  (previously undefined); an unconditional refetch that also returns 304 is
+  PERMANENT/ERR-014 — the guard bounds the refetch to one per attempt
+  (otherwise a broken server could loop it). New AC-059 (the R-144 path
+  had no acceptance criterion at all).
+- FR-005(1): the enqueue-time [CFG-005] check and record insertion are one
+  transaction (ingestion serialized in C1) — concurrent discoveries could
+  otherwise overshoot the total (TOCTOU; [CFG-005], unlike [CFG-006], has
+  no dispatch-time gate to catch an overshoot).
+- New V-6: [CFG-003] must be a non-empty subset of {http, https} (an empty
+  set silently crawls nothing).
+- DOC-15 §1: `urls_discovered_total` gains outcome `dropped` for no-record
+  discards ([R-001]/[R-002], OUT_OF_SCOPE with [CFG-038]=false) — R-240's
+  closed-enum rule had no value for them.
+
+### Consistency fixes
+
+- R-211 attributed recrawl-due installation to extraction completion
+  (ST-130→ST-140), contradicting [DOC-12 §4]/[T-2] ("computed at fetch
+  completion"); [T-2] itself was not a wake source (with an empty
+  ST-100/ST-150 frontier the loop could sleep past a recrawl due time
+  installed by a completion), and first-time robots acquisitions were not
+  covered by "revalidation completion". Wake sources now: fetch completion
+  [T-2], extraction completion (can make a record due immediately), robots
+  acquisition/revalidation completion ([R-104], [R-105]).
+- AC-055 "no worker slot … held during the wait" contradicted the accepted
+  design (waits ≤ [CFG-035] legitimately hold the task's worker — that is
+  why ERR-018 exists as a threshold); the real invariants are: no Host unit
+  held during any wait, and no worker held for an over-threshold wait.
+
+### Versioning
+
+- KB version 1.9.0 → 1.10.0; all touched documents bumped accordingly.
 
 ## 1.9.0 — 2026-08-23 (review pass v9: correctness, completeness, consistency, unambiguity)
 

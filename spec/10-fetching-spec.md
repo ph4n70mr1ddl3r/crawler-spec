@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.8.0
+version: 1.10.0
 ---
 
 # Fetching
@@ -44,12 +44,36 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   matching the blocklist terminates the chain identically to [R-030] —
   outcome PERMANENT, error_class ERR-019, source URL → ST-180, target never
   fetched, hop recorded in `redirect_chain`; the blocklist MUST NOT be
-  bypassable by redirects). Each hop request MUST additionally respect the
-  target Host's politeness window and concurrency caps ([FR-011] b, c)
-  before being sent; while a hop request is in flight it holds one
-  concurrency slot on the target Host and one global slot — acquired
-  immediately before the hop request is sent and released when the hop
-  completes, so no slot is held during a politeness wait ([ERR-018]). A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source. If respecting the target Host's politeness window would delay the hop request by more than [CFG-035] (e.g. an adversarially large `Crawl-delay` [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018 instead of holding a fetch worker and the source Host's concurrency slot for the wait [G-4]: source URL → ST-150, with the target Host's window opening acting as an unclamped floor on `next_attempt_mono` [DOC-13 §3].
+  bypassable by redirects). A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source.
+
+  Hop dispatch protocol (release-before-acquire [R-051] — a waiting task
+  holds no Host unit, so politeness and capacity waits can never deadlock
+  [G-4]; without it, two cross-host chains A→B and B→A under [CFG-009]=1
+  would each hold their source Host's unit while waiting forever for the
+  other's):
+
+  1. When a redirect response is received, the per-Host unit held for the
+     responding Host is released (that request is finished). The task's
+     single global unit is unaffected — it spans [T-1]..[T-2] [DOC-00], so
+     hops never wait on global capacity and never hold a second global
+     unit.
+  2. Before the next hop request is sent, the target Host's politeness
+     window and per-Host concurrency cap [CFG-009] MUST be respected. Waits
+     hold no Host unit. If respecting the politeness window would delay the
+     send by more than [CFG-035] (e.g. an adversarially large `Crawl-delay`
+     [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018
+     instead of holding a fetch worker for the wait [G-4]: source URL →
+     ST-150, with the target Host's window opening acting as an unclamped
+     floor on `next_attempt_mono` [DOC-13 §3]. A capacity wait (all
+     [CFG-009] target-Host units in use) needs no such threshold: the
+     holders are in-flight requests that complete within their timeouts,
+     and the waiting task holds no Host unit, so the wait is bounded and
+     cannot cycle.
+  3. Immediately before the hop request is sent, one unit is acquired on
+     the target Host and the window is advanced identically to [FR-012]
+     (`next_allowed_fetch_at = max(next_allowed_fetch_at, now) +
+     EffectiveDelay`); while the request is in flight the task holds that
+     one unit and no other Host unit [R-051].
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
 - R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
 
@@ -58,7 +82,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | Status | Class | Action |
 |---|---|---|
 | 200–299 | success | store payload [FR-043] → ST-130 |
-| 304 | success-unchanged | refresh freshness metadata, keep old payload hash [R-121]; if the stored blob no longer exists (retention), treat as cache miss and refetch fully [R-144] |
+| 304 | success-unchanged | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144] |
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |
 | 404, 410 | permanent | ST-180, ERR-014 |
 | 418, 451 | permanent | ST-180, ERR-014 |
@@ -83,14 +107,20 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   [CFG-028]=false). Types outside the effective allowed list ⇒ ERR-008
   [DOC-13 §1]; the payload is discarded [FR-041]. A missing `Content-Type`
   header is treated as `application/octet-stream`.
-- R-144: A 304 response whose previously stored payload blob no longer exists
-  on disk (e.g., removed by retention [DOC-11 §6]) MUST be treated as a cache
-  miss: refetch with a full GET and store a fresh payload. The refetch is
-  modeled like a redirect hop [R-131]: a new request respecting the Host's
-  politeness window and caps, completing the same fetch attempt (no
-  additional `attempts` increment). A politeness wait that would exceed
-  [CFG-035] aborts the attempt RETRYABLE/ERR-018 exactly like a redirect
-  hop [R-131].
+- R-144: A 304 response with no usable stored payload MUST be treated as a
+  cache miss: refetch with a full unconditional GET and store a fresh
+  payload. Two sub-cases: (a) the previously stored payload blob no longer
+  exists on disk (e.g., removed by retention [DOC-11 §6]); (b) no payload
+  was ever stored for the URL — a 304 on a first fetch or to an
+  unconditional request (servers MUST NOT send it, but MUST NOT is not a
+  guarantee). The refetch is modeled like a redirect hop [R-131] (unit
+  transfer, politeness window, caps): a new request completing the same
+  fetch attempt (no additional `attempts` increment); a politeness wait that
+  would exceed [CFG-035] aborts the attempt RETRYABLE/ERR-018 exactly like
+  a redirect hop [R-131]. If the unconditional refetch also returns 304,
+  the outcome is PERMANENT with error_class ERR-014 — the server cannot
+  satisfy any request for this resource, so retrying cannot help (this
+  guard bounds the refetch to one per attempt).
 
 ## 6. FetchResult contract
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Politeness and robots.txt
@@ -17,11 +17,13 @@ Per Host `(scheme, host, port)`:
 
 1. Cache lookup: valid cached entry within TTL [CFG-008] ⇒ use it.
 2. Else fetch `scheme://host:port/robots.txt` with UA Token, using the same
-   fetch/timeout machinery as pages. The robots fetch is exempt only from
+   fetch/timeout machinery as pages. Acquisition is single-flight per Host
+   [R-105]: while an exchange is in flight, concurrent gate queries await
+   its verdict instead of initiating another. The robots fetch is exempt only from
    page-success caps [CFG-006] and from Content Store storage; every transport
    safety cap [DOC-16 §3] still applies (security precedence [R-000]). It obeys
    the host politeness window, advances `next_allowed_fetch_at` identically to
-   a page dispatch [FR-012], and holds one per-host/global concurrency slot
+   a page dispatch [FR-012], and holds one per-Host and one global unit
    while in flight. Redirect responses for the robots request itself are
    followed per [DOC-09 §3] hop rules — SSRF [R-400], politeness, and caps
    apply — but scope [R-030] and robots gates are not applied recursively
@@ -33,9 +35,9 @@ Per Host `(scheme, host, port)`:
    are not page fetches: they create no
    fetch_events rows (visibility is via robots_queries_total [DOC-15 §1])
    and never modify consecutive_failures or pages_crawled [R-112]. Their
-   politeness advance and slot acquisition/release mirror the host-side
+   politeness advance and unit acquisition/release mirror the host-side
    effects of [T-1]/[T-2] — the window advances before the robots request is
-   sent, and the slot is released when the exchange completes and its
+   sent, and the units are released when the exchange completes and its
    verdict/cache update commits — but no URL Record participates: robots
    exchanges commit neither [T-1] nor [T-2].
 3. Interpret the HTTP status of the robots request per RFC 9309:
@@ -47,7 +49,10 @@ Per Host `(scheme, host, port)`:
      size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
-     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure, cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
+     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
+     persisted as `hosts.robots_defer_failures` [DOC-11 §1] so escalation
+     survives restarts, and is cleared when an authoritative verdict is
+     obtained — cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
 4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at; persisted on the Host row (`robots_rules`) [DOC-11 §1].
 
 - R-100: Group selection (RFC 9309): a group matches the crawler when its
@@ -83,12 +88,22 @@ Per Host `(scheme, host, port)`:
   are excluded by the next evaluation, not only those already gated at the
   threshold expiry.
 - R-104: Revalidation (stale-while-revalidate): when the cached entry has
-  expired ([CFG-008] TTL) but exists, the refetch is scheduled per items 1–3
-  above; while it is in flight, the previous entry's rules remain authoritative
+  expired ([CFG-008] TTL) but exists, the refetch is triggered by the first
+  gate query needing a verdict and performed per items 1–3 above
+  (single-flight [R-105]); while it is in flight, the previous entry's rules remain authoritative
   for gate queries. A terminal 2xx/4xx response replaces the cached verdict
   atomically; a failure moves the Host to deferral per item 3 (the stale rules
   are retained for the next successful parse but do not gate during
   deferral).
+- R-105: Robots acquisition is single-flight per Host and lazily initiated:
+  at most one robots.txt exchange per Host is in flight at any time — any
+  gate query arriving while an acquisition is in flight awaits that
+  exchange's verdict (committed atomically per [R-104]) instead of starting
+  another. The exchange is initiated by the first event needing a verdict:
+  a gate query against a Host with `robots_state` = INITIAL [FR-030], or the
+  first gate query after cache TTL expiry ([R-104] revalidation). While no
+  authoritative verdict exists, the gate returns UNKNOWN [DEC-007]; an
+  acquisition's completion is a scheduler wake source [R-211].
 
 ## 3. Enforcement points
 
@@ -98,7 +113,7 @@ The robots verdict gates:
 (b) every redirect hop target [FR-021];
 (c) recrawl eligibility re-check at dispatch time (verdicts can change between runs).
 A verdict that changes after [T-1] but before the request is sent is handled
-by [R-054]: DISALLOW ⇒ ST-110→ST-190 with slot release; UNKNOWN (Host
+by [R-054]: DISALLOW ⇒ ST-110→ST-190 with unit release; UNKNOWN (Host
 deferred) ⇒ compensated back to ST-100 and reconsidered after deferral
 expiry.
 
@@ -107,10 +122,15 @@ expiry.
 For each Host h, HOST REGISTRY maintains monotonic `next_allowed_fetch_at(h)`.
 
 ```
-EffectiveDelay(h) = max( CFG-007,
-                         crawl_delay(h),
-                         backoff_ms(h) )      // backoff term applies only
-                                              // if [CFG-011]=true
+EffectiveDelay(h) = max( CFG-007,                  // ms [CFG-007]
+                         1000 × crawl_delay_s(h),  // Crawl-delay is stored in
+                                                  // seconds [DOC-11 §1]; ×1000
+                                                  // converts to ms — comparing
+                                                  // raw seconds against ms terms
+                                                  // would under-wait (5 ≠ 5000)
+                         backoff_ms(h) )           // backoff term applies only
+                                                  // if [CFG-011]=true; ALL THREE
+                                                  // TERMS ARE MILLISECONDS
 backoff_ms(h)     = consecutive_failures(h) = 0
                     ? 0
                     : min(CFG-022 * CFG-023^(consecutive_failures(h) - 1),

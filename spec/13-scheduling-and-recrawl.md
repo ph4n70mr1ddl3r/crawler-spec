@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Scheduling and Recrawl
@@ -73,10 +73,13 @@ loop:
   (`robots_deferred_since_mono + [CFG-040]` [R-103])), and is woken
   immediately by any event that creates or re-due-s a candidate or changes
   a sleep-list key or a gate verdict — discovery/ingestion [C1], operator
-  actions (seed injection [FR-006], DEAD reset [DOC-13 §4]), extraction
-  completion (ST-130→ST-140 installs a recrawl due time that may precede
-  the current sleep target), and robots revalidation completion ([R-104] —
-  a verdict change can gate or un-gate candidates) — so an empty frontier
+  actions (seed injection [FR-006], DEAD reset [DOC-13 §4]), fetch
+  completion ([T-2] persists the recrawl due time computed at fetch
+  completion [§4], which may precede the current sleep target), extraction
+  completion (ST-130→ST-140 can make a record due immediately — its due
+  time may already have passed while extraction was pending), and robots
+  acquisition/revalidation completion ([R-104], [R-105] — a verdict change
+  can gate or un-gate candidates) — so an empty frontier
   never causes an unbounded sleep and no scheduler-relevant time is slept
   past.
 

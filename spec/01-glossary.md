@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.7.0
+version: 1.10.0
 ---
 
 # Glossary
@@ -45,8 +45,8 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 |------|------------|
 | **Politeness Delay** | Minimum interval between two consecutive fetches to the same Host. |
 | **Effective Delay (per host)** | `max(politeness_delay_cfg, robots crawl_delay, dynamic_backoff)` for that Host; the backoff term participates only when [CFG-011]=true [DOC-08 §4]. |
-| **Global Concurrency** | Max simultaneous in-flight fetches across all Hosts. |
-| **Per-Host Concurrency** | Max simultaneous in-flight fetches to one Host. MUST be ≥1. |
+| **Global Concurrency** | Max simultaneous in-flight HTTP tasks across all Hosts. A *fetch task* is one dispatched URL Record's entire attempt — initial request, redirect hops [R-131], and any [R-144] refetch continuation — holding one unit from [T-1] to [T-2]; each in-flight robots.txt exchange [DOC-08 §2.2] holds one unit. |
+| **Per-Host Concurrency** | Max simultaneous in-flight HTTP requests to one Host (initial requests, redirect hops [R-131], robots.txt exchanges). MUST be ≥1. |
 | **Retry Budget** | Max fetch attempts per URL identity (initial attempt included). |
 | **Backoff** | Exponentially increasing delay applied after failed fetches to a Host [DOC-08 §4]. Distinct from the per-URL retry delay [DOC-13 §3]; both MAY apply simultaneously [R-230]. |
 | **Trap** | URL pattern generating unbounded distinct URLs within one site (e.g., calendar pagination, session IDs in paths). |

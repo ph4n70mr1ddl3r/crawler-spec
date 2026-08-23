@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Observability
@@ -12,7 +12,7 @@ Counters:
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| urls_discovered_total | outcome{ingested,duplicate,excluded} | [FR-003..FR-004] |
+| urls_discovered_total | outcome{ingested,duplicate,excluded,dropped} | [FR-003..FR-004]; `dropped` = no-record discards ([R-001]/[R-002] unacceptable URLs; OUT_OF_SCOPE with [CFG-038]=false) |
 | state_transitions_total | from,to | every legal transition pair [ST-*]; `from=creation` labels the two record-creating transitions ([DOC-07 §2]) |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
 | bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + rss + atom) |

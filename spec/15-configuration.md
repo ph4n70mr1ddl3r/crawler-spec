@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Configuration
@@ -15,7 +15,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 |----|------|------|---------|---------------|
 | CFG-001 | seeds | URL list | — required, ≥1 | normalized+filtered at load |
 | CFG-002 | scope_mode | enum | `SEED_DOMAINS` | `SEED_DOMAINS \| SEED_HOSTS \| PREFIX_LIST` |
-| CFG-003 | allowed_schemes | list | `[https, http]` | subset of {http, https} |
+| CFG-003 | allowed_schemes | list | `[https, http]` | non-empty subset of {http, https} [V-6] |
 | CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries are absolute http(s) URLs used verbatim (not normalized) — only scheme, host, and path participate in matching (query/fragment ignored); scheme/host compare case-insensitively, path verbatim; an empty entry path matches every path on its host, an entry path of `/` matches only the root [DOC-06 §4] |
 | CFG-004 | max_depth | int | 5 | 0–50 |
 | CFG-005 | max_urls_total | int | 100000 | >0 |
@@ -100,3 +100,4 @@ Every parameter is referenced elsewhere only by its CFG id.
 - V-3: Config hash (SHA-256 of canonical serialization) recorded in every `runs` row.
 - V-4: If scope_mode=PREFIX_LIST, every seed MUST match ≥1 entry of [CFG-039]; violation aborts startup [DEC-011] (a seed that is out of scope would otherwise silently crawl nothing).
 - V-5: [CFG-018] MUST match the UA Token pattern `name/version (+url)` [R-120], and [CFG-019], when set, MUST be a valid email address; violation ⇒ abort per [V-1].
+- V-6: [CFG-003] MUST be a non-empty subset of {http, https} (an empty set would make every URL unacceptable and the crawl a no-op); violation ⇒ abort per [V-1].

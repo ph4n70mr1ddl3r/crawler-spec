@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.9.0
+version: 1.10.0
 ---
 
 # URL Lifecycle State Machine
@@ -11,7 +11,7 @@ version: 1.9.0
 | ID | Name | Terminal? | Meaning |
 |----|------|-----------|---------|
 | ST-100 | QUEUED | no | Passed filters; awaiting scheduling. |
-| ST-110 | SCHEDULED | no | Dispatched; holding politeness slot. |
+| ST-110 | SCHEDULED | no | Dispatched; holding its global unit and source-Host unit [R-051]. |
 | ST-120 | FETCHING | no | HTTP request in flight. |
 | ST-130 | FETCHED | no | Payload stored; extraction pending. |
 | ST-140 | DONE | yes | Parsed, extracted, artifacts stored. |
@@ -67,13 +67,24 @@ during dispatch selection, while the record is ST-100 (ST-100→ST-190). The
 ST-110 paths cover verdicts that change after the dispatch transaction [T-1]
 but before the request is sent (e.g. a robots cache refresh between commit
 and send): DISALLOW ⇒ ST-110→ST-190; UNKNOWN (Host deferred) ⇒ compensated
-back to ST-100 [R-054]. In every case the held concurrency slot is released
+back to ST-100 [R-054]. In every case the held units are released
 exactly once [R-051].
 
 ## 3. State-dependent rules
 
 - R-050: Only ST-100 records are visible to the Scheduler.
-- R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on the first transition out of {ST-110, ST-120} (to ST-100, ST-130, ST-150, ST-180, or ST-190 — including the robots paths [FR-031], [R-054] and the dispatch-time cap gate [FR-011(e)]).
+- R-051: ST-110/ST-120 records own one global unit each, held from [T-1]
+  until the first transition out of {ST-110, ST-120}, plus at most one
+  per-Host unit: the Host of their most recent request (initially the
+  identity's Host via [T-1]). Host units transfer at redirect hops per
+  [R-131]: the previous Host's unit is released when its response is
+  received, and the next Host's unit is acquired immediately before the next
+  request is sent — so a task never holds two Host units and holds none
+  while waiting (politeness or capacity waits therefore cannot deadlock
+  [G-4]). All units the record still holds are released exactly once, on
+  the first transition out of {ST-110, ST-120} (to ST-100, ST-130, ST-150,
+  ST-180, or ST-190 — including the robots paths [FR-031], [R-054] and the
+  dispatch-time cap gate [FR-011(e)]).
 - R-052: ST-140→ST-100 transitions (recrawl due [FR-050] and rediscovery
   refresh [FR-051]) reset `attempts=0` and set `due_at_mono` per their
   trigger; priority is recomputed per [DOC-12 §2] (R-201).
@@ -88,9 +99,9 @@ exactly once [R-051].
   [FR-025] and no attempt ([R-053]; the [T-1] increment is rolled back in
   both cases below):
   - changed to DISALLOW ⇒ the record moves ST-110→ST-190/`ROBOTS_DISALLOW`
-    with slot release [R-051];
+    with unit release [R-051];
   - changed to UNKNOWN (Host deferred) ⇒ the dispatch is compensated: the
-    record returns to ST-100, the concurrency slot is released [R-051], and
+    record returns to ST-100, the units are released [R-051], and the
     the record is reconsidered after deferral expiry [R-103] — at the
     [CFG-040] threshold it is excluded `ROBOTS_UNKNOWN_TIMEOUT` like any
     gated record.
@@ -112,9 +123,14 @@ exactly once [R-051].
   retry immediately with no per-URL backoff, contradicting [DOC-13 §5].
   Because dispatch advanced `next_allowed_fetch_at` transactionally
   [FR-012], politeness cannot be violated by this reclassification.
-  Host rows are rebuilt conservatively in the same recovery pass: `inflight` is
-  recomputed as the count of records still in {ST-110, ST-120} after the
-  reclassification (i.e., 0 for a clean recovery), restoring INV-3 [NFR-011].
+  Host rows are rebuilt in the same recovery pass: `inflight` is reset to 0
+  for every Host — exact, not merely conservative: every {ST-110, ST-120}
+  record has just been reclassified out of the unit-owning states [R-051],
+  and robots exchanges in flight at crash died with the process; under
+  [R-051] unit transfers a crashed record's Host unit sat on the Host of its
+  most recent request, which is not recoverable from persisted state, so 0
+  (the count of unit-owning records) is the only sound rebuild — restoring
+  INV-3 [NFR-011].
 - R-061: ST-130 records at startup resume extraction (idempotent: re-running
   extraction overwrites artifacts deterministically).
 - R-062: On completion of a redirect chain, the system MUST upsert a URL Record
@@ -144,7 +160,7 @@ exactly once [R-051].
   [DOC-13 §4] nor a rediscovery under [FR-051]; a success upsert also clears
   `last_error_class`. A record in {ST-110, ST-120} — an independent fetch in
   flight — MUST NOT have its state or `attempts` modified (overwriting it
-  would corrupt its slot accounting [R-051]): the chain records `last_seen_at`
+  would corrupt its unit accounting [R-051]): the chain records `last_seen_at`
   and its `pages` row only, and the concurrent attempt's own [T-2] governs
   the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
   takes the fetch-outcome state as above.

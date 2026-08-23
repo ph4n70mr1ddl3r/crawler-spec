@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Storage Model
@@ -74,6 +74,7 @@ hosts (
   robots_fetched_at TEXT NULL,
   robots_deferred_until_mono INT NULL,
   robots_deferred_since_mono INT NULL,    -- first deferral of the current streak [R-103]
+  robots_defer_failures INT NOT NULL DEFAULT 0, -- consecutive robots-acquisition failures; deferral-backoff exponent [DOC-08 §2.3]; cleared on an authoritative verdict
   next_allowed_fetch_at_mono INT NOT NULL DEFAULT 0,
   inflight          INT  NOT NULL DEFAULT 0,
   consecutive_failures INT NOT NULL DEFAULT 0,
@@ -122,7 +123,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for every slot the attempt still holds, hosts counters} — single commit. Held slots at completion: the source Host's [T-1] slot plus, for cross-host redirect chains, the final hop's target-Host slot [R-131] (intermediate hop slots are acquired and released per hop); decrementing only once would leak a target-Host slot per cross-host completion. Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112]. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
+- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for the single Host unit the attempt still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived; the [ERR-018]/[ERR-010]/[ERR-017]/[ERR-019] hop aborts likewise release exactly the unit held, on the Host whose response carried the unfollowable redirect). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
