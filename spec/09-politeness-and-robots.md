@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Politeness and robots.txt
@@ -30,13 +30,33 @@ Per Host `(scheme, host, port)`:
    fetch_events rows (visibility is via robots_queries_total [DOC-15 §1])
    and never modify consecutive_failures or pages_crawled [R-112].
 3. Interpret the HTTP status of the robots request per RFC 9309:
-   - `2xx` → parse per RFC 9309 (groups matching UA Token, falling back to `*` group if no specific match); only the first 500 KiB of the body is processed (RFC 9309 size cap), excess bytes are ignored.
+   - `2xx` → parse per RFC 9309. Parsing is error-tolerant (NFR-014):
+     unrecognized or malformed lines are ignored, so a 2xx body always yields
+     a rule set, possibly empty; a 2xx body never yields UNKNOWN — an empty
+     rule set ⇒ ALLOW everything, exactly like `4xx`. Group selection per
+     [R-100]. Only the first 500 KiB of the body is processed (RFC 9309
+     size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
-   - `5xx` / network error / unparseable body → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts 60 s, ×2 per consecutive failure, cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
+   - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
+     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts 60 s, ×2 per consecutive failure, cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
 4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at; persisted on the Host row (`robots_rules`) [DOC-11 §1].
 
-- R-100: If multiple groups match (specific token present), the `*` group MUST be ignored entirely (RFC 9309).
-- R-101: The longest-match rule applies to path prefixes; `Allow` and `Disallow` compared by longest path, tie ⇒ `Allow`.
+- R-100: Group selection (RFC 9309): a group matches the crawler when its
+  `User-agent` value is a case-insensitive substring of the UA Token's
+  product name (the part before `/`). If more than one non-`*` group matches,
+  only the most specific one (longest `User-agent` value) applies; in
+  particular, the `*` group MUST be ignored entirely whenever any matching
+  specific group exists. If no group matches and no `*` group exists, the
+  rule set is empty ⇒ ALLOW everything.
+- R-101: Rule matching is byte-wise and case-sensitive against the URL's
+  path concatenated, when a query is present, with `?` followed by the query
+  string (so `Disallow: /*?` can match query-bearing URLs). Exactly two
+  special characters are recognized in rule values: `*` (matches any
+  sequence of characters, including the empty sequence) and a terminal `$`
+  (anchors the end of the match target); no other character is special.
+  Precedence between a matching `Allow` and a matching `Disallow` is by
+  longest rule value in characters (wildcards counting as one); tie ⇒
+  `Allow`. An empty `Disallow` value ⇒ ALLOW everything.
 - R-102: `Crawl-delay` is honored exactly as received — no clamping, including values > 60 s; a missing `Crawl-delay` ⇒ use [CFG-007].
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
   [CFG-040] — measured from `robots_deferred_since_mono` [DOC-11 §1] — every

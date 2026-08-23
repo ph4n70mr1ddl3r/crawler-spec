@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Storage Model
@@ -120,7 +120,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, pages insert, fetch_event insert, hosts.inflight−1, hosts counters} — single commit.
+- T-2: Completion transaction = {urls.state update, pages insert, fetch_event insert, hosts.inflight−1, hosts counters} — single commit. The `pages` insert applies to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert.
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
@@ -131,7 +131,7 @@ Read-only access via SQL over Metadata Store + direct file reads over Content St
 
 ## 5. Scale assumptions
 
-Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain), plus composites (state, priority DESC, url_identity ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain, state) for the cap gates [FR-005], [FR-011(e)].
+Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain), plus composites (state, priority DESC, url_identity ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain, state) for the cap gates [FR-005], [FR-011(e)]. The retention sweeps [§6] additionally require indexes on (fetch_events.ts), (pages.fetch_ts), (pages.payload_sha256), and (pages.final_url_identity, payload_sha256) for the blob/artifact reference checks.
 
 ## 6. Retention
 
@@ -149,7 +149,8 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
     (≤ [CFG-020] attempts per [CFG-043]-day cycle) is not automated
     re-activation [DOC-13 §4].
 - Deletion order within each sweep: pages rows → page_artifacts rows and blobs
-  left unreferenced by those deletions → url records. Each step commits before
+  left with no remaining `pages`-row reference after those deletions —
+  including crash-orphaned blobs from [T-3] [AC-031] — → url records. Each step commits before
   the next begins, so the Consumer never sees dangling references. (Deleting
   artifacts or blobs before the pages rows that reference them would contradict
   the unreferenced-only rule above.)

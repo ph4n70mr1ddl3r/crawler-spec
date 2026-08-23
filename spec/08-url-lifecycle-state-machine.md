@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.5.0
+version: 1.7.0
 ---
 
 # URL Lifecycle State Machine
@@ -42,6 +42,10 @@ ST-120 ─► ST-180                permanent failure or retry budget exhausted
 ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
                                 (due_at_mono := next_attempt_mono)
 ST-150 ─► ST-180                attempts = [CFG-020]
+                                (defensive: unreachable in practice — the
+                                budget is evaluated at failure time
+                                [DOC-13 §3], so ST-150 records always hold
+                                attempts < [CFG-020])
 ST-150 ─► ST-190                host robots-unknown timeout [R-103]
 ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
@@ -70,18 +74,22 @@ exactly once [R-051].
 - R-053: `attempts` is incremented exactly once per fetch attempt, inside the
   dispatch transaction [FR-012], [T-1]; it is therefore already counted when a
   crash mid-fetch is classified as retryable [DOC-13 §5]. Exception: the
-  send-time robots-UNKNOWN compensation [R-054] rolls the increment back — no
+  send-time robots re-check aborts [R-054] roll the increment back — no
   request was sent, so no attempt occurred.
 - R-054: Send-time robots re-check [DOC-08 §3]: if the applicable robots
-  verdict for a dispatched URL changed to DISALLOW after [T-1] and before the
-  request is sent, the record moves ST-110→ST-190/`ROBOTS_DISALLOW` with slot
-  release [R-051]. If it became UNKNOWN (Host deferred), the dispatch is
-  compensated: the record returns to ST-100, the [T-1] attempts increment is
-  rolled back (no request was sent), the concurrency slot is released [R-051],
-  and the record is reconsidered after deferral expiry [R-103] — at the
-  [CFG-040] threshold it is excluded `ROBOTS_UNKNOWN_TIMEOUT` like any gated
-  record. The politeness advance of [T-1] is never rolled back (the robots
-  exchange consumed the window).
+  verdict for a dispatched URL changed after [T-1] and before the request is
+  sent, the dispatch is aborted — no request is sent, hence no fetch_event
+  [FR-025] and no attempt ([R-053]; the [T-1] increment is rolled back in
+  both cases below):
+  - changed to DISALLOW ⇒ the record moves ST-110→ST-190/`ROBOTS_DISALLOW`
+    with slot release [R-051];
+  - changed to UNKNOWN (Host deferred) ⇒ the dispatch is compensated: the
+    record returns to ST-100, the concurrency slot is released [R-051], and
+    the record is reconsidered after deferral expiry [R-103] — at the
+    [CFG-040] threshold it is excluded `ROBOTS_UNKNOWN_TIMEOUT` like any
+    gated record.
+  The politeness advance of [T-1] is never rolled back in either case (the
+  robots exchange consumed the window).
 
 ## 4. Recovery and redirect completion
 
@@ -98,6 +106,9 @@ exactly once [R-051].
   depth (redirects do not count toward depth [DEC-009]),
   `discovered_from` = source identity, and state per the fetch outcome
   (ST-130 on success, then normal progression; ST-150/ST-180 on failure).
-  Intermediate hops are persisted on the source's `redirect_chain` [R-133] and
-  receive no URL Records. The final target is exempt from trap filters at this
-  creation point (it was already fetched); scope was verified per hop [R-030].
+  The upsert never modifies the target's `attempts` (the attempt is
+  accounted on the source record [T-1]). Intermediate hops are persisted on
+  the source's `redirect_chain` [R-133] and receive no URL Records. The
+  final target is exempt from the trap filters ([DOC-06 §5] items 2–4) at
+  this creation point (it was already fetched); scope, robots, SSRF, and
+  the URL blocklist were verified per hop [R-030], [R-131].

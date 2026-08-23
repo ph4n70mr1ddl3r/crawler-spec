@@ -1,6 +1,6 @@
 ---
 kb: web-crawler-spec
-version: 1.6.0
+version: 1.7.0
 status: APPROVED-DRAFT
 last-updated: 2026-08-23
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.
@@ -46,6 +46,12 @@ expressed as a numbered, testable requirement or rule.
 - **Requirement IDs**: `FR-nnn` functional, `NFR-nnn` non-functional,
   `AC-nnn` acceptance criterion, `CFG-nnn` configuration parameter,
   `ERR-nnn` error class, `ST-nnn` state, `DEC-nnn` decision, `R-nnn` normative rule.
+- **Auxiliary ID families** (each owned by the document that defines it):
+  `G-n` goals and `NG-n` non-goals ([DOC-01]); `INV-n` data-flow invariants
+  ([DOC-03]); component aliases `C1–C9` ([DOC-03]); `P-n` politeness
+  principles ([DOC-08]); `T-n` storage transactions ([DOC-11]);
+  `V-n` configuration validation rules ([DOC-14]); extension points
+  `EXT-*` ([DOC-01]).
 - **Keywords** (RFC 2119): MUST / MUST NOT / SHOULD / SHOULD NOT / MAY.
 - **Normative rules** (`R-nnn`) appear inside topic documents and carry the same
   weight as FR/NFR entries. R-nnn IDs are globally unique across the entire KB;

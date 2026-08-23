@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Fetching
@@ -33,8 +33,23 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 
 ## 3. Redirects
 
-- R-130: Follow 301, 302, 303, 307, 308 up to [CFG-017] hops; method stays GET throughout.
-- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021]. Each hop request MUST additionally respect the target Host's politeness window and concurrency caps ([FR-011] b, c) before being sent. A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source. If respecting the target Host's politeness window would delay the hop request by more than [CFG-035] (e.g. an adversarially large `Crawl-delay` [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018 instead of holding a fetch worker and the source Host's concurrency slot for the wait [G-4]: source URL → ST-150, with the target Host's window opening acting as an unclamped floor on `next_attempt_mono` [DOC-13 §3].
+- R-130: Follow 301, 302, 303, 307, 308 up to [CFG-017] hops; method stays GET
+  throughout. Each `Location` value (which may be a relative reference) is
+  resolved against the current hop's URL per RFC 3986 §5; a hop target that
+  is not an acceptable absolute http(s) URL after resolution (disallowed
+  scheme, or userinfo [R-001], [R-002]) terminates the chain with outcome
+  PERMANENT and error_class ERR-011 (unacceptable target).
+- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030],
+  robots check [FR-021], and URL-blocklist check ([CFG-037]: a hop target
+  matching the blocklist terminates the chain identically to [R-030] —
+  outcome PERMANENT, error_class ERR-019, source URL → ST-180, target never
+  fetched, hop recorded in `redirect_chain`; the blocklist MUST NOT be
+  bypassable by redirects). Each hop request MUST additionally respect the
+  target Host's politeness window and concurrency caps ([FR-011] b, c)
+  before being sent; while a hop request is in flight it holds one
+  concurrency slot on the target Host and one global slot — acquired
+  immediately before the hop request is sent and released when the hop
+  completes, so no slot is held during a politeness wait ([ERR-018]). A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source. If respecting the target Host's politeness window would delay the hop request by more than [CFG-035] (e.g. an adversarially large `Crawl-delay` [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018 instead of holding a fetch worker and the source Host's concurrency slot for the wait [G-4]: source URL → ST-150, with the target Host's window opening acting as an unclamped floor on `next_attempt_mono` [DOC-13 §3].
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
 - R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
 
@@ -52,15 +67,22 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | 5xx | retryable | → ST-150, increments host consecutive_failures |
 | 3xx non-followable (loop/cap/out-of-scope) | per cause | ERR-011, or ERR-015 for out-of-scope targets [R-030] |
 | 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
+| 3xx hop target matches the [CFG-037] blocklist | permanent | chain terminates at that hop; source → ST-180, ERR-019 [R-131] |
 | 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150, window opening floors `next_attempt_mono` |
-| 3xx without parsable `Location` | permanent | ST-180, ERR-011 (nothing to follow) |
+| 3xx without parsable `Location` | permanent | ST-180, ERR-011 (missing, unparsable, or non-http(s) target [R-130]) |
 
 ## 5. Payload handling
 
 - R-140: Decode Content-Encoding before hashing [FR-024]; unknown encodings ⇒ ERR-013 (retryable once, then permanent).
 - R-141: Content-Length vs actual bytes mismatch ⇒ trust actual bytes, log anomaly metric.
 - R-142: Charset detection order: HTTP `charset` param → BOM → HTML meta charset in first 1024 bytes → default UTF-8 (strict errors ⇒ replacement char, never fatal).
-- R-143: Non-text types: sniff Content-Type only; payload stored iff [CFG-028] and type allowed list = {`image/*`, `application/pdf`, `text/plain`, `application/xml`, `application/rss+xml`, `application/atom+xml`}. The effective allowed list is that set intersected with [CFG-028]; types outside it ⇒ ERR-008 [DOC-13 §1]. A missing `Content-Type` header is treated as `application/octet-stream`.
+- R-143: Non-HTML types: sniff Content-Type only; payload stored iff
+  [CFG-028]=true and the media type is in the fixed set {`image/*`,
+  `application/pdf`, `text/plain`, `application/xml`, `application/rss+xml`,
+  `application/atom+xml`} — the **effective allowed list** (empty when
+  [CFG-028]=false). Types outside the effective allowed list ⇒ ERR-008
+  [DOC-13 §1]; the payload is discarded [FR-041]. A missing `Content-Type`
+  header is treated as `application/octet-stream`.
 - R-144: A 304 response whose previously stored payload blob no longer exists
   on disk (e.g., removed by retention [DOC-11 §6]) MUST be treated as a cache
   miss: refetch with a full GET and store a fresh payload. The refetch is

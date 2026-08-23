@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Errors and Retry
@@ -17,10 +17,10 @@ version: 1.6.0
 | ERR-005 | HTTP_429 | yes | honor Retry-After [R-111] |
 | ERR-006 | HTTP_5XX | yes | |
 | ERR-007 | PAYLOAD_TOO_LARGE | no | [FR-023] |
-| ERR-008 | UNSUPPORTED_TYPE | no | content type outside the effective allowed list ([R-143] list intersected with [CFG-028]); not stored or parsed; ST-180 [FR-041] |
+| ERR-008 | UNSUPPORTED_TYPE | no | content type outside the effective allowed list ([R-143]: fixed set when [CFG-028]=true, empty when false); not stored or parsed; ST-180 [FR-041] |
 | ERR-009 | PARSE_FAILED | no | recorded on the `pages` row (parse_ok=false, reason); never a FetchResult error_class — parsing is post-fetch [DOC-10 §4] |
 | ERR-010 | ROBOTS_DEFERRED | n/a | host-level for page dispatches: no URL state change, the Host defers [DOC-08 §2.3]. URL-level only as the redirect-hop abort class [R-131] |
-| ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | also covers 3xx responses with a missing or unparsable `Location` [DOC-09 §4] |
+| ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | also covers 3xx responses with a missing or unparsable `Location`, and hop targets that are not acceptable absolute http(s) URLs after RFC 3986 §5 resolution (e.g. `ftp:`, `data:`, userinfo) [R-130], [DOC-09 §4] |
 | ERR-012 | TIMEOUT_HEADERS / TIMEOUT_TOTAL | yes | |
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |
 | ERR-014 | HTTP_4XX_PERMANENT | no | non-retryable client errors (401/403/404/410/418/451/other 4xx); the specific status is recorded in fetch_events.http_status [DOC-09 §4] |
@@ -28,6 +28,7 @@ version: 1.6.0
 | ERR-016 | HEADER_TOO_LARGE | no | response header block exceeds 64 KiB [DOC-16 §3] |
 | ERR-017 | REDIRECT_ROBOTS_DISALLOWED | no | redirect hop target failed the target Host's robots gate [R-131]; source URL → ST-180, target never fetched |
 | ERR-018 | HOP_RATE_LIMITED | yes | redirect hop whose target Host politeness window would delay the send beyond [CFG-035] (e.g. adversarial Crawl-delay); chain aborts, source → ST-150, target window opening is an unclamped floor on next_attempt_mono [R-131] |
+| ERR-019 | REDIRECT_BLOCKLISTED | no | redirect hop target matches the [CFG-037] URL blocklist; chain terminates at that hop, source → ST-180, target never fetched, hop recorded in `redirect_chain` [R-131] — the blocklist is not bypassable by redirects |
 
 ## 2. Retry state
 
@@ -67,8 +68,9 @@ on PERMANENT outcome:               → ST-180 immediately
 
 ST-180 records retain last error class and are excluded from scheduling forever,
 except: an operator MAY reset a URL to ST-100 via the runtime API (explicit,
-audited action; the reset clears `attempts` to 0 and clears the last error
-class). Automated re-activation of DEAD URLs is forbidden.
+audited action; the reset clears `attempts` to 0, clears the last error
+class, and recomputes priority per [DOC-12 §2]). Automated re-activation of
+DEAD URLs is forbidden.
 
 ## 5. Crash classification
 

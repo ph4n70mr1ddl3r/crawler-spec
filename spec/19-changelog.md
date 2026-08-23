@@ -1,10 +1,132 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Changelog
+
+## 1.7.0 — 2026-08-23 (review pass v7: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- NFR-004 dimensional error: `ceil([CFG-027]/[CFG-025])` divides days by
+  seconds — with the defaults (90 d retention, 7 d recrawl) it yields 1
+  generation instead of 13, understating the disk bound 13×. Corrected to
+  `ceil([CFG-027] × 86400 / [CFG-025])` with the unit conversion stated
+  inline.
+- Recrawl promotion/wake gap (same defect class as the v1.6.0 R-211 fix):
+  `due_at_mono` for recrawl is set at fetch completion [DOC-12 §4] while the
+  record sits in ST-140, but no actor performed the ST-140→ST-100 transition
+  when it expired, and R-211's earliest-of sleep list omitted recrawl due
+  times — with no ST-100/ST-150 work pending, the loop could sleep past every
+  recrawl forever. DOC-12 §1 now assigns both due-time promotions
+  (ST-150→ST-100 on `next_attempt_mono`, ST-140→ST-100 on `due_at_mono`) to
+  the scheduling loop before candidacy (resolving the tension with R-050's
+  "only ST-100 visible"), and R-211's sleep list gains "next recrawl
+  `due_at_mono` over ST-140".
+- R-053/R-054 asymmetry: a send-time robots refresh to DISALLOW kept the
+  [T-1] attempts increment while the UNKNOWN path rolled it back — yet
+  neither sends a request, and R-053's own justification ("no request was
+  sent, so no attempt occurred") applies to both. Both send-time aborts now
+  roll back the increment and write no fetch_event; R-053, R-054, and
+  AC-016 aligned.
+- DOC-08 §2.3 mapped an "unparseable body" to UNKNOWN (conservative
+  deferral), contradicting NFR-014: RFC 9309 parsing is error-tolerant —
+  unrecognized or malformed lines are ignored — so a 2xx body always yields
+  a rule set (possibly empty ⇒ ALLOW everything, exactly like 4xx), and
+  "unparseable" never occurs. UNKNOWN is now reserved for 5xx, transport
+  failures, and body-decode failures (e.g. Content-Encoding).
+- Blocklist bypass via redirects: R-131 checked scope, robots, and SSRF per
+  hop but not [CFG-037] — a site could 301 the crawler into blocklisted
+  URLs, defeating the operator's "never crawl" policy. New error class
+  ERR-019 `REDIRECT_BLOCKLISTED` (permanent; chain terminates at that hop,
+  source → ST-180, target never fetched, hop recorded in `redirect_chain`);
+  new DOC-09 §4 row; R-062's creation-point exemption narrowed to the trap
+  filters ([DOC-06 §5] items 2–4) since scope/robots/SSRF/blocklist are all
+  per-hop checks now; new AC-056(c).
+- R-130: relative `Location` values (legal and common) had no resolution
+  rule, and hop targets with a non-http(s) scheme or userinfo were
+  unclassifiable. Each `Location` is now resolved against the current hop's
+  URL per RFC 3986 §5; an unacceptable target terminates the chain as
+  PERMANENT/ERR-011 (note extended). New AC-056(a)(b).
+- Registrable Domain was undefined for IP-literal hosts, leaving CFG-006's
+  per-domain key and SEED_DOMAINS scope undefined for IP-literal seeds. It
+  is now the canonical literal string itself [DOC-00], and R-003
+  canonicalizes IPv6 literals to RFC 5952 compressed lowercase form so
+  `[2001:0DB8::1]` and `[2001:db8::1]` share one identity. New AC-057.
+
+### Completeness additions
+
+- Robots matching made implementable (R-100/R-101): group selection — a
+  group matches when its `User-agent` value is a case-insensitive substring
+  of the product name; most specific (longest) matching group wins; no
+  matching group and no `*` group ⇒ empty rule set ⇒ allow all. Rule
+  matching — byte-wise, case-sensitive, against the path plus `?query` when
+  present (so `Disallow: /*?` works); exactly two special characters (`*`
+  any sequence incl. empty, terminal `$` anchor); precedence by longest
+  rule value (wildcards count as one); empty `Disallow` ⇒ allow all.
+  AC-012 extended to cover these cases.
+- FR-006 runtime-injection failure semantics: a runtime seed violating
+  [FR-002] or [V-4] is now rejected with an error response (recorded ST-190
+  where applicable and [CFG-038]=true) instead of the only defined behavior
+  being V-4's startup abort — which would kill a live crawl. The Scope
+  seed set is also defined as all `is_seed` URL Records, so runtime-injected
+  seeds keep expanding scope after restart. New AC-058.
+- R-062: the final-target upsert never modifies the target's `attempts` —
+  the attempt is accounted on the source record [T-1].
+- R-131: hop slot accounting — an in-flight hop holds one concurrency slot
+  on the target Host and one global slot, acquired immediately before the
+  hop request is sent and released at hop completion (symmetry with robots
+  fetches; no slot is held during an [ERR-018] politeness wait).
+- DOC-13 §4: the operator DEAD reset also recomputes priority per
+  [DOC-12 §2] (previously unspecified, unlike every other ST-→ST-100 path).
+- DOC-11 §5: retention sweep indexes added — (fetch_events.ts),
+  (pages.fetch_ts), (pages.payload_sha256), (pages.final_url_identity,
+  payload_sha256) — the §6 sweeps and blob/artifact reference checks had no
+  index support.
+- DOC-16 §5: with [CFG-034]=null the mutating operator actions were
+  unreachable (no listener existed); they are now served over an
+  implementation-defined local channel that accepts no network connections.
+- README: the auxiliary ID families (G-, NG-, INV-, C1–C9, P-, T-, V-,
+  EXT-*) are declared in the conventions section — they were used throughout
+  but absent from the stated convention list.
+
+### Consistency fixes
+
+- FR-005(1): the enqueue-time [CFG-005] trigger condition was implied, not
+  stated (unlike the precisely spelled-out [CFG-006] condition). Now
+  explicit: count of non-EXCLUDED records ≥ [CFG-005] before insertion ⇒
+  ST-190/`CAP_REACHED`; the total never exceeds [CFG-005].
+- R-143: "Non-text types" → "Non-HTML types" (`text/plain` is a text type);
+  the "set intersected with [CFG-028]" phrasing (a bool cannot be
+  intersected) replaced by: effective allowed list = the fixed set when
+  [CFG-028]=true, empty when false.
+- CFG-038 renamed `log_exclusions` → `record_out_of_scope`: the parameter
+  governs ST-190 audit rows, not logging (the `exclusions_total` metric is
+  always emitted regardless).
+- DOC-11 §6: "blobs left unreferenced by those deletions" was readable as
+  only those orphaned by the sweep's own page deletions, contradicting
+  AC-031 (crash orphans [T-3] must be swept). Now: all artifacts/blobs with
+  no remaining `pages`-row reference after the pages step, explicitly
+  including crash orphans.
+- T-2: the `pages` insert applies to SUCCESS/UNCHANGED outcomes only;
+  failure completions commit the same set minus it (the transaction was
+  described as unconditional).
+- FR-042: `discovered_from` for extracted links = the page's final URL
+  identity (the extraction base [R-020]) — previously ambiguous between
+  source and final identity after redirect chains.
+- Glossary: Backoff distinguished from the per-URL retry delay ([R-230]
+  both may apply); Effective Delay notes the [CFG-011] gating of the
+  backoff term.
+- DOC-07 §2: the ST-150→ST-180 ("attempts = CFG-020") edge annotated as
+  defensive/unreachable — [DOC-13 §3] evaluates the budget at failure time,
+  so ST-150 records always hold attempts < [CFG-020]; prevents confusion
+  against AC-052's "only legal transitions" check.
+
+### Versioning
+
+- KB version 1.6.0 → 1.7.0; all touched documents bumped accordingly.
 
 ## 1.6.0 — 2026-08-23 (review pass v6: correctness, completeness, consistency, unambiguity)
 

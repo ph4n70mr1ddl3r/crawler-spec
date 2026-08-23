@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.5.0
+version: 1.7.0
 ---
 
 # Glossary
@@ -21,7 +21,7 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | **URL Identity** | The normalized form of a URL used as its primary key. Defined in [DOC-06]. |
 | **Frontier** | The ordered collection of discovered URLs pending fetch. |
 | **Host** | A `(scheme, hostname, port)` triple. |
-| **Registrable Domain** | The effective top-level domain plus one label (eTLD+1), computed with the Public Suffix List. |
+| **Registrable Domain** | The effective top-level domain plus one label (eTLD+1), computed with the Public Suffix List. For a Host that is an IP literal, the Registrable Domain is the canonical literal string itself [R-003]. |
 | **Page** | One successfully transferred response body of a URL, persisted per Run in the `pages` table; payloads are content-deduplicated by SHA-256 [DOC-11]. |
 | **Fetch** | One attempt to retrieve the representation of a URL over HTTP(S). |
 | **Crawl Session** | A period during which the crawler runs continuously; may span process restarts. |
@@ -44,11 +44,11 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | Term | Definition |
 |------|------------|
 | **Politeness Delay** | Minimum interval between two consecutive fetches to the same Host. |
-| **Effective Delay (per host)** | `max(politeness_delay_cfg, robots crawl_delay, dynamic_backoff)` for that Host. |
+| **Effective Delay (per host)** | `max(politeness_delay_cfg, robots crawl_delay, dynamic_backoff)` for that Host; the backoff term participates only when [CFG-011]=true [DOC-08 §4]. |
 | **Global Concurrency** | Max simultaneous in-flight fetches across all Hosts. |
 | **Per-Host Concurrency** | Max simultaneous in-flight fetches to one Host. MUST be ≥1. |
 | **Retry Budget** | Max fetch attempts per URL identity (initial attempt included). |
-| **Backoff** | Exponentially increasing delay applied after failed fetches to a Host. |
+| **Backoff** | Exponentially increasing delay applied after failed fetches to a Host [DOC-08 §4]. Distinct from the per-URL retry delay [DOC-13 §3]; both MAY apply simultaneously [R-230]. |
 | **Trap** | URL pattern generating unbounded distinct URLs within one site (e.g., calendar pagination, session IDs in paths). |
 | **Crawl Scope** | The predicate deciding whether a URL is in scope. Default: URL's Registrable Domain ∈ set of seed Registrable Domains. |
 

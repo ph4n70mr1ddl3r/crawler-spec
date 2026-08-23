@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Security and Abuse Prevention
@@ -68,6 +68,8 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 ## 5. Operator API surface
 
 Runtime API (local only): inject seeds [FR-006], reset DEAD URL [DOC-13 §4],
-trigger graceful drain. MUST require no network exposure by default; if
-[CFG-034] is set it binds read-only endpoints plus these actions,
-and actions are logged with operator identity when available.
+trigger graceful drain. When [CFG-034] is null, the actions are exposed over
+an implementation-defined local channel (e.g., Unix-domain socket or stdin)
+that accepts no network connections; when [CFG-034] is set, they are
+additionally served by the HTTP listener. Actions are logged with operator
+identity when available.

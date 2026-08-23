@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.6.0
+version: 1.7.0
 ---
 
 # URL Model and Normalization
@@ -10,7 +10,7 @@ version: 1.6.0
 
 - R-001: Only absolute URLs with scheme ∈ {`http`, `https`} [CFG-003] are acceptable. All others (relative without base, `ftp:`, `javascript:`, `data:`, `mailto:`) MUST be discarded at discovery time with no record.
 - R-002: URLs containing userinfo (`user:pass@host`) MUST be rejected entirely [NFR-016]: at discovery time they are discarded with no record, identically to [R-001]; credentials MUST never be logged or stored [R-320].
-- R-003: IDN hostnames MUST be converted to punycode (IDNA2008/UTS-46) before any use; the original unicode form MAY be kept as display metadata only.
+- R-003: IDN hostnames MUST be converted to punycode (IDNA2008/UTS-46) before any use; the original unicode form MAY be kept as display metadata only. IP-literal hostnames are lowercased, and IPv6 literals are canonicalized to their RFC 5952 compressed form, so `[2001:0DB8::1]` and `[2001:db8::1]` share one URL Identity. The Registrable Domain of an IP-literal Host is the canonical literal string itself [DOC-00].
 
 ## 2. Normalization algorithm (normative)
 

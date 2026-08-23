@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Acceptance Criteria
@@ -25,11 +25,11 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 - AC-010: With two workers and CFG-007=5000ms, request starts to one host are ≥ 5000 ms apart across 20 fetches (start-to-start).
 - AC-011: Per-host inflight never exceeds CFG-009 under any fixture; global inflight never exceeds CFG-010.
-- AC-012: robots.txt Disallow for UA group blocks matching URLs → ST-190/ROBOTS_DISALLOW; Allow longer-match wins on tie per [R-101]; `*` ignored when token group exists.
+- AC-012: robots.txt Disallow for UA group blocks matching URLs → ST-190/ROBOTS_DISALLOW; Allow longer-match wins on tie per [R-101]; `*` ignored when token group exists. Rule matching per [R-101]: values match byte-wise, case-sensitively, against path plus `?query` when present (`Disallow: /*?` blocks a URL with any query); a terminal `$` anchors the end; a `*` matches any sequence incl. empty; no group matches and no `*` group exists ⇒ all URLs allowed; an empty `Disallow` value ⇒ allow all.
 - AC-013: robots.txt returning 503 defers ALL host fetches; retry after backoff succeeds once robots returns 200; no page was fetched during deferral.
 - AC-014: Crawl-delay=12s honored over CFG-007=5s; Retry-After=120s overrides backoff when larger.
 - AC-015: A redirect whose hop target is disallowed by the target Host's robots.txt terminates the chain with outcome=PERMANENT and error_class=ERR-017; the source URL → ST-180; the target is never fetched; the hop appears in the source's `redirect_chain` [R-131].
-- AC-016: Between dispatch [T-1] and request send, a robots cache refresh to DISALLOW moves the record ST-110→ST-190/`ROBOTS_DISALLOW` and releases its slot; a refresh to UNKNOWN (Host deferred) compensates the record back to ST-100 with the attempts increment rolled back [R-054]; no request is sent while the Host is deferred.
+- AC-016: Between dispatch [T-1] and request send, a robots cache refresh to DISALLOW moves the record ST-110→ST-190/`ROBOTS_DISALLOW` and releases its slot; a refresh to UNKNOWN (Host deferred) compensates the record back to ST-100. In both cases no request is sent, no fetch_event is written, and the [T-1] attempts increment is rolled back [R-053], [R-054]; no request is sent while the Host is deferred.
 - AC-017: A redirect hop whose target Host is robots-deferred (verdict UNKNOWN) aborts the chain with outcome=RETRYABLE and error_class=ERR-010; the source → ST-150; no request is sent to the target Host during deferral [R-131].
 - AC-018: With two due candidates on different Hosts — priorities 900 and 100, the lower-priority one due earlier — the higher-priority candidate is dispatched first: `due_at_mono` never orders already-due work [FR-010].
 - AC-019: On robots.txt cache TTL expiry [CFG-008] with a cached entry, gate queries keep using the previous rules while the revalidation fetch is in flight; a 2xx revalidation swaps in the new rules atomically; a failing revalidation defers the Host [R-104].
@@ -69,3 +69,6 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-053: Operator reset of a DEAD URL via the runtime API returns the record to ST-100 with attempts=0 and last error class cleared, emits the ST-180→ST-100 transition metric [DOC-15 §1], and writes an audit log entry [DOC-13 §4].
 - AC-054: With [CFG-034] bound to a non-loopback address, the mutating operator actions (seed injection, DEAD reset, drain trigger) are disabled, a startup WARN is logged, and /healthz and /metrics remain available [R-406].
 - AC-055: A redirect hop whose target Host's Crawl-delay implies a politeness wait > [CFG-035] aborts the chain with outcome=RETRYABLE and error_class=ERR-018; the source → ST-150; no worker slot or host concurrency slot is held during the wait; `next_attempt_mono` is floored at the target Host's window opening; if the window never opens within the retry budget, the URL reaches ST-180 [R-131], [DOC-13 §3].
+- AC-056: Hop-target acceptance [R-130], [R-131], one fixture per case: (a) a relative `Location` value resolves against the hop URL to the correct absolute target (chain follows it); (b) a `Location` with a non-http(s) scheme yields outcome=PERMANENT, error_class=ERR-011, no follow; (c) a hop target matching a [CFG-037] pattern yields outcome=PERMANENT, error_class=ERR-019, source → ST-180, target never fetched, hop recorded in `redirect_chain`.
+- AC-057: With scope_mode=SEED_DOMAINS and an IP-literal seed (e.g. `http://93.184.216.34/`), other URLs on the same IP literal are IN_SCOPE and every named host is OUT_OF_SCOPE [DOC-00]; `[2001:0DB8::1]` and `[2001:db8::1]` normalize to one URL Identity [R-003].
+- AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190 (`OUT_OF_SCOPE` where applicable and [CFG-038]=true); a valid injection behaves identically to a config seed [FR-006].

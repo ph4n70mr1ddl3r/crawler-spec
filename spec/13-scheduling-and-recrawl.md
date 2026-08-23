@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.6.0
+version: 1.7.0
 ---
 
 # Scheduling and Recrawl
@@ -15,6 +15,19 @@ order is `(priority DESC, url_identity ASC)` [FR-010], [§3] — `due_at_mono`
 governs when a record becomes due, never the ordering of already-due work.
 A newly created ST-100 record is immediately due: `due_at_mono` is set to its
 enqueue time (later transitions overwrite it: backoff [DOC-07 §2], recrawl [§4]).
+
+Before candidacy, the scheduling loop performs the due-time promotions
+(R-050 makes only ST-100 records dispatch candidates, so the promotions are
+part of the loop, not fetch dispatches):
+
+- ST-150 → ST-100 when `now ≥ next_attempt_mono` (and `attempts <
+  [CFG-020]`, which always holds — [DOC-13 §3] evaluates the budget at
+  failure time), setting `due_at_mono := next_attempt_mono` [DOC-07 §2];
+- ST-140 → ST-100 when `now ≥ due_at_mono` (the recrawl due time computed
+  at fetch completion [§4]) [FR-050].
+
+Both promotions are wake sources for the loop [R-211]; a promoted record is
+dispatchable in the same iteration.
 
 ## 2. Priority computation (0–1000, default 500)
 
@@ -54,7 +67,8 @@ loop:
   it MUST be dispatched within one loop iteration; gates are the ONLY reason to wait.
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
   (next `due_at_mono` over ST-100, next `next_attempt_mono` over ST-150,
-  next politeness expiry, next robots-deferral expiry), and is woken
+  next recrawl `due_at_mono` over ST-140 [FR-050], next politeness expiry,
+  next robots-deferral expiry), and is woken
   immediately by any event that creates or re-due-s a candidate —
   discovery/ingestion [C1], operator actions (seed injection [FR-006], DEAD
   reset [DOC-13 §4]) — so an empty frontier never causes an unbounded sleep.
