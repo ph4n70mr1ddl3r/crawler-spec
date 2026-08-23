@@ -1,10 +1,78 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Changelog
+
+## 1.2.0 — 2026-08-23 (review pass v2: correctness, completeness, consistency)
+
+### Correctness fixes
+
+- FR-012, T-1, R-053: `urls.attempts` is now incremented inside the dispatch
+  transaction. Previously no rule incremented it, yet DOC-13 §5 crash
+  classification and the ST-150→ST-180 budget check both depended on "attempt
+  already counted at dispatch".
+- DOC-11 §6 retention: blobs and page_artifacts rows are now deleted only when
+  NO remaining `pages` row references their payload_sha256. The old age-only
+  rule would have dangled references whenever dedup shared a hash across URLs.
+  Deletion basis for DEAD/EXCLUDED records specified (`updated_at`); fetch_events
+  retention now references [CFG-033] instead of a hardcoded 7 days.
+- INV-1 vs redirects: INV-1 now exempts redirect-hop targets; new R-062 defines
+  URL Record creation for a chain's final target (depth = source depth per
+  DEC-009). Previously DEC-004 required such records but nothing created them,
+  and INV-1 contradicted hop fetching outright.
+- Error taxonomy: added ERR-014 HTTP_4XX_PERMANENT and ERR-015
+  REDIRECT_OUT_OF_SCOPE; DOC-09 §4's ad-hoc ST-180 labels (`HTTP_4xx_AUTH`,
+  `GONE`, `HTTP_4xx_OTHER`) and the unmapped `REDIRECT_OUT_OF_SCOPE` outcome now
+  resolve to real error classes.
+- State machine: ST-120→ST-130 now explicitly covers 304/UNCHANGED (it said
+  "2xx" only); new R-144 defines the 304-after-retention cache-miss refetch.
+- DOC-08 §4 / FR-012: harmonized the dispatch advance to
+  `max(next_allowed_fetch_at, now) + EffectiveDelay` (FR-012 previously said
+  "advance by", which drifts when now < next_allowed_fetch_at).
+
+### Completeness additions
+
+- R-103 + CFG-040: defined when ST-190/`ROBOTS_UNKNOWN_TIMEOUT` is actually
+  applied (continuous robots deferral ≥ CFG-040) — the reason code existed but
+  nothing triggered it; robots deferral backoff cap parameterized (was
+  hardcoded 24 h).
+- Schema gaps filled: `urls.is_seed` (priority formula input),
+  `urls.last_seen_at` (FR-051/INV-5), `hosts.suspicious` (R-402) — all
+  referenced elsewhere but missing from DOC-11 §1.
+- R-131 extended: every redirect hop must respect the target host's politeness
+  window and concurrency caps (previously unspecified).
+- R-232: "retryable (once)" classes (ERR-003, ERR-013) given a defined
+  effective budget of 2 total attempts.
+- Priority term "+50 if same host has fresh successful history" replaced with
+  the testable `host.pages_crawled > 0`.
+- V-4 + AC-005: PREFIX_LIST mode aborts startup if any seed matches no prefix
+  (previously such a config crawled nothing silently).
+- New acceptance criteria AC-026 (cross-host redirect politeness + final-target
+  record) and AC-027 (ROBOTS_UNKNOWN_TIMEOUT); AC-043 extended to the shared-
+  blob retention case.
+
+### Consistency fixes
+
+- Rule ID blocks made collision-free and documented: DOC-11 storage rules
+  renumbered R-300..R-302 → R-500..R-502 (all references updated); DOC-16 note
+  corrected to "owns R-3xx and R-4xx"; README example updated.
+- CFG-003b renamed CFG-039 (ID convention is CFG-nnn); reference in DOC-06 §4
+  updated.
+- DOC-03 C7 table list aligned with the actual DOC-11 schema (dropped phantom
+  `kv_config_state`; added `pages`, `page_artifacts`).
+- Removed remaining self-dialogue prose (same defect class as DEC-009 in
+  v1.1.0): DOC-06 normalization steps 8–9, DOC-09 §2 total-transfer cell.
+- R-041 qualified to except OUT_OF_SCOPE drops under [CFG-038]=false (was
+  inconsistent with FR-004); garbled recovery parenthetical in DOC-03 fixed;
+  NFR-015 editorial aside rewritten normatively; fetch_events "bounded ring
+  buffer" wording aligned with its time-based retention.
+
+### Versioning
+
+- KB version 1.1.0 → 1.2.0; all touched documents bumped accordingly.
 
 ## 1.1.0 — 2026-08-23 (review pass: consistency, completeness, correctness)
 

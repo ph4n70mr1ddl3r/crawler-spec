@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Scheduling and Recrawl
@@ -20,7 +20,7 @@ priority = clamp(500
            + 100 if URL is a seed
            + boost from [CFG-031] manual per-prefix boosts  // optional, 0–300
            − 100 × min(consecutive_failures(host),3)     // deprioritize flaky hosts
-           + 50 if same host has fresh successful history
+           + 50 if host.pages_crawled > 0                // host has prior success [DOC-11 §1]
          , 0, 1000)
 ```
 

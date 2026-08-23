@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Errors and Retry
@@ -23,6 +23,8 @@ version: 1.1.0
 | ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | |
 | ERR-012 | TIMEOUT_HEADERS / TIMEOUT_TOTAL | yes | |
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |
+| ERR-014 | HTTP_4XX_PERMANENT | no | non-retryable client errors (401/403/404/410/418/451/other 4xx); the specific status is recorded in fetch_events.http_status [DOC-09 §4] |
+| ERR-015 | REDIRECT_OUT_OF_SCOPE | no | redirect target failed the Scope predicate [R-030]; source URL → ST-180, target never fetched |
 
 ## 2. Retry state
 
@@ -46,6 +48,9 @@ on PERMANENT outcome:               → ST-180 immediately
 
 - R-230: Backoff is per-URL; host-level dynamic backoff ([DOC-08 §4]) applies
   additionally and independently at scheduling time.
+- R-232: Classes marked "yes (once)" (ERR-003, ERR-013) have an effective
+  retry budget of 2 total attempts (initial + 1 retry), regardless of
+  [CFG-020]; further occurrences are permanent.
 - R-231: Any successful fetch resets host `consecutive_failures` to 0. The URL `attempts` counter resets to 0 only on terminal success (ST-140) and on recrawl [R-052]; it is never reset by a retry-path success.
 
 ## 4. Dead-letter semantics

@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Configuration
@@ -16,7 +16,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-001 | seeds | URL list | — required, ≥1 | normalized+filtered at load |
 | CFG-002 | scope_mode | enum | `SEED_DOMAINS` | `SEED_DOMAINS \| SEED_HOSTS \| PREFIX_LIST` |
 | CFG-003 | allowed_schemes | list | `[https, http]` | subset of {http, https} |
-| CFG-003b | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST |
+| CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries matched as scheme+host+path prefix [DOC-06 §4] |
 | CFG-004 | max_depth | int | 5 | 0–50 |
 | CFG-005 | max_urls_total | int | 100000 | >0 |
 | CFG-006 | max_pages_per_registrable_domain | int | 10000 | per Registrable Domain [FR-005] |
@@ -30,6 +30,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-009 | per_host_concurrency | int | 2 | 1–16 |
 | CFG-010 | global_concurrency | int | 64 | 1–1024 |
 | CFG-011 | dynamic_backoff_enabled | bool | true | |
+| CFG-040 | robots_defer_max_s | int | 86400 (24 h) | 60–604800; cap for robots-deferral exponential backoff [DOC-08 §2], and the continuous-deferral duration after which gated URLs go ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103] |
 
 ## Fetching
 
@@ -88,3 +89,4 @@ Every parameter is referenced elsewhere only by its CFG id.
 - V-1: All ranges above are inclusive; violation ⇒ abort before any I/O except reading the config file itself.
 - V-2: `total_transfer_timeout_ms ≥ response_header_timeout_ms` required.
 - V-3: Config hash (SHA-256 of canonical serialization) recorded in every `runs` row.
+- V-4: If scope_mode=PREFIX_LIST, every seed MUST match ≥1 entry of [CFG-039]; violation aborts startup [DEC-011] (a seed that is out of scope would otherwise silently crawl nothing).

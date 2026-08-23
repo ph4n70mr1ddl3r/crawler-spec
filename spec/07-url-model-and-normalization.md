@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.1.0
+version: 1.2.0
 ---
 
 # URL Model and Normalization
@@ -23,8 +23,11 @@ Given an accepted URL, produce the **Normalized URL** by applying, in order:
 5. Remove fragment (`#...`) — fragments never participate in URL Identity.
 6. Resolve path dot-segments per RFC 3986 §5.2.4.
 7. Empty path ⇒ `/`.
-8. Sort query parameters? NO — preserve original parameter order (order can be semantically significant). Deduplicate nothing.
-9. Collapse multiple consecutive slashes in the path? NO — preserved verbatim (they may be distinct resources).
+8. Query parameters MUST NOT be sorted and MUST NOT be deduplicated: the
+   original parameter order is preserved verbatim (order can be semantically
+   significant).
+9. Consecutive slashes in the path MUST NOT be collapsed (they may denote
+   distinct resources); the path is preserved verbatim.
 
 The output string is the **URL Identity** (primary key, DEC-004).
 
@@ -44,7 +47,7 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 |---|---|
 | IN_SCOPE | scope_mode=SEED_DOMAINS: URL's Registrable Domain ∈ seed Registrable Domains set |
 | IN_SCOPE | scope_mode=SEED_HOSTS: URL's Host ∈ seed Hosts set |
-| IN_SCOPE | scope_mode=PREFIX_LIST: URL starts with ≥1 entry of [CFG-003b] (scheme+host+path prefix match) |
+| IN_SCOPE | scope_mode=PREFIX_LIST: URL starts with ≥1 entry of [CFG-039] (scheme+host+path prefix match) |
 | OUT_OF_SCOPE | otherwise |
 
 - R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome `REDIRECT_OUT_OF_SCOPE`; no fetch of the target occurs.
@@ -60,4 +63,6 @@ Applied to IN_SCOPE URLs in order; first match wins:
 4. **Depth**: depth > [CFG-004] → ST-190/`DEPTH_LIMIT`. Seeds have depth 0.
 
 - R-040: Filters MUST run before Frontier insertion so traps never consume fetch capacity.
-- R-041: Excluded URLs keep records (state ST-190) so re-discovery is O(1) and auditable.
+- R-041: Excluded URLs keep records (state ST-190) so re-discovery is O(1) and
+  auditable — except OUT_OF_SCOPE URLs when [CFG-038]=false, which are dropped
+  with no record per [FR-004].

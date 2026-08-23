@@ -1,7 +1,7 @@
 ---
 id: DOC-05
 title: Non-Functional Requirements
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Non-Functional Requirements
@@ -24,5 +24,5 @@ Targets are for reference hardware: 4 vCPU, 8 GiB RAM, SSD, 100 Mbps.
 | NFR-012 | Idempotency | Re-running ingestion of the same seed set produces no duplicate work. |
 | NFR-013 | Security posture | All SSRF/trap guards fail closed: unknown ⇒ block [DOC-16]. |
 | NFR-014 | Compliance | robots.txt handling conforms to RFC 9309 semantics for the groups matching UA Token. |
-| NFR-015 | Resource fairness | No single Host may consume more than 1/[CFG-009] share of its own capacity — trivially true — and global order MUST be fair across Hosts (no starvation: every due URL scheduled within one scheduling round of becoming due). |
+| NFR-015 | Resource fairness | Per-host load is inherently capped by [CFG-009]; globally, scheduling MUST be fair across Hosts — no starvation: every due URL whose gates pass is dispatched within one scheduling round of becoming due [R-210]. |
 | NFR-016 | Log hygiene | Logs MUST NOT contain full payload bodies; URLs MAY be logged; credentials (userinfo in URL) MUST be redacted. |

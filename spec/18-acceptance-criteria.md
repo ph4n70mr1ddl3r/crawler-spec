@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.0.0
+version: 1.2.0
 ---
 
 # Acceptance Criteria
@@ -16,6 +16,7 @@ responses; politeness tests use virtual time where possible [DEC-012].
 - AC-002: Seeds with disallowed scheme or userinfo abort startup with exit code ≠ 0 before any network I/O.
 - AC-003: A page containing 100 duplicate links yields exactly one new URL Record.
 - AC-004: With scope_mode=SEED_DOMAINS, a link from sub.example.org to example.org is IN_SCOPE; to other.org is OUT_OF_SCOPE and never fetched.
+- AC-005: Startup with scope_mode=PREFIX_LIST where a seed matches no entry of [CFG-039] aborts with exit code ≠ 0 before any network I/O [V-4].
 
 ## Politeness & robots
 
@@ -33,6 +34,8 @@ responses; politeness tests use virtual time where possible [DEC-012].
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
 - AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD.
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
+- AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133].
+- AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103].
 
 ## State machine & durability
 
@@ -46,7 +49,7 @@ responses; politeness tests use virtual time where possible [DEC-012].
 - AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs.
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
 - AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash.
-- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep.
+- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted.
 
 ## Operations
 

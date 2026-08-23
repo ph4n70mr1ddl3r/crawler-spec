@@ -1,6 +1,6 @@
 ---
 kb: web-crawler-spec
-version: 1.1.0
+version: 1.2.0
 status: APPROVED-DRAFT
 last-updated: 2026-08-23
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.
@@ -49,7 +49,8 @@ expressed as a numbered, testable requirement or rule.
 - **Keywords** (RFC 2119): MUST / MUST NOT / SHOULD / SHOULD NOT / MAY.
 - **Normative rules** (`R-nnn`) appear inside topic documents and carry the same
   weight as FR/NFR entries. R-nnn IDs are globally unique across the entire KB;
-  topic documents own disjoint ID blocks (e.g., DOC-16 security rules use R-4xx).
+  topic documents own disjoint ID blocks (DOC-11 storage rules own R-5xx;
+  DOC-16 security rules own R-3xx and R-4xx).
 - Cross-references are written as `[FR-012]`, `[DOC-08]`, `[CFG-007]`.
 - Conflicts: a specific topic document overrides general documents;
   security rules ([DOC-16]) override everything else; this precedence order is

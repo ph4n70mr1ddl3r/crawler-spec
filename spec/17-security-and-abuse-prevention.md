@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Security and Abuse Prevention
@@ -48,7 +48,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 
 ## 4. Content hygiene
 
-- R-320: Never send URL userinfo anywhere [R-002]; strip credentials before logging or storage. (Rule IDs in this document use the R-4xx block; they never collide with other documents' R-nnn IDs.)
+- R-320: Never send URL userinfo anywhere [R-002]; strip credentials before logging or storage. (Security rules own the R-3xx and R-4xx ID blocks; DOC-11 storage rules own R-5xx — no collisions with other documents.)
 - R-330: Do not special-case crawl-sensitive paths (`/admin`, `.git`, etc.) — scope and robots govern access; but robots DISALLOW is always final [P-2].
 - R-340: No execution of content: no JS evaluation, no macro/document conversion — parsing is structural only [DOC-10].
 

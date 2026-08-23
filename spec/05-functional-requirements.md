@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Functional Requirements
@@ -23,7 +23,11 @@ Numbering is grouped by component area. "The system" = the Crawler.
 - FR-011: The Scheduler MUST NOT dispatch a fetch to a Host unless all hold:
   (a) host inflight < [CFG-009]; (b) global inflight < [CFG-010];
   (c) monotonic now ≥ host.next_allowed_fetch_at; (d) robots gate = ALLOW for that URL [DOC-08 §3].
-- FR-012: On dispatch, the system MUST atomically set the URL Record to ST-110, increment host inflight, and advance host.next_allowed_fetch_at by the Effective Delay — atomically with respect to process death (single transaction).
+- FR-012: On dispatch, the system MUST atomically set the URL Record to ST-110,
+  increment `urls.attempts` by one (so the attempt is counted even if the process
+  dies mid-fetch [DOC-13 §5]), increment host inflight, and set
+  host.next_allowed_fetch_at = max(next_allowed_fetch_at, now) + Effective Delay —
+  atomic with respect to process death (single transaction) [DOC-08 §4], [T-1].
 - FR-013: Priority MUST be computed per [DOC-12 §4] from depth, change frequency hints, and manual boost; range 0–1000, default 500.
 
 ## Fetching (C5)
@@ -46,7 +50,7 @@ Numbering is grouped by component area. "The system" = the Crawler.
 - FR-040: Successful responses with content-type `text/html` or `application/xhtml+xml` MUST be parsed and links + content extracted per [DOC-10].
 - FR-041: Other content types: store payload iff [CFG-028]=true and type ∈ allowed list; skip parsing except recording `Content-Type` and length metadata [DEC-006].
 - FR-042: Every discovered link MUST be resolved against the final response URL (post-redirect), then normalized and filtered like a seed [FR-001..FR-005], with depth = parent depth + 1 [DEC-009].
-- FR-043: Payloads MUST be stored in the Content Store keyed by SHA-256(payload bytes) [R-300]; byte-identical payloads MUST reuse the existing blob (no duplicate bytes) while page records reference the shared hash.
+- FR-043: Payloads MUST be stored in the Content Store keyed by SHA-256(payload bytes) [R-500]; byte-identical payloads MUST reuse the existing blob (no duplicate bytes) while page records reference the shared hash.
 - FR-044: Page Records MUST capture: url identity, final URL identity, payload hash, content type, charset, length, fetch timestamp, http status, etag/last-modified (if present), title, canonical link rel=canonical if present, meta robots directives. Scalar columns live in `pages`; canonical URL and meta robots directives are captured in the page artifacts JSON [DOC-10 §3], which is part of the page record set [DOC-11 §1].
 - FR-045: If `meta robots` contains `noindex`, the page MUST still be stored but flagged `noindex=true` for the Downstream Consumer; `nofollow` MUST suppress link extraction from that page.
 

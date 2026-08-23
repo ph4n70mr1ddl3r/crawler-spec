@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Architecture
@@ -86,12 +86,12 @@ version: 1.0.0
 - Emits discovered URLs into INGESTOR and artifacts into stores.
 
 ### C7 METADATA STORE
-- Relational store holding tables: `urls`, `hosts`, `runs`, `fetch_events`
-  (bounded), `kv_config_state`. Schemas in [DOC-11].
+- Relational store holding tables: `urls`, `pages`, `page_artifacts`, `hosts`,
+  `fetch_events` (time-bounded), `runs`. Schemas in [DOC-11].
 
 ### C8 CONTENT STORE
 - Immutable, content-addressed blob files: `blobs/<sha256[0:2]>/<sha256>`.
-- Keyed by SHA-256 hex of payload bytes. Writes are atomic (temp+rename) [R-300].
+- Keyed by SHA-256 hex of payload bytes. Writes are atomic (temp+rename) [R-500].
 
 ### C9 OBSERVABILITY
 - Metrics counters/gauges, structured JSON logs on stdout, optional HTTP health
@@ -99,7 +99,11 @@ version: 1.0.0
 
 ## Data flow invariants
 
-- INV-1: Every fetched URL identity exists as a URL Record before fetching begins.
+- INV-1: Every URL identity dispatched from the Frontier exists as a URL Record
+  before fetching begins. Redirect-hop targets are the sole exception: they are
+  authorized in-flight by [R-131] and persisted on the source record's
+  `redirect_chain` [R-133]; the chain's final target receives its own URL Record
+  at completion per [R-062] [DOC-07 §5].
 - INV-2: A payload in the Content Store is written before any metadata row that
   references its hash is committed (referential safety after crash).
 - INV-3: The number of in-flight fetches to a Host NEVER exceeds
@@ -114,6 +118,5 @@ version: 1.0.0
 Single OS process; graceful shutdown on SIGINT/SIGTERM (stop issuing fetches,
 finish in-flight requests up to total-timeout, commit all state, exit code 0).
 Crash recovery on startup: rebuild HOST REGISTRY and in-memory indexes from
-Metadata Store; any URL Record left in ST-120 (FETCHING, or the transient
-ST-110 SCHEDULED) is reset to ST-100
-(QUEUED), keeping its attempt count [DOC-07 §5].
+Metadata Store; any URL Record left in {ST-110 (SCHEDULED), ST-120 (FETCHING)}
+is reset to ST-100 (QUEUED), keeping its attempt count [DOC-07 §5].
