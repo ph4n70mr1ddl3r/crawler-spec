@@ -1,0 +1,55 @@
+---
+id: DOC-07
+title: URL Lifecycle State Machine
+version: 1.0.0
+---
+
+# URL Lifecycle State Machine
+
+## States
+
+| ID | Name | Terminal? | Meaning |
+|----|------|-----------|---------|
+| ST-100 | QUEUED | no | Passed filters; awaiting scheduling. |
+| ST-110 | SCHEDULED | no | Dispatched; holding politeness slot. |
+| ST-120 | FETCHING | no | HTTP request in flight. |
+| ST-130 | FETCHED | no | Payload stored; extraction pending. |
+| ST-140 | DONE | yes | Parsed, extracted, artifacts stored. |
+| ST-150 | RETRY_WAIT | no | Retryable failure; backoff timer running. |
+| ST-180 | DEAD | yes | Retries exhausted or permanent error. |
+| ST-190 | EXCLUDED | yes | Never crawled; reason code required. |
+
+Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIMEOUT`,
+`TRAP_PARAM`, `TRAP_PATH_BUDGET`, `DEPTH_LIMIT`, `CAP_REACHED`, `BLOCKLIST`.
+
+## Transitions
+
+```
+(creation)          ─► ST-100   filters passed [FR-003]
+ST-100 ─► ST-110                scheduler dispatch [FR-012], atomic
+ST-110 ─► ST-120                robots ALLOW confirmed, request sent
+ST-110 ─► ST-190                robots DISALLOW/UNKNOWN-timeout [FR-031]
+ST-120 ─► ST-130                success (2xx, payload stored) [FR-043]
+ST-120 ─► ST-150                retryable failure [DOC-13 §3]
+ST-120 ─► ST-180                permanent failure or retry budget exhausted
+ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
+ST-150 ─► ST-180                attempts = [CFG-020]
+ST-130 ─► ST-140                extraction complete
+ST-140 ─► ST-100                recrawl due [FR-050] (attempts reset to 0)
+```
+
+No other transitions exist. Any observed other transition is a defect.
+
+## State-dependent rules
+
+- R-050: Only ST-100 records are visible to the Scheduler.
+- R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on transition out of ST-120 (to ST-130, ST-150, or ST-180).
+- R-052: ST-140→ST-100 recrawl resets `attempts=0` and preserves priority unless change-detection adjusts it [DOC-12 §6].
+
+## Crash recovery
+
+- R-060: On startup, every record in {ST-110, ST-120} MUST be reset to ST-100,
+  keeping its attempt count. Because dispatch advanced `next_allowed_fetch_at`
+  transactionally [FR-012], politeness cannot be violated by this reset.
+- R-061: ST-130 records at startup resume extraction (idempotent: re-running
+  extraction overwrites artifacts deterministically).
