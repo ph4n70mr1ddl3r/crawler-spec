@@ -19,7 +19,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 
 ## 2. Network egress policy
 
-- R-300b: Before every TCP connection (initial AND each redirect hop):
+- R-400: Before every TCP connection (initial AND each redirect hop):
   1. Resolve all A/AAAA records.
   2. Every resolved address MUST be global-unicast; reject if any address is:
      loopback, RFC1918, CGNAT 100.64/10, link-local (v4/v6), ULA fc00::/7,
@@ -27,9 +27,9 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
      configured deny-list entry.
   3. Pin the validated IP for the connection (defeats TOCTOU rebinding between
      check and connect); TLS SNI/cert still checked against hostname.
-- R-301b: Ports restricted to 80/443 (plus explicit scheme defaults); other ports ⇒ ERR-004.
-- R-302b: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180/`SSRF_BLOCKED` and the host is flagged `suspicious=true` (operator-visible metric only).
-- R-303b: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
+- R-401: Ports restricted to 80/443 (plus explicit scheme defaults); other ports ⇒ ERR-004.
+- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180/`SSRF_BLOCKED` and the host is flagged `suspicious=true` (operator-visible metric only).
+- R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
 
 ## 3. Resource caps (all enforced pre-allocation)
 
@@ -48,7 +48,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 
 ## 4. Content hygiene
 
-- R-320: Never send URL userinfo anywhere [R-002]; strip credentials before logging or storage.
+- R-320: Never send URL userinfo anywhere [R-002]; strip credentials before logging or storage. (Rule IDs in this document use the R-4xx block; they never collide with other documents' R-nnn IDs.)
 - R-330: Do not special-case crawl-sensitive paths (`/admin`, `.git`, etc.) — scope and robots govern access; but robots DISALLOW is always final [P-2].
 - R-340: No execution of content: no JS evaluation, no macro/document conversion — parsing is structural only [DOC-10].
 

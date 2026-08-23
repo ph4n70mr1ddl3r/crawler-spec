@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.0.0
+version: 1.1.0
 ---
 
 # URL Lifecycle State Machine
@@ -26,7 +26,9 @@ Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIME
 
 ```
 (creation)          ─► ST-100   filters passed [FR-003]
+(creation)          ─► ST-190   scope/trap/blocklist filter failed [FR-004], [DOC-06 §5]
 ST-100 ─► ST-110                scheduler dispatch [FR-012], atomic
+ST-100 ─► ST-190                robots DISALLOW at gate time [FR-031]
 ST-110 ─► ST-120                robots ALLOW confirmed, request sent
 ST-110 ─► ST-190                robots DISALLOW/UNKNOWN-timeout [FR-031]
 ST-120 ─► ST-130                success (2xx, payload stored) [FR-043]
@@ -44,12 +46,15 @@ No other transitions exist. Any observed other transition is a defect.
 
 - R-050: Only ST-100 records are visible to the Scheduler.
 - R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on transition out of ST-120 (to ST-130, ST-150, or ST-180).
-- R-052: ST-140→ST-100 recrawl resets `attempts=0` and preserves priority unless change-detection adjusts it [DOC-12 §6].
+- R-052: ST-140→ST-100 recrawl resets `attempts=0`; priority is recomputed per [DOC-12 §2] (R-201).
 
 ## Crash recovery
 
 - R-060: On startup, every record in {ST-110, ST-120} MUST be reset to ST-100,
   keeping its attempt count. Because dispatch advanced `next_allowed_fetch_at`
   transactionally [FR-012], politeness cannot be violated by this reset.
+  Host rows are rebuilt conservatively in the same recovery pass: `inflight` is
+  recomputed as the count of records still in {ST-110, ST-120} after the reset
+  (i.e., 0 for a clean recovery), restoring INV-3 [NFR-011].
 - R-061: ST-130 records at startup resume extraction (idempotent: re-running
   extraction overwrites artifacts deterministically).

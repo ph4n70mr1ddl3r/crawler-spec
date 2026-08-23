@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Configuration
@@ -19,7 +19,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-003b | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST |
 | CFG-004 | max_depth | int | 5 | 0–50 |
 | CFG-005 | max_urls_total | int | 100000 | >0 |
-| CFG-006 | max_pages_per_host | int | 10000 | per Registrable Domain |
+| CFG-006 | max_pages_per_registrable_domain | int | 10000 | per Registrable Domain [FR-005] |
 
 ## Politeness & concurrency
 
@@ -36,6 +36,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | ID | Name | Type | Default | Range |
 |----|------|------|---------|-------|
 | CFG-012 | connect_timeout_ms | int | 10000 | 1000–60000 |
+| CFG-036 | dns_timeout_ms | int | 10000 | 1000–60000 [DOC-09 §2] |
 | CFG-013 | tls_handshake_timeout_ms | int | 10000 | 1000–60000 |
 | CFG-014 | response_header_timeout_ms | int | 30000 | 1000–120000 |
 | CFG-015 | total_transfer_timeout_ms | int | 300000 | ≥ header timeout |
@@ -52,6 +53,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-022 | retry_backoff_base_ms | int | 2000 | 100–60000 |
 | CFG-023 | retry_backoff_factor | float | 2.0 | 1.0–10.0 |
 | CFG-024 | retry_backoff_jitter | float | 0.25 | 0–0.5 (fraction) |
+| CFG-035 | max_backoff_delay_ms | int | 3600000 (1 h) | 1000–86400000; cap for per-URL retry delay [DOC-13 §3] and per-host dynamic backoff [DOC-08 §4] |
 
 ## Recrawl & refresh
 
@@ -78,6 +80,8 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-032 | log_level | enum | `info` | debug/info/warn/error |
 | CFG-033 | fetch_event_retention_days | int | 7 | [DOC-11 §6] |
 | CFG-034 | health_listen_addr | string | null | optional HTTP endpoint for metrics/health [DOC-15]; also exposes operator actions [DOC-16 §5] |
+| CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
+| CFG-038 | log_exclusions | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] |
 
 ## Validation rules
 

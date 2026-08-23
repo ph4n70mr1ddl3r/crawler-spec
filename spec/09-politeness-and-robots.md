@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Politeness and robots.txt
@@ -41,9 +41,14 @@ For each Host h, HOST REGISTRY maintains monotonic `next_allowed_fetch_at(h)`.
 ```
 EffectiveDelay(h) = max( CFG-007,
                          crawl_delay(h),
-                         backoff_ms(h) )      // if dynamic backoff enabled
-backoff_ms(h)     = min(CFG-022 * CFG-023^(consecutive_failures(h)), 600000)
-                    // reset to 0 on any success
+                         backoff_ms(h) )      // backoff term applies only
+                                              // if [CFG-011]=true
+backoff_ms(h)     = consecutive_failures(h) = 0
+                    ? 0
+                    : min(CFG-022 * CFG-023^(consecutive_failures(h) - 1),
+                          CFG-035)
+                    // reset to 0 on any success; exponent aligned with the
+                    // per-URL retry formula [DOC-13 §3]
 ```
 
 Dispatch of a task for h atomically: verify `now ≥ next_allowed_fetch_at(h)`

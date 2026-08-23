@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Fetching
@@ -22,7 +22,7 @@ version: 1.0.0
 
 | Timer | Config | Starts | Notes |
 |---|---|---|---|
-| DNS | 10 s fixed | resolution start | includes SSRF check time |
+| DNS | [CFG-036] | resolution start | includes SSRF check time |
 | Connect | [CFG-012] | connect start | TCP established |
 | TLS | [CFG-013] | handshake start | certificate verified, fail closed |
 | Response headers | [CFG-014] | request bytes written | until full header block received |
@@ -35,7 +35,7 @@ Timeout violations classify ERR-002 (connect), ERR-003 (TLS), ERR-012 (headers/t
 - R-130: Follow 301, 302, 303, 307, 308 up to [CFG-017] hops; method stays GET throughout.
 - R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021].
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
-- R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities).
+- R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
 
 ## 4. Response classification
 

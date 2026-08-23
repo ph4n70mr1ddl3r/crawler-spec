@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Storage Model
@@ -47,6 +47,10 @@ pages (
   PRIMARY KEY (url_identity, run_id)
 )
 
+-- Within a single Run a URL is fetched at most once per recrawl cycle; if a
+-- same-run refetch ever occurs (e.g., operator-triggered refresh), it UPSERTS
+-- (replaces) the prior row for that (url_identity, run_id) key.
+
 page_artifacts (
   payload_sha256    TEXT PRIMARY KEY,
   json              TEXT NOT NULL         -- [DOC-10 §3], deterministic
@@ -75,6 +79,7 @@ fetch_events (                       -- bounded ring buffer per [DOC-11 §6]
   http_status       INT NULL,
   final_url_identity TEXT NULL,
   payload_sha256    TEXT NULL,
+  redirect_chain    TEXT NULL,        -- JSON array of hop identities [R-133]
   timings_ms        TEXT NULL         -- JSON
 )
 

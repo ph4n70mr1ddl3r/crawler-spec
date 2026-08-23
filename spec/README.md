@@ -1,8 +1,8 @@
 ---
 kb: web-crawler-spec
-version: 1.0.0
+version: 1.1.0
 status: APPROVED-DRAFT
-last-updated: 2026-02-23
+last-updated: 2026-08-23
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.
 ---
 
@@ -34,6 +34,7 @@ expressed as a numbered, testable requirement or rule.
 | DOC-15 | [16-observability.md](16-observability.md)    | Metrics, logs, health signals. |
 | DOC-16 | [17-security-and-abuse-prevention.md](17-security-and-abuse-prevention.md) | SSRF defense, trap avoidance, resource caps. |
 | DOC-17 | [18-acceptance-criteria.md](18-acceptance-criteria.md) | Verifiable acceptance criteria (AC-###). |
+| DOC-18 | [19-changelog.md](19-changelog.md) | KB revision history. |
 
 ## Reading order
 
@@ -47,7 +48,8 @@ expressed as a numbered, testable requirement or rule.
   `ERR-nnn` error class, `ST-nnn` state, `DEC-nnn` decision, `R-nnn` normative rule.
 - **Keywords** (RFC 2119): MUST / MUST NOT / SHOULD / SHOULD NOT / MAY.
 - **Normative rules** (`R-nnn`) appear inside topic documents and carry the same
-  weight as FR/NFR entries.
+  weight as FR/NFR entries. R-nnn IDs are globally unique across the entire KB;
+  topic documents own disjoint ID blocks (e.g., DOC-16 security rules use R-4xx).
 - Cross-references are written as `[FR-012]`, `[DOC-08]`, `[CFG-007]`.
 - Conflicts: a specific topic document overrides general documents;
   security rules ([DOC-16]) override everything else; this precedence order is

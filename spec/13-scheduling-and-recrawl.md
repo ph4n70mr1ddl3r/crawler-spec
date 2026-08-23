@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Scheduling and Recrawl
@@ -18,7 +18,7 @@ conceptually a min-heap on `due_at_mono` with tie-break `(priority DESC, url_ide
 priority = clamp(500
            − 40 × depth                                  // deeper = lower
            + 100 if URL is a seed
-           + boost[CFG: manual per-prefix boosts]        // optional, 0–300
+           + boost from [CFG-031] manual per-prefix boosts  // optional, 0–300
            − 100 × min(consecutive_failures(host),3)     // deprioritize flaky hosts
            + 50 if same host has fresh successful history
          , 0, 1000)
@@ -47,14 +47,17 @@ loop:
 
 On success, a page's next recrawl time:
 
+If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch).
+Otherwise:
+
 ```
 base_interval   = CFG-025
 interval        = base_interval
                   × (1 ± CFG-026 jitter, seeded by hash(url_identity, run_id))
                   // deterministic jitter: same inputs ⇒ same offset
-override        = Retry-After never applies here;
-                  if validators present and server returned 304 on a refetch,
+if validators present and server returned 304 on a refetch:
                   interval doubles up to max 4 × base_interval
+                  // Retry-After never affects recrawl intervals
 due_at_mono     = fetch_complete_mono + interval
 ```
 

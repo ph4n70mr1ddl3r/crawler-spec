@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Errors and Retry
@@ -39,14 +39,14 @@ on RETRYABLE outcome:
     delay = CFG-022 × CFG-023^(attempts−1)
     delay = delay × (1 + U(−j, +j)×CFG-024)     // full jitter band, seeded [NFR-006]
     delay = max(delay, Retry-After if present)
-    delay = min(delay, 1 hour)
+    delay = min(delay, CFG-035)
     state → ST-150, next_attempt_mono = now + delay
 on PERMANENT outcome:               → ST-180 immediately
 ```
 
 - R-230: Backoff is per-URL; host-level dynamic backoff ([DOC-08 §4]) applies
   additionally and independently at scheduling time.
-- R-231: A success resets host `consecutive_failures` to 0 and the URL `attempts` counter only on terminal success (ST-140) or recrawl [R-052].
+- R-231: Any successful fetch resets host `consecutive_failures` to 0. The URL `attempts` counter resets to 0 only on terminal success (ST-140) and on recrawl [R-052]; it is never reset by a retry-path success.
 
 ## 4. Dead-letter semantics
 
