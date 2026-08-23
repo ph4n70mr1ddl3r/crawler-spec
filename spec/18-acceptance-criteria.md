@@ -1,14 +1,16 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Acceptance Criteria
 
 Each criterion is verifiable against a test fixture suite. v1 is complete when
 all pass [DOC-01 §Success]. Fixtures use a local HTTP test server + recorded
-responses; politeness tests use virtual time where possible [DEC-012].
+responses; fixture configs set [CFG-042]=true so the local server is reachable
+under the fail-closed egress policy — SSRF criteria (AC-025) run with it
+false. Politeness tests use virtual time where possible [DEC-012].
 
 ## Ingestion & normalization
 
@@ -28,7 +30,7 @@ responses; politeness tests use virtual time where possible [DEC-012].
 
 ## Fetching & errors
 
-- AC-020: 6-hop redirect chain with CFG-017=5 stops at hop 5, outcome REDIRECT cap error, ERR-011 recorded.
+- AC-020: 6-hop redirect chain with CFG-017=5 stops at hop 5; outcome=PERMANENT with error_class=ERR-011 recorded [DOC-09 §6].
 - AC-021: Redirect loop (A→B→A) detected at first repetition.
 - AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded.
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.

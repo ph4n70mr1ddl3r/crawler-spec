@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Politeness and robots.txt
@@ -16,21 +16,28 @@ version: 1.2.0
 Per Host `(scheme, host, port)`:
 
 1. Cache lookup: valid cached entry within TTL [CFG-008] ⇒ use it.
-2. Else fetch `scheme://host:port/robots.txt` with UA Token, using the same fetch/timeout machinery as pages but exempt from page caps; this fetch itself obeys the host politeness window.
+2. Else fetch `scheme://host:port/robots.txt` with UA Token, using the same
+   fetch/timeout machinery as pages. The robots fetch is exempt only from
+   page-success caps [CFG-006] and from Content Store storage; every transport
+   safety cap [DOC-16 §3] still applies (security precedence [R-000]). It obeys
+   the host politeness window, advances `next_allowed_fetch_at` identically to
+   a page dispatch [FR-012], and holds one per-host/global concurrency slot
+   while in flight.
 3. Interpret the HTTP status of the robots request per RFC 9309:
    - `2xx` → parse per RFC 9309 (groups matching UA Token, falling back to `*` group if no specific match).
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / unparseable body → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts 60 s, ×2 per consecutive failure, cap [CFG-040]). No page fetches to that Host while deferred [DEC-007].
-4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at.
+4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at; persisted on the Host row (`robots_rules`) [DOC-11 §1].
 
 - R-100: If multiple groups match (specific token present), the `*` group MUST be ignored entirely (RFC 9309 §5.2).
 - R-101: The longest-match rule applies to path prefixes; `Allow` and `Disallow` compared by longest path, tie ⇒ `Allow`.
 - R-102: `Crawl-delay` values > 60 s are honored exactly (no clamping); missing ⇒ use [CFG-007].
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
-  [CFG-040], every URL Record gated on that Host MUST be moved to
-  ST-190/`ROBOTS_UNKNOWN_TIMEOUT` (bounded resource use under permanent robots
-  failure [G-4]); until that threshold is reached, gated URLs stay ST-100 and
-  are reconsidered after each deferral expiry.
+  [CFG-040], every non-terminal URL Record on that Host (ST-100 or ST-150)
+  MUST be moved to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` (bounded resource use under
+  permanent robots failure [G-4]); until that threshold is reached, gated URLs
+  stay in their current non-terminal state and are reconsidered after each
+  deferral expiry.
 
 ## 3. Enforcement points
 

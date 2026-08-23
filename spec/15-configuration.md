@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Configuration
@@ -41,7 +41,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-013 | tls_handshake_timeout_ms | int | 10000 | 1000–60000 |
 | CFG-014 | response_header_timeout_ms | int | 30000 | 1000–120000 |
 | CFG-015 | total_transfer_timeout_ms | int | 300000 | ≥ header timeout |
-| CFG-016 | max_payload_bytes | int | 5242880 (5 MiB) | ≤ 20971520 hard cap |
+| CFG-016 | max_payload_bytes | int | 5242880 (5 MiB) | 1–20971520 (20 MiB hard cap) |
 | CFG-017 | max_redirects | int | 5 | 0–10 |
 | CFG-018 | user_agent_token | string | — required | pattern: `name/version (+url)` |
 | CFG-019 | from_header_email | string | null | valid email if set |
@@ -83,6 +83,13 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-034 | health_listen_addr | string | null | optional HTTP endpoint for metrics/health [DOC-15]; also exposes operator actions [DOC-16 §5] |
 | CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
 | CFG-038 | log_exclusions | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] |
+
+## Security
+
+| ID | Name | Type | Default | Range / notes |
+|----|------|------|---------|---------------|
+| CFG-041 | egress_deny_ips | list | `[]` | IPs/CIDRs appended to the SSRF block set [R-400] |
+| CFG-042 | egress_allow_private_ranges | bool | false | test-harness escape hatch from [R-400] [R-405]; MUST NOT be enabled in production; startup logs WARN when true |
 
 ## Validation rules
 

@@ -1,11 +1,98 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Changelog
 
+## 1.3.0 — 2026-08-23 (review pass v3: consistency, completeness, correctness)
+
+### Correctness fixes
+
+- R-051: host/global concurrency slots are now released on the first
+  transition out of {ST-110, ST-120}. Previously they were released only on
+  transitions out of ST-120, but ST-110→ST-190 (robots exclusion at gate
+  time [FR-031]) is a legal transition — each occurrence leaked one slot and
+  could permanently starve a Host's concurrency caps until restart.
+- R-103: robots-unknown exclusion now applies to every non-terminal record on
+  the deferred Host (ST-100 or ST-150), and the transition ST-150→ST-190 was
+  added to the state machine. Previously ST-150 records were never covered:
+  with no legal transition to exclude them, they waited in ST-150 forever on
+  a permanently deferred Host.
+- FR-023 / AC-020: outcome labels aligned to the FetchResult enum [DOC-09 §6];
+  oversized payloads and redirect-cap exhaustion are recorded as
+  outcome=PERMANENT with error_class ERR-007 / ERR-011 (the ad-hoc labels
+  `PAYLOAD_TOO_LARGE` / "REDIRECT cap error" were not enum members).
+- DOC-13 §2: `attempts` is now described as the count of started attempts,
+  incremented in the dispatch transaction [T-1] — "completed" contradicted
+  R-053/FR-012 crash counting.
+- DOC-13 §3: jitter term `U(−j, +j)` had an undefined `j`; corrected to
+  `U(−1, +1) × CFG-024`.
+- DOC-09 §2: DNS-resolution timeouts were not mapped to any error class;
+  now ERR-001 (retryable — NXDOMAIN remains permanent).
+- DOC-16 §3: the 64 KiB header-size cap had no outcome classification; new
+  error class ERR-016 `HEADER_TOO_LARGE` (permanent).
+- R-402: "ST-180/`SSRF_BLOCKED`" cited an undefined reason code (reason codes
+  exist only for ST-190); now ST-180 with error_class ERR-004.
+- Section-reference corrections (all verified against actual section
+  numbering): DEC-007 → [DOC-08 §2]; DOC-03 C3 → [DOC-08 §4]; FR-013 →
+  [DOC-12 §2]; FR-025 → [DOC-11 §1]; FR-032 → [DOC-08 §4]; R-220 →
+  [DOC-08 §3]. DOC-07's sections are now numbered and the stale [DOC-07 §5]
+  references in DOC-03 point to §4 (R-060/R-062).
+- FR-013 no longer lists "change frequency hints" as a priority input; the
+  [DOC-12 §2] formula's actual inputs are depth, seed status, host failure
+  history, prior host success, and manual boost.
+
+### Completeness additions
+
+- DOC-11 `hosts` schema: added `robots_rules` (persisted parsed robots rules —
+  DOC-08 §2.4 required caching "verdict function inputs" but nothing stored
+  them across restarts) and the `INITIAL` robots_state (pre-first-fetch).
+- DOC-08 §2.2: the robots.txt fetch is now explicitly specified to advance
+  `next_allowed_fetch_at` and hold one concurrency slot (previously only
+  "obeys the host politeness window" — consumption was undefined), and
+  "exempt from page caps" is qualified to page-success caps and Content Store
+  storage only; transport safety caps [DOC-16 §3] still apply per security
+  precedence [R-000].
+- R-400's "configured deny-list" now has a real parameter: CFG-041
+  `egress_deny_ips`. New CFG-042 `egress_allow_private_ranges` (default false,
+  startup WARN, production-forbidden via new R-405) gives the acceptance-test
+  fixture server a documented escape hatch from fail-closed SSRF blocking —
+  previously every fixture-server-based AC (AC-010 et al.) was unsatisfiable
+  because R-400 blocks loopback; DOC-17's preamble now states fixture configs
+  set it, with AC-025 running with it false.
+- FR-002 extended to reject userinfo-bearing seeds [R-002], matching AC-002
+  (which tested a rule no FR specified).
+- ST-150→ST-100 now specifies `due_at_mono := next_attempt_mono` (the mapping
+  between the two scheduler columns was previously undefined).
+- FR-005: the CFG-005 total now counts only non-EXCLUDED records — ST-190
+  audit records (e.g., OUT_OF_SCOPE under CFG-038=true) no longer consume the
+  crawl budget.
+- DOC-12 §4: 304-based recrawl-interval doubling now specifies
+  consecutive-304 semantics with reset on the next full 200 (was ambiguous
+  between one and repeated doublings, with no reset rule).
+- DOC-10 §3: `truncated` artifact flag added (DOC-16 §3 required flagging
+  truncation but no such field existed in the artifact schema).
+- CFG-016 given a lower bound (1) — its range was one-sided.
+
+### Consistency fixes
+
+- DOC-16 §5: `[health_listen_addr]` → [CFG-034] (DOC-14 requires parameters
+  be referenced by CFG id only).
+- DOC-11 §2: "two-level fanout" → sharded on the first two hex chars (the
+  actual layout `blobs/ab/abcdef…` has a single fanout level).
+- R-401: redundant "(plus explicit scheme defaults)" removed; ports are
+  restricted to the scheme defaults (80/443).
+- ERR-008 note aligned with ST-180 semantics ("not fetched again this run"
+  implied a per-run scope that does not exist; DEAD is permanent until
+  operator reset [DOC-13 §4]).
+- DOC-07's final section retitled "Recovery and redirect completion" to
+  match its content (R-061/R-062 are not crash-recovery rules).
+
+### Versioning
+
+- KB version 1.2.0 → 1.3.0; all touched documents bumped accordingly.
 ## 1.2.0 — 2026-08-23 (review pass v2: correctness, completeness, consistency)
 
 ### Correctness fixes

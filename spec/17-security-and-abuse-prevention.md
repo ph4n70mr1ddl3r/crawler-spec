@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.1.0
+version: 1.3.0
 ---
 
 # Security and Abuse Prevention
@@ -23,13 +23,17 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
   1. Resolve all A/AAAA records.
   2. Every resolved address MUST be global-unicast; reject if any address is:
      loopback, RFC1918, CGNAT 100.64/10, link-local (v4/v6), ULA fc00::/7,
-     multicast, 0.0.0.0/8, ::1, ::, documentation ranges, or the IP of any
-     configured deny-list entry.
+     multicast, 0.0.0.0/8, ::1, ::, documentation ranges, or any entry of
+     [CFG-041].
   3. Pin the validated IP for the connection (defeats TOCTOU rebinding between
      check and connect); TLS SNI/cert still checked against hostname.
-- R-401: Ports restricted to 80/443 (plus explicit scheme defaults); other ports ⇒ ERR-004.
-- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180/`SSRF_BLOCKED` and the host is flagged `suspicious=true` (operator-visible metric only).
+- R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
+- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the host is flagged `suspicious=true` (operator-visible metric only).
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
+- R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted);
+  it exists solely so the acceptance-test fixture server [DOC-17] is
+  reachable, defaults to false, MUST log a WARN at startup when enabled, and
+  MUST NOT be enabled in production deployments.
 
 ## 3. Resource caps (all enforced pre-allocation)
 
@@ -37,7 +41,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 |---|---|---|
 | payload size | [CFG-016] | abort mid-stream, discard partial [FR-023] |
 | redirects | [CFG-017] | [R-130] |
-| header size | 64 KiB fixed | reject beyond |
+| header size | 64 KiB fixed | reject beyond, ERR-016 |
 | URLs per page | 1000 extracted + overflow flag | [DOC-10 §3 outlinks cap] |
 | path shapes per host | [CFG-030] | trap guard [DOC-06 §5] |
 | total records | [CFG-005] | [FR-005] |
@@ -56,5 +60,5 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 
 Runtime API (local only): inject seeds [FR-006], reset DEAD URL [DOC-13 §4],
 trigger graceful drain. MUST require no network exposure by default; if
-[health_listen_addr] is set it binds read-only endpoints plus these actions,
+[CFG-034] is set it binds read-only endpoints plus these actions,
 and actions are logged with operator identity when available.

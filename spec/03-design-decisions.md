@@ -1,7 +1,7 @@
 ---
 id: DOC-02
 title: Binding Design Decisions
-version: 1.1.0
+version: 1.3.0
 ---
 
 # Design Decisions
@@ -17,7 +17,7 @@ this document and bumping the KB version.
 | DEC-004 | URL Identity = normalized URL string per [DOC-06]. It is the sole primary key for scheduling. Redirect targets create their own URL Records linked to the source. | Deterministic dedup of URLs independent of fetch outcomes. |
 | DEC-005 | Content dedup is exact-byte (SHA-256), never fuzzy. Near-duplicate detection is out of scope. | Unambiguous, cheap, testable. |
 | DEC-006 | v1 fetches server-rendered HTML only; non-HTML types are stored (if under caps) but parsed only for metadata headers, except `text/html` and `application/xhtml+xml` which get full parsing. | Bounded complexity; clear extension point for JS rendering later. |
-| DEC-007 | robots.txt is authoritative per Host. Unreachable/broken robots.txt ⇒ temporarily treat entire Host as disallowed and retry robots.txt with backoff (see [DOC-08 §4]). | Conservative, defensible etiquette. |
+| DEC-007 | robots.txt is authoritative per Host. Unreachable/broken robots.txt ⇒ temporarily treat entire Host as disallowed and retry robots.txt with backoff (see [DOC-08 §2]). | Conservative, defensible etiquette. |
 | DEC-008 | Scheduling uses per-host virtual clocks and a global due-queue; no wall-clock timers per URL. | Enables deterministic simulation and testing. |
 | DEC-009 | Redirect hops do NOT count toward the depth limit; only extraction depth (link distance from seeds, seeds = 0) counts. | Prevents surprising interactions between redirect chains and scope rules. |
 | DEC-010 | The crawler identifies itself honestly: fixed UA Token, no rotation of fingerprints, honors `From` if configured. | Ethical baseline; simplifies webmaster contact. |

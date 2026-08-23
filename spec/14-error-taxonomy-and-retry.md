@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Errors and Retry
@@ -17,7 +17,7 @@ version: 1.2.0
 | ERR-005 | HTTP_429 | yes | honor Retry-After [R-111] |
 | ERR-006 | HTTP_5XX | yes | |
 | ERR-007 | PAYLOAD_TOO_LARGE | no | [FR-023] |
-| ERR-008 | UNSUPPORTED_TYPE | no | recorded, not fetched again this run |
+| ERR-008 | UNSUPPORTED_TYPE | no | content type outside the allowed list [R-143]; not stored or parsed; ST-180 [FR-041] |
 | ERR-009 | PARSE_FAILED | no | page stored with parse_ok=false |
 | ERR-010 | ROBOTS_DEFERRED | n/a | host-level, not URL-level [DOC-08 §2.3] |
 | ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | |
@@ -25,10 +25,13 @@ version: 1.2.0
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |
 | ERR-014 | HTTP_4XX_PERMANENT | no | non-retryable client errors (401/403/404/410/418/451/other 4xx); the specific status is recorded in fetch_events.http_status [DOC-09 §4] |
 | ERR-015 | REDIRECT_OUT_OF_SCOPE | no | redirect target failed the Scope predicate [R-030]; source URL → ST-180, target never fetched |
+| ERR-016 | HEADER_TOO_LARGE | no | response header block exceeds 64 KiB [DOC-16 §3] |
 
 ## 2. Retry state
 
-Per URL Record: `attempts` (count of completed fetch attempts), `next_attempt_mono`.
+Per URL Record: `attempts` (count of started fetch attempts — incremented
+inside the dispatch transaction [T-1], so an attempt interrupted by a crash
+still counts [R-053]), `next_attempt_mono`.
 Attempt counting includes the initial attempt. Retry budget [CFG-020] = total
 attempts allowed.
 
@@ -39,7 +42,7 @@ on RETRYABLE outcome:
   if attempts ≥ CFG-020:            → ST-180 (DEAD), error_class recorded
   else:
     delay = CFG-022 × CFG-023^(attempts−1)
-    delay = delay × (1 + U(−j, +j)×CFG-024)     // full jitter band, seeded [NFR-006]
+    delay = delay × (1 + U(−1, +1)×CFG-024)     // full jitter band, seeded [NFR-006]
     delay = max(delay, Retry-After if present)
     delay = min(delay, CFG-035)
     state → ST-150, next_attempt_mono = now + delay

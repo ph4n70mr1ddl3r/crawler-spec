@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Storage Model
@@ -60,8 +60,9 @@ page_artifacts (
 
 hosts (
   scheme_host_port  TEXT PRIMARY KEY,
-  robots_state      TEXT NOT NULL,        -- OK|ALLOW_ALL|DEFERRED
+  robots_state      TEXT NOT NULL,        -- INITIAL|OK|ALLOW_ALL|DEFERRED
   crawl_delay_s     INT NULL,
+  robots_rules      TEXT NULL,            -- parsed robots.txt rules JSON [DOC-08 §2.4]
   robots_fetched_at TEXT NULL,
   robots_deferred_until_mono INT NULL,
   next_allowed_fetch_at_mono INT NOT NULL DEFAULT 0,
@@ -96,7 +97,7 @@ runs (
 ## 2. Content Store layout
 
 ```
-blobs/ab/abcdef1234...   (SHA-256 hex; two-level fanout)
+blobs/ab/abcdef1234...   (SHA-256 hex; sharded on first two hex chars)
 tmp/                     staging dir; atomic rename into place [R-500]
 ```
 

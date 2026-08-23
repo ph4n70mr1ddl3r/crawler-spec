@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Scheduling and Recrawl
@@ -56,12 +56,14 @@ interval        = base_interval
                   × (1 ± CFG-026 jitter, seeded by hash(url_identity, run_id))
                   // deterministic jitter: same inputs ⇒ same offset
 if validators present and server returned 304 on a refetch:
-                  interval doubles up to max 4 × base_interval
+                  interval doubles per consecutive 304, capped at
+                  4 × base_interval
+                  // any full 200 resets the multiplier to 1
                   // Retry-After never affects recrawl intervals
 due_at_mono     = fetch_complete_mono + interval
 ```
 
-- R-220: Recrawl respects caps [FR-005] and robots at dispatch time [§2 of DOC-08].
+- R-220: Recrawl respects caps [FR-005] and robots at dispatch time [DOC-08 §3].
 - R-221: `Cache-Control: no-store` responses are not refetched automatically (treated as one-shot).
 - R-222: Recrawl of a page whose URL Record was deleted by retention does not happen (records are the source of truth).
 

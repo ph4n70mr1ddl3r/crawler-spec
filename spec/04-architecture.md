@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.1.0
+version: 1.3.0
 ---
 
 # Architecture
@@ -62,7 +62,7 @@ version: 1.1.0
 
 ### C3 SCHEDULER
 - Repeatedly selects due URLs from Frontier respecting Effective Delay per Host
-  and concurrency limits [DOC-12 §3], [DOC-08 §3].
+  and concurrency limits [DOC-12 §3], [DOC-08 §4].
 - Owns HOST REGISTRY: per-host monotonic `next_allowed_fetch_at`, inflight count,
   consecutive failure count, dynamic backoff multiplier.
 - Emits fetch tasks to FETCHER workers; handles their results by updating URL
@@ -103,7 +103,7 @@ version: 1.1.0
   before fetching begins. Redirect-hop targets are the sole exception: they are
   authorized in-flight by [R-131] and persisted on the source record's
   `redirect_chain` [R-133]; the chain's final target receives its own URL Record
-  at completion per [R-062] [DOC-07 §5].
+  at completion per [R-062] [DOC-07 §4].
 - INV-2: A payload in the Content Store is written before any metadata row that
   references its hash is committed (referential safety after crash).
 - INV-3: The number of in-flight fetches to a Host NEVER exceeds
@@ -119,4 +119,4 @@ Single OS process; graceful shutdown on SIGINT/SIGTERM (stop issuing fetches,
 finish in-flight requests up to total-timeout, commit all state, exit code 0).
 Crash recovery on startup: rebuild HOST REGISTRY and in-memory indexes from
 Metadata Store; any URL Record left in {ST-110 (SCHEDULED), ST-120 (FETCHING)}
-is reset to ST-100 (QUEUED), keeping its attempt count [DOC-07 §5].
+is reset to ST-100 (QUEUED), keeping its attempt count [DOC-07 §4].

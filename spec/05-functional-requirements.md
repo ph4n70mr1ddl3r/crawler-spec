@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Functional Requirements
@@ -11,10 +11,10 @@ Numbering is grouped by component area. "The system" = the Crawler.
 ## Ingestion & scope (C1)
 
 - FR-001: The system MUST accept a non-empty list of Seed URLs from configuration [CFG-001] and normalize each per [DOC-06 §2].
-- FR-002: The system MUST reject, at startup, any seed whose scheme ∉ allowed schemes [CFG-003]; rejection of ≥1 seed aborts startup [DEC-011].
+- FR-002: The system MUST reject, at startup, any seed whose scheme ∉ allowed schemes [CFG-003] or whose URL contains userinfo [R-002]; rejection of ≥1 seed aborts startup [DEC-011].
 - FR-003: For every normalized URL passing the Scope predicate ([DOC-06 §4]) the system MUST create or refresh a URL Record and set state ST-100. Seed URLs have depth 0; discovered URLs have depth = parent depth + 1 [FR-042].
 - FR-004: URLs failing the Scope predicate MUST be recorded as ST-190 with reason `OUT_OF_SCOPE` only if [CFG-038]=true; otherwise silently dropped. They MUST NOT be stored in the Frontier.
-- FR-005: The system MUST enforce global caps before enqueueing: total URL records ≤ [CFG-005]; per-Registrable-Domain page successes ≤ [CFG-006]. At cap, new discoveries are recorded as ST-190/`CAP_REACHED` and never fetched.
+- FR-005: The system MUST enforce global caps before enqueueing: total URL records in non-EXCLUDED states ≤ [CFG-005]; per-Registrable-Domain page successes ≤ [CFG-006]. At cap, new discoveries are recorded as ST-190/`CAP_REACHED` and never fetched (ST-190 audit records do not consume the [CFG-005] budget).
 - FR-006: Runtime seed injection via the operator API MUST behave identically to config seeds (same normalization, filtering, caps).
 
 ## Frontier & scheduling (C2/C3)
@@ -28,22 +28,22 @@ Numbering is grouped by component area. "The system" = the Crawler.
   dies mid-fetch [DOC-13 §5]), increment host inflight, and set
   host.next_allowed_fetch_at = max(next_allowed_fetch_at, now) + Effective Delay —
   atomic with respect to process death (single transaction) [DOC-08 §4], [T-1].
-- FR-013: Priority MUST be computed per [DOC-12 §4] from depth, change frequency hints, and manual boost; range 0–1000, default 500.
+- FR-013: Priority MUST be computed per [DOC-12 §2] from depth, seed status, host failure history, prior host success, and manual boost [CFG-031]; range 0–1000, default 500.
 
 ## Fetching (C5)
 
 - FR-020: The system MUST send requests with header `User-Agent` equal exactly to [CFG-018], plus `Accept`, `Accept-Encoding: gzip, deflate, br`, and `From` when [CFG-019] set. No cookies, no referer spoofing, no fingerprint rotation [DEC-010].
 - FR-021: The system MUST follow HTTP 3xx redirects up to [CFG-017], applying SSRF checks and robots checks to every hop target [DOC-16 §2], [DOC-08 §3]. Redirect chains crossing hosts re-check each Host's gate.
 - FR-022: The system MUST enforce timeouts [CFG-012..CFG-015] plus the DNS timeout [CFG-036] independently and abort on violation, classifying per [DOC-13].
-- FR-023: The system MUST abort and discard a body exceeding [CFG-016], recording outcome `PAYLOAD_TOO_LARGE` [ERR-007]; partial data MUST NOT be persisted.
+- FR-023: The system MUST abort and discard a body exceeding [CFG-016], classifying the outcome PERMANENT with error_class ERR-007 [DOC-09 §6]; partial data MUST NOT be persisted.
 - FR-024: The system MUST decode Content-Encoding (`gzip`, `deflate`, `br`) before hashing/storing the Payload.
-- FR-025: The system MUST record every attempt as a fetch_event with status, timings, error class, final URL, payload hash (on success) [DOC-11 §4].
+- FR-025: The system MUST record every attempt as a fetch_event with status, timings, error class, final URL, payload hash (on success) [DOC-11 §1].
 
 ## Robots & politeness (C4)
 
 - FR-030: Before any first fetch to a Host in the current Run, the system MUST obtain an authoritative robots verdict via [DOC-08 §2]; UNKNOWN ⇒ defer, never fetch.
 - FR-031: DISALLOW verdicts MUST move the URL Record to ST-190/`ROBOTS_DISALLOW` without fetching.
-- FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) [DOC-08 §3].
+- FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) [DOC-08 §4].
 
 ## Extraction & storage (C6/C7/C8)
 

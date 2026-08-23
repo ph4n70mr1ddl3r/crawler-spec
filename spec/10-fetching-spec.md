@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.2.0
+version: 1.3.0
 ---
 
 # Fetching
@@ -28,7 +28,7 @@ version: 1.2.0
 | Response headers | [CFG-014] | request bytes written | until full header block received |
 | Total transfer | [CFG-015] | request start | resets at each redirect hop; it does NOT span the whole chain |
 
-Timeout violations classify ERR-002 (connect), ERR-003 (TLS), ERR-012 (headers/total).
+Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR-012 (headers/total).
 
 ## 3. Redirects
 

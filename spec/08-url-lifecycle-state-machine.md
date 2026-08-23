@@ -1,12 +1,12 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.2.0
+version: 1.3.0
 ---
 
 # URL Lifecycle State Machine
 
-## States
+## 1. States
 
 | ID | Name | Terminal? | Meaning |
 |----|------|-----------|---------|
@@ -22,7 +22,7 @@ version: 1.2.0
 Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIMEOUT`,
 `TRAP_PARAM`, `TRAP_PATH_BUDGET`, `DEPTH_LIMIT`, `CAP_REACHED`, `BLOCKLIST`.
 
-## Transitions
+## 2. Transitions
 
 ```
 (creation)          ─► ST-100   filters passed [FR-003]
@@ -37,23 +37,25 @@ ST-120 ─► ST-130                success — 2xx with payload stored [FR-043]
 ST-120 ─► ST-150                retryable failure [DOC-13 §3]
 ST-120 ─► ST-180                permanent failure or retry budget exhausted
 ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
+                                (due_at_mono := next_attempt_mono)
 ST-150 ─► ST-180                attempts = [CFG-020]
+ST-150 ─► ST-190                host robots-unknown timeout [R-103]
 ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050] (attempts reset to 0)
 ```
 
 No other transitions exist. Any observed other transition is a defect.
 
-## State-dependent rules
+## 3. State-dependent rules
 
 - R-050: Only ST-100 records are visible to the Scheduler.
-- R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on transition out of ST-120 (to ST-130, ST-150, or ST-180).
+- R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on the first transition out of {ST-110, ST-120} (to ST-130, ST-150, ST-180, or ST-190 — including the robots-exclusion path [FR-031]).
 - R-052: ST-140→ST-100 recrawl resets `attempts=0`; priority is recomputed per [DOC-12 §2] (R-201).
 - R-053: `attempts` is incremented exactly once per fetch attempt, inside the
   dispatch transaction [FR-012], [T-1]; it is therefore already counted when a
   crash mid-fetch is classified as retryable [DOC-13 §5].
 
-## Crash recovery
+## 4. Recovery and redirect completion
 
 - R-060: On startup, every record in {ST-110, ST-120} MUST be reset to ST-100,
   keeping its attempt count. Because dispatch advanced `next_allowed_fetch_at`
