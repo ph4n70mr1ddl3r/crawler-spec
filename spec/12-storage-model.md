@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Storage Model
@@ -57,12 +57,15 @@ pages (
 -- (replaces) the prior row for that (url_identity, run_id) key.
 
 page_artifacts (
-  payload_sha256    TEXT PRIMARY KEY,
-  json              TEXT NOT NULL         -- [DOC-10 §3], deterministic
+  payload_sha256    TEXT NOT NULL,
+  final_url_identity TEXT NOT NULL,        -- link-resolution base [R-020]; artifacts are a
+                                            -- function of bytes AND base [DOC-10 §3]
+  json              TEXT NOT NULL,         -- [DOC-10 §3], deterministic
+  PRIMARY KEY (payload_sha256, final_url_identity)
 )
 
 hosts (
-  scheme_host_port  TEXT PRIMARY KEY,
+  host_key          TEXT PRIMARY KEY,      -- (scheme, hostname, port) [glossary]; same key as urls.host_key
   robots_state      TEXT NOT NULL,        -- INITIAL|OK|ALLOW_ALL|DEFERRED
   crawl_delay_s     INT NULL,
   robots_rules      TEXT NULL,            -- parsed robots.txt rules JSON [DOC-08 §2.4]
@@ -96,6 +99,11 @@ runs (
   started_at TEXT NOT NULL, finished_at TEXT NULL,
   config_hash TEXT NOT NULL, config_json TEXT NOT NULL
 )
+-- Run lifecycle [DOC-03 §Deployment]: one Run per process start, created after
+-- config validation succeeds [DEC-011]; finished_at is set at graceful
+-- shutdown; a Run whose process died is finalized (finished_at := crash-
+-- detection time) by the next startup. A Crawl Session [DOC-00] spans all
+-- Runs of one crawl lineage.
 ```
 
 ## 2. Content Store layout
@@ -123,16 +131,18 @@ Read-only access via SQL over Metadata Store + direct file reads over Content St
 
 ## 5. Scale assumptions
 
-Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain).
+Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain), plus composites (state, priority DESC, url_identity ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain, state) for the cap gates [FR-005], [FR-011(e)].
 
 ## 6. Retention
 
 - Retention job runs hourly:
   - fetch_events older than [CFG-033] days deleted (aggregate metrics preserved separately);
   - pages rows whose `fetch_ts` < now − [CFG-027] deleted oldest-first;
-  - a page_artifacts row or blob file MAY be deleted only when NO remaining
-    `pages` row references its payload_sha256 (payloads are shared across URL
-    identities via dedup [AC-042] — age alone never justifies deletion);
+  - a page_artifacts row MAY be deleted only when NO remaining `pages` row
+    references its `(payload_sha256, final_url_identity)` pair; a blob file
+    MAY be deleted only when NO remaining `pages` row references its
+    payload_sha256 (payloads are shared across URL identities via dedup
+    [AC-042] — age alone never justifies deletion);
   - DEAD/EXCLUDED url records not re-discovered for [CFG-043] days —
     `last_seen_at` when set, else `updated_at` — deleted. A deleted record
     MAY be re-created by later discovery; that bounded re-evaluation

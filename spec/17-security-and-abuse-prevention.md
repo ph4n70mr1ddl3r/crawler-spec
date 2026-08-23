@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Security and Abuse Prevention
@@ -27,8 +27,9 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
      [CFG-041].
   3. Pin the validated IP for the connection (defeats TOCTOU rebinding between
      check and connect); TLS SNI/cert still checked against hostname. If
-     several validated addresses remain, the selection is deterministic
-     (sorted ascending), preserving replay determinism [NFR-006].
+     several validated addresses remain, the selection is deterministic and
+     uses a fixed total order — sorted ascending, IPv4 before IPv6, numeric
+     order within each family — preserving replay determinism [NFR-006].
 - R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
 - R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the referring URL's Host is flagged `suspicious=true` (operator-visible metric only).
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
@@ -36,6 +37,12 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
   it exists solely so the acceptance-test fixture server [DOC-17] is
   reachable, defaults to false, MUST log a WARN at startup when enabled, and
   MUST NOT be enabled in production deployments.
+- R-406: [CFG-034] defaults to null (no listener). When it is set to a
+  non-loopback address, the mutating operator actions of §5 (seed injection,
+  DEAD reset, drain trigger) MUST be disabled — only the read-only `/healthz`
+  and `/metrics` endpoints are served — and startup MUST log a WARN. Mutating
+  actions are reachable over the network only in violation of this rule
+  (fail closed [NFR-013]).
 
 ## 3. Resource caps (all enforced pre-allocation)
 

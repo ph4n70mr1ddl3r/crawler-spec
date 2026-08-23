@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.5.0
+version: 1.6.0
 ---
 
 # URL Model and Normalization
@@ -66,7 +66,7 @@ Applied to IN_SCOPE URLs in order; first match wins:
 
 1. **URL blocklist**: URL matches any [CFG-037] glob pattern → ST-190/`BLOCKLIST`.
 2. **Param blocklist**: drop URLs whose query contains a parameter name matching [CFG-029] patterns → ST-190/`TRAP_PARAM`.
-3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of URL Records on that Host sharing the shape (each identity counted once, any state [R-042]) > [CFG-030] → ST-190/`TRAP_PATH_BUDGET`.
+3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of existing URL Records on that Host sharing the shape — each identity counted once, any state [R-042]; the candidate itself is not yet a record, since filters run before insertion [R-040] — is ≥ [CFG-030] → ST-190/`TRAP_PATH_BUDGET` (at most [CFG-030] URLs may share one shape per Host).
 4. **Depth**: depth > [CFG-004] → ST-190/`DEPTH_LIMIT`. Seeds have depth 0.
 
 - R-040: Filters MUST run before Frontier insertion so traps never consume fetch capacity.

@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.4.0
+version: 1.6.0
 ---
 
 # Fetching
@@ -34,7 +34,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 ## 3. Redirects
 
 - R-130: Follow 301, 302, 303, 307, 308 up to [CFG-017] hops; method stays GET throughout.
-- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021]. Each hop request MUST additionally respect the target Host's politeness window and concurrency caps ([FR-011] b, c) before being sent. A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source.
+- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021]. Each hop request MUST additionally respect the target Host's politeness window and concurrency caps ([FR-011] b, c) before being sent. A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source. If respecting the target Host's politeness window would delay the hop request by more than [CFG-035] (e.g. an adversarially large `Crawl-delay` [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018 instead of holding a fetch worker and the source Host's concurrency slot for the wait [G-4]: source URL → ST-150, with the target Host's window opening acting as an unclamped floor on `next_attempt_mono` [DOC-13 §3].
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
 - R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
 
@@ -52,6 +52,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | 5xx | retryable | → ST-150, increments host consecutive_failures |
 | 3xx non-followable (loop/cap/out-of-scope) | per cause | ERR-011, or ERR-015 for out-of-scope targets [R-030] |
 | 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
+| 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150, window opening floors `next_attempt_mono` |
 | 3xx without parsable `Location` | permanent | ST-180, ERR-011 (nothing to follow) |
 
 ## 5. Payload handling

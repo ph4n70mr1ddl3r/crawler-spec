@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Parsing and Extraction
@@ -35,7 +35,11 @@ Rules:
 
 ## 3. Content artifacts (per page)
 
-Stored in Metadata Store as JSON document keyed by payload hash:
+Stored in the Metadata Store as JSON documents keyed by
+`(payload_sha256, final_url_identity)` [DOC-11 §1] — artifacts are a function
+of the payload bytes AND the link-resolution base ([R-020]/[R-021]):
+byte-identical payloads fetched under different final URLs (mirrors) share a
+blob [FR-043] but hold distinct artifacts when their resolved outlinks differ:
 
 | Artifact | Definition |
 |---|---|
@@ -55,11 +59,13 @@ Stored in Metadata Store as JSON document keyed by payload hash:
 ones, flagged — regardless of ingestion [R-155]; a page-level `nofollow` page
 [FR-045] stores its full flagged outlink list while ingesting none.
 
-- R-157: Extraction is deterministic: same input bytes ⇒ byte-identical artifact JSON (stable key ordering).
+- R-157: Extraction is deterministic: same input bytes and same resolution base (final URL) ⇒ byte-identical artifact JSON (stable key ordering).
 - R-158: Pages > [CFG-016] never reach parsing [FR-023].
 
 ## 4. Failure handling
 
 Parse failures (should be rare given error recovery) mark the page
-`parse_ok=false` with reason string; payload is retained; state still advances
+`parse_ok=false` with reason string (error class ERR-009 plus detail;
+recorded on the `pages` row only — never a FetchResult error_class, since
+parsing is post-fetch); payload is retained; state still advances
 ST-130→ST-140 (extraction "complete" includes failed-parse recording).

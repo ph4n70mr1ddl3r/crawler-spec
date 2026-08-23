@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Configuration
@@ -16,10 +16,10 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-001 | seeds | URL list | — required, ≥1 | normalized+filtered at load |
 | CFG-002 | scope_mode | enum | `SEED_DOMAINS` | `SEED_DOMAINS \| SEED_HOSTS \| PREFIX_LIST` |
 | CFG-003 | allowed_schemes | list | `[https, http]` | subset of {http, https} |
-| CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries matched as scheme+host+path prefix [DOC-06 §4] |
+| CFG-039 | scope_prefix_list | list | `[]` | required iff scope_mode=PREFIX_LIST; entries are absolute http(s) URLs — only scheme, host, and path participate in matching (query/fragment ignored) [DOC-06 §4] |
 | CFG-004 | max_depth | int | 5 | 0–50 |
 | CFG-005 | max_urls_total | int | 100000 | >0 |
-| CFG-006 | max_pages_per_registrable_domain | int | 10000 | per Registrable Domain [FR-005] |
+| CFG-006 | max_pages_per_registrable_domain | int | 10000 | >0; per Registrable Domain [FR-005] |
 
 ## Politeness & concurrency
 
@@ -71,7 +71,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-027 | retention_days | int | 90 | 0 = keep forever |
 | CFG-028 | store_non_html | bool | true | allowed types [R-143] |
 | CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names |
-| CFG-030 | max_similar_paths_per_host | int | 500 | trap guard [DOC-06 §5] |
+| CFG-030 | max_similar_paths_per_host | int | 500 | >0; trap guard [DOC-06 §5] — at most [CFG-030] URLs per Host may share a path shape |
 | CFG-031 | manual_boosts | list | `[]` | `{prefix, boost}` pairs, boost 0–300; multiple matches ⇒ largest single boost [DOC-12 §2] |
 | CFG-043 | url_record_retention_days | int | 180 | 0 = keep forever; DEAD/EXCLUDED record retention basis [DOC-11 §6] |
 
@@ -80,7 +80,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | ID | Name | Type | Default | Notes |
 |----|------|------|---------|-------|
 | CFG-032 | log_level | enum | `info` | debug/info/warn/error |
-| CFG-033 | fetch_event_retention_days | int | 7 | [DOC-11 §6] |
+| CFG-033 | fetch_event_retention_days | int | 7 | ≥0; 0 = keep forever [DOC-11 §6] |
 | CFG-034 | health_listen_addr | string | null | optional HTTP endpoint for metrics/health [DOC-15]; also exposes operator actions [DOC-16 §5] |
 | CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
 | CFG-038 | log_exclusions | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] |

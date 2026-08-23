@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Acceptance Criteria
@@ -32,6 +32,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-016: Between dispatch [T-1] and request send, a robots cache refresh to DISALLOW moves the record ST-110→ST-190/`ROBOTS_DISALLOW` and releases its slot; a refresh to UNKNOWN (Host deferred) compensates the record back to ST-100 with the attempts increment rolled back [R-054]; no request is sent while the Host is deferred.
 - AC-017: A redirect hop whose target Host is robots-deferred (verdict UNKNOWN) aborts the chain with outcome=RETRYABLE and error_class=ERR-010; the source → ST-150; no request is sent to the target Host during deferral [R-131].
 - AC-018: With two due candidates on different Hosts — priorities 900 and 100, the lower-priority one due earlier — the higher-priority candidate is dispatched first: `due_at_mono` never orders already-due work [FR-010].
+- AC-019: On robots.txt cache TTL expiry [CFG-008] with a cached entry, gate queries keep using the previous rules while the revalidation fetch is in flight; a 2xx revalidation swaps in the new rules atomically; a failing revalidation defers the Host [R-104].
 
 ## Fetching & errors
 
@@ -57,7 +58,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 - AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs.
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
-- AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash.
+- AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash. Two URLs on different Hosts returning byte-identical HTML containing relative links additionally hold distinct page_artifacts rows, keyed `(payload_sha256, final_url_identity)` — mirrors share bytes, never each other's resolved outlinks [DOC-11 §1].
 - AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted.
 
 ## Operations
@@ -66,3 +67,5 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-051: Startup with 1M-record store reaches first fetch within 60 s [NFR-005].
 - AC-052: All metrics counters appear after exercise; state_transitions_total contains only legal transition pairs.
 - AC-053: Operator reset of a DEAD URL via the runtime API returns the record to ST-100 with attempts=0 and last error class cleared, emits the ST-180→ST-100 transition metric [DOC-15 §1], and writes an audit log entry [DOC-13 §4].
+- AC-054: With [CFG-034] bound to a non-loopback address, the mutating operator actions (seed injection, DEAD reset, drain trigger) are disabled, a startup WARN is logged, and /healthz and /metrics remain available [R-406].
+- AC-055: A redirect hop whose target Host's Crawl-delay implies a politeness wait > [CFG-035] aborts the chain with outcome=RETRYABLE and error_class=ERR-018; the source → ST-150; no worker slot or host concurrency slot is held during the wait; `next_attempt_mono` is floored at the target Host's window opening; if the window never opens within the retry budget, the URL reaches ST-180 [R-131], [DOC-13 §3].

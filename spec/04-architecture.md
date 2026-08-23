@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Architecture
@@ -118,6 +118,10 @@ version: 1.5.0
 
 Single OS process; graceful shutdown on SIGINT/SIGTERM (stop issuing fetches,
 finish in-flight requests up to total-timeout, commit all state, exit code 0).
+Each process start opens a new Run record (after config validation succeeds
+[DEC-011]); graceful shutdown closes it (`finished_at`); a Run whose process
+died is finalized by the next startup. A Crawl Session [DOC-00] spans all
+Runs of one crawl lineage — restarts open new Runs within the same session.
 Crash recovery on startup: rebuild HOST REGISTRY and in-memory indexes from
 Metadata Store; any URL Record left in {ST-110 (SCHEDULED), ST-120 (FETCHING)}
 is reset to ST-100 (QUEUED), keeping its attempt count [DOC-07 §4].

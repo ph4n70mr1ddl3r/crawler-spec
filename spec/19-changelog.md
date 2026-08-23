@@ -1,10 +1,113 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Changelog
+
+## 1.6.0 — 2026-08-23 (review pass v6: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- DOC-11 `page_artifacts` was keyed by `payload_sha256` alone, but artifacts
+  are not a pure function of payload bytes: `outlinks` hold identities
+  resolved against the fetch's final URL [R-020], so byte-identical payloads
+  fetched under different final URLs (mirrors) would collide on a single
+  artifacts row with wrong outlinks for one of them — and R-157's "same
+  input bytes ⇒ byte-identical artifact JSON" was false as stated. PK is now
+  `(payload_sha256, final_url_identity)`; R-157 qualified ("same input bytes
+  and same resolution base"); the §6 retention reference rule split per
+  store (artifacts keyed on the pair, blobs on the hash); AC-042 extended
+  with the mirror case.
+- R-211 wake sources omitted enqueue events: discovery/ingestion [C1] and
+  operator actions (seed injection, DEAD reset) run concurrently with fetch
+  workers, so with an empty frontier the loop could sleep forever past a new
+  candidate. The loop is now woken immediately by any event that creates or
+  re-due-s a candidate.
+- DOC-12 §3 pseudocode listed gates "[FR-011] a–d" with no evaluation point
+  for gate (e) (registrable-domain cap), although FR-005(2)/FR-011(e) require
+  a dispatch-time exclusion. The loop now evaluates (e) on the selected
+  candidate and re-picks without waiting (exclusion, not deferral); noted
+  that the re-pick terminates because ST-190 is terminal.
+- Adversarial `Crawl-delay` + redirect hops: R-102 honors Crawl-delay
+  unclamped and R-131 made each hop wait in-line for the target Host's
+  window while holding a fetch worker and the source Host's concurrency
+  slot — a hostile robots.txt (`Crawl-delay` ≈ years) could pin global
+  workers/slots indefinitely, violating G-4. New error class ERR-018
+  `HOP_RATE_LIMITED`: a hop whose target window delays the send by more than
+  [CFG-035] aborts the chain RETRYABLE (source → ST-150), with the target
+  window's opening as an unclamped floor on `next_attempt_mono`; the retry
+  budget bounds pathological hosts to DEAD. New row in DOC-09 §4; DOC-13 §3
+  floor comment generalized; new AC-055.
+- DOC-06 §5 filter 3 off-by-one: the `>` comparison with existing records
+  (the candidate cannot be counted — filters run before insertion [R-040])
+  admitted [CFG-030]+1 URLs per path shape, off by one from the parameter's
+  meaning, and the counting basis was unstated. Now: existing records ≥
+  [CFG-030] ⇒ exclude, so at most [CFG-030] URLs share a shape; CFG-030
+  given range >0.
+- R-110: the politeness window is advanced at dispatch [T-1], but nothing
+  required the request to be sent promptly afterwards, so on-wire
+  start-to-start spacing could undercut EffectiveDelay by the
+  dispatch-to-send latency. R-110 now requires the request to be sent
+  immediately after [T-1] commits (the only permitted pre-send step is the
+  R-054 re-check, which sends nothing when it fires).
+
+### Completeness additions
+
+- New R-104 (stale-while-revalidate): on robots cache TTL expiry with a
+  cached entry, the verdict during the in-flight revalidation fetch was
+  undefined. Previous rules remain authoritative while revalidating; a
+  terminal 2xx/4xx response replaces them atomically; a failure defers the
+  Host per §2.3. New AC-019.
+- New R-112: which outcomes increment `hosts.consecutive_failures` was
+  undefined (only "5xx increments" [DOC-09 §4] and "success resets" [R-231]
+  were stated). Now: exactly the retryable page-fetch failures against the
+  Host (ERR-001 excl. permanent NXDOMAIN, ERR-002, ERR-003, ERR-005, ERR-006,
+  ERR-012, ERR-013); ERR-010 and PERMANENT outcomes never increment; robots
+  exchanges never modify it (deferral streak instead). R-231 aligned
+  ("successful page fetch").
+- robots.txt exchange side effects fully specified [DOC-08 §2.2]: no
+  fetch_events rows (visibility via robots_queries_total [DOC-15 §1]); no
+  effect on consecutive_failures or pages_crawled.
+- New R-406 (security): §5 said the operator API requires "no network
+  exposure by default", yet nothing prevented exposing the mutating actions
+  (seed injection, DEAD reset, drain) via a public [CFG-034] listener.
+  Binding a non-loopback address now MUST disable the mutating actions
+  (read-only /healthz and /metrics only) and MUST log a startup WARN. New
+  AC-054.
+- Run lifecycle defined [DOC-03 §Deployment], [DOC-11 §1]: one Run per
+  process start (after config validation), closed at graceful shutdown,
+  crashed Runs finalized by the next startup; the glossary's Crawl Session
+  term (previously defined but used nowhere) is now the anchor for the
+  span of Runs across restarts.
+- DOC-11 §5 index set extended with (state, priority DESC, url_identity
+  ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain,
+  state) for the cap gates [FR-005], [FR-011(e)] — the single-column indexes
+  could not serve the selection order or the cap-count queries.
+- Configuration gaps [DOC-14]: CFG-006 and CFG-030 lacked ranges (now >0
+  each, per V-1); CFG-033 gains "0 = keep forever" (matching CFG-027/CFG-043
+  zero conventions); CFG-039 entry format defined (absolute http(s) URLs;
+  scheme+host+path participate, query/fragment ignored).
+- ERR-009's recording location defined: parse failures live on the `pages`
+  row (parse_ok=false, reason = ERR-009 + detail) and never appear as a
+  FetchResult error_class — parsing is post-fetch [DOC-10 §4].
+- R-400.3: "sorted ascending" pinned to a fixed total order (IPv4 before
+  IPv6, numeric within family) so replay determinism [NFR-006] has an
+  implementable sort key.
+
+### Consistency fixes
+
+- `hosts.scheme_host_port` renamed `host_key`, matching `urls.host_key` and
+  the glossary Host triple (same column-name drift class as the `due_at_mono`
+  fix in v1.5.0).
+- FR-045: "nofollow MUST suppress link extraction" reworded to "suppress
+  ingestion of anchor-derived candidates" — outlinks are still recorded
+  (flagged) per DOC-10 §3, which the old phrasing contradicted.
+
+### Versioning
+
+- KB version 1.5.0 → 1.6.0; all touched documents bumped accordingly.
 
 ## 1.5.0 — 2026-08-23 (review pass v5: correctness, completeness, consistency)
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Functional Requirements
@@ -53,7 +53,7 @@ Numbering is grouped by component area. "The system" = the Crawler.
 - FR-042: Every discovered link MUST be resolved against the final response URL (post-redirect), then normalized and filtered like a seed [FR-001..FR-005], with depth = parent depth + 1 [DEC-009].
 - FR-043: Payloads MUST be stored in the Content Store keyed by SHA-256(payload bytes) [R-500]; byte-identical payloads MUST reuse the existing blob (no duplicate bytes) while page records reference the shared hash.
 - FR-044: Page Records MUST capture: url identity, final URL identity, payload hash, content type, charset, length, fetch timestamp, http status, etag/last-modified (if present), title, canonical link rel=canonical if present, meta robots directives. Scalar columns live in `pages`; canonical URL and meta robots directives are captured in the page artifacts JSON [DOC-10 §3], which is part of the page record set [DOC-11 §1].
-- FR-045: If `meta robots` contains `noindex`, the page MUST still be stored but flagged `noindex=true` for the Downstream Consumer; `nofollow` MUST suppress link extraction from that page.
+- FR-045: If `meta robots` contains `noindex`, the page MUST still be stored but flagged `noindex=true` for the Downstream Consumer; page-level `nofollow` MUST suppress ingestion of anchor-derived candidates from that page (outlinks are still recorded, flagged, per [DOC-10 §3]).
 
 ## Recrawl & lifecycle
 

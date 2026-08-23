@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.5.0
+version: 1.6.0
 ---
 
 # Scheduling and Recrawl
@@ -39,8 +39,13 @@ boost applies (matches are never summed); the boost term remains within 0–300.
 ```
 loop:
   wait until ∃ candidate c ∈ frontier where due(c) and gates pass for c.host
-      gates = [FR-011] a–d
+      gates = [FR-011] a–d          // (e) is not a wait condition — see below
   pick c = highest-priority candidate (ties: lexicographically smallest identity)
+  if gate [FR-011](e) fails for c:              // registrable-domain cap [FR-005]
+      move c → ST-190/CAP_REACHED               // exclusion, not deferral
+      continue                                  // re-select without waiting;
+                                                // terminates — ST-190 is terminal, so
+                                                // each exclusion shrinks the candidate set
   execute dispatch transaction [T-1]
   hand to fetcher worker pool
 ```
@@ -49,7 +54,10 @@ loop:
   it MUST be dispatched within one loop iteration; gates are the ONLY reason to wait.
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
   (next `due_at_mono` over ST-100, next `next_attempt_mono` over ST-150,
-  next politeness expiry, next robots-deferral expiry).
+  next politeness expiry, next robots-deferral expiry), and is woken
+  immediately by any event that creates or re-due-s a candidate —
+  discovery/ingestion [C1], operator actions (seed injection [FR-006], DEAD
+  reset [DOC-13 §4]) — so an empty frontier never causes an unbounded sleep.
 
 ## 4. Freshness & recrawl
 
