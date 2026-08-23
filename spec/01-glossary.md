@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.0.0
+version: 1.4.0
 ---
 
 # Glossary
@@ -33,9 +33,9 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | **Discovery** | Producing new candidate URLs by extracting links from fetched pages or accepting seeds. |
 | **Normalization** | Deterministically rewriting a URL string into canonical form per [DOC-06]. |
 | **Filtering (exclusion)** | Deciding a URL must never be crawled (scope, robots, blocklist, traps). |
-| **Scheduling** | Choosing which queued URL to fetch next and when, per [DOC-13]. |
-| **Fetching** | Performing the HTTP exchange per [DOC-10]. |
-| **Parsing** | Decoding and structurally analyzing a fetched body per [DOC-11]. |
+| **Scheduling** | Choosing which queued URL to fetch next and when, per [DOC-12]. |
+| **Fetching** | Performing the HTTP exchange per [DOC-09]. |
+| **Parsing** | Decoding and structurally analyzing a fetched body per [DOC-10]. |
 | **Extraction** | Deriving outbound links and content artifacts from a parsed page. |
 | **Deduplication** | Detecting byte-identical bodies already stored, keyed by SHA-256. |
 

@@ -1,10 +1,119 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Changelog
+
+## 1.4.0 — 2026-08-23 (review pass v4: correctness, completeness, consistency)
+
+### Correctness fixes
+
+- DOC-00 glossary: the Processing-stages table cited the wrong documents for
+  three terms — Scheduling → [DOC-13] (errors), Fetching → [DOC-10] (parsing),
+  Parsing → [DOC-11] (storage). Corrected to [DOC-12], [DOC-09], [DOC-10].
+- DEC-011 cited [DOC-15] (observability) for the configuration document;
+  corrected to [DOC-14]. (Same off-by-one defect class as the glossary fixes.)
+- R-030: still used the ad-hoc outcome label `REDIRECT_OUT_OF_SCOPE` — not
+  a FetchResult enum member (same defect class the v1.3.0 pass fixed for
+  FR-023/AC-020). Now outcome PERMANENT, error_class ERR-015.
+- DOC-06 §2 step 1 (normalization): "percent-decode then re-encode using the
+  unreserved set" would re-encode literal reserved delimiters (`/`, `=`, `&`)
+  and corrupt every URL if implemented as written. Rewritten to RFC 3986
+  §6.2.2 semantics: uppercase `%XX` hex; decode only unreserved octets; keep
+  encoded reserved octets (e.g. `%2F`) encoded and literal delimiters as-is.
+  Unparseable URLs are discarded at discovery / abort as seeds [FR-002].
+- DOC-11 §6 retention: the stated deletion order (artifacts → pages → blobs)
+  contradicted the rule that artifacts/blobs may be deleted only when no
+  pages row references them. Correct order: pages rows → artifacts/blobs left
+  unreferenced by those deletions → url records, each step committing before
+  the next.
+- FR-051 vs R-201: rediscovery refresh said "priority unchanged" while R-201
+  requires recomputation on every ST-140→ST-100 transition. FR-051 now
+  specifies attempts := 0, due_at_mono := now, priority recomputed.
+- R-231 said `attempts` resets "on terminal success (ST-140)", R-052 said on
+  the ST-140→ST-100 transition. Unified: the reset happens when the record
+  leaves ST-140 for ST-100 (recrawl or rediscovery refresh).
+- DOC-12 §4: recrawl jitter was seeded by hash(url_identity, run_id) — run_id
+  changes across runs/restarts, breaking replay determinism [NFR-006],
+  [AC-033]. Seed is now hash(url_identity, config_hash). Per-URL retry jitter
+  (DOC-13 §3) is now explicitly seeded by hash(url_identity, attempt).
+- R-103 said "every non-terminal URL Record" but enumerated only ST-100/ST-150
+  (ST-130 is also non-terminal yet already fetched). Reworded to "gated states
+  (ST-100 or ST-150)" with in-flight/ST-130 behavior stated.
+- FR-010 cited [DOC-12 §2] for the ordering key; the key (heap + tie-breaks)
+  is defined in [DOC-12 §1].
+- FR-030 "first fetch to a Host in the current Run" implied per-run robots
+  refetching; reworded to the persisted `robots_state = INITIAL` condition.
+
+### Completeness additions
+
+- Redirect hops blocked by the target Host's robots gate were required by
+  FR-021/R-131 but had no outcome classification. New error class ERR-017
+  `REDIRECT_ROBOTS_DISALLOWED` (permanent; source → ST-180, target never
+  fetched, hop recorded in redirect_chain), mirroring the SSRF [R-402] and
+  out-of-scope [ERR-015] treatments; new AC-015.
+- 3xx responses with a missing/unparsable `Location` were unclassifiable;
+  now PERMANENT/ERR-011 [DOC-09 §4]; new AC-028.
+- CFG-028=false semantics were undefined for allowed non-HTML types (no
+  stored payload ⇒ no pages row ⇒ no terminal state). ERR-008 now keys on the
+  effective allowed list ([R-143] list ∩ [CFG-028]); FR-041/R-143 aligned;
+  missing Content-Type defaults to `application/octet-stream`; new AC-029.
+- Schema gaps closed in DOC-11 §1: `urls.host_key` and
+  `urls.registrable_domain` (FR-005's per-domain cap, R-103 host queries, and
+  trap path-shape rebuild had no indexed columns), `urls.consecutive_unchanged`
+  (DOC-12 §4's 304-doubling had no persisted state), and
+  `hosts.robots_deferred_since_mono` (R-103's "continuously deferred ≥ CFG-040"
+  had no anchor, especially across restarts). New R-042 defines the
+  deterministic startup rebuild of path-shape counters from `host_key`.
+- R-211's sleep condition omitted ST-150 backoff expiries and robots-deferral
+  expiries — the scheduler could sleep past both. Wake sources enumerated.
+- New ST-100 records are now explicitly due at enqueue time (DOC-12 §1).
+- R-111: Retry-After parsing defined (delta-seconds or HTTP-date per RFC
+  9110; unparseable values ignored).
+- DOC-08 §2.3: robots.txt bodies processed only up to the first 500 KiB
+  (RFC 9309 recommended cap).
+- DOC-09 §1: TLS 1.2 minimum with mandatory fail-closed verification;
+  HTTP/2 server push MUST be disabled when negotiated; no request headers
+  beyond those specified (fingerprint surface).
+- R-400.3: deterministic address selection (sorted ascending) when several
+  validated IPs exist — closes a replay-determinism hole.
+- R-145 (DOC-09 §6): timings/payload fields of a FetchResult are defined for
+  redirect chains (total spans the chain incl. politeness waits; per-phase
+  timers describe the final hop).
+- DOC-13 §4: operator reset of a DEAD URL now specifies attempts := 0 and
+  clearing the last error class.
+- DOC-10 §3: new `meta_refresh` artifact (the §2 table promised
+  "discovery + metadata" but no artifact field existed); images row no longer
+  implies a nonexistent discovery-type column.
+- New AC-006 covers [CFG-006] per-Registrable-Domain capping and the
+  ST-190-audit-records-don't-consume-[CFG-005] rule [FR-005].
+
+### Consistency fixes
+
+- DOC-16 §5 operator API and DOC-07 §2: the two robots-exclusion transitions
+  (ST-100→ST-190 vs ST-110→ST-190) are now disambiguated — the gate is
+  evaluated at dispatch selection (ST-100); the ST-110 path covers verdict
+  changes between [T-1] and request send; slots release exactly once either
+  way [R-051].
+- DOC-03 C5: FetchResult field list aligned to the canonical contract
+  [DOC-09 §6] (was an ad-hoc shorthand: status/payload_ref/error).
+- NFR-004: disk bound restated correctly for recrawl (per-generation
+  retention), not the single-generation formula.
+- DOC-15 §1: `robots_queries_total` label `deferred` → `unknown` (matches the
+  C4 verdict enum and R-240's closed-enum rule); `content_type_class` enum
+  defined; new `suspicious_hosts` gauge (R-402 called for an
+  operator-visible signal that no metric exposed).
+- R-100: unverifiable citation "RFC 9309 §5.2" reduced to RFC 9309.
+- PREFIX_LIST scope match defined precisely (segment-boundary path prefix,
+  query ignored) [DOC-06 §4].
+- R-031 no longer implies a nonexistent scope-verdict cache column; the
+  verdict is state-reflected and evaluated once per identity at ingestion.
+
+### Versioning
+
+- KB version 1.3.0 → 1.4.0; all touched documents bumped accordingly.
 
 ## 1.3.0 — 2026-08-23 (review pass v3: consistency, completeness, correctness)
 

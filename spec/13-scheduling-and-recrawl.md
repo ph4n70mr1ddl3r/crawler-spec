@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Scheduling and Recrawl
@@ -11,6 +11,8 @@ version: 1.3.0
 Time in the scheduler is a single monotonic counter [DEC-012]. The Frontier is
 conceptually a min-heap on `due_at_mono` with tie-break `(priority DESC, url_identity ASC)`
 [FR-010]. Only ST-100 records with `due_at_mono ≤ now` are dispatch candidates.
+A newly created ST-100 record is immediately due: `due_at_mono` is set to its
+enqueue time (later transitions overwrite it: backoff [DOC-07 §2], recrawl [§4]).
 
 ## 2. Priority computation (0–1000, default 500)
 
@@ -41,7 +43,8 @@ loop:
 - R-210: Starvation freedom [NFR-015]: if a candidate is due and its gates pass,
   it MUST be dispatched within one loop iteration; gates are the ONLY reason to wait.
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
-  (next due_at_mono, next politeness expiry).
+  (next `due_at_mono` over ST-100, next `next_attempt_mono` over ST-150,
+  next politeness expiry, next robots-deferral expiry).
 
 ## 4. Freshness & recrawl
 
@@ -53,12 +56,15 @@ Otherwise:
 ```
 base_interval   = CFG-025
 interval        = base_interval
-                  × (1 ± CFG-026 jitter, seeded by hash(url_identity, run_id))
-                  // deterministic jitter: same inputs ⇒ same offset
+                  × (1 ± CFG-026 jitter, seeded by hash(url_identity, config_hash))
+                  // deterministic jitter: same config ⇒ same offset.
+                  // config_hash (not run_id) is the seed so restarts/replays
+                  // reproduce identical schedules [NFR-006], [AC-033]
 if validators present and server returned 304 on a refetch:
                   interval doubles per consecutive 304, capped at
                   4 × base_interval
-                  // any full 200 resets the multiplier to 1
+                  // consecutive-304 count persists as urls.consecutive_unchanged
+                  // [DOC-11 §1]; any full 200 resets it (and the multiplier) to 0/1
                   // Retry-After never affects recrawl intervals
 due_at_mono     = fetch_complete_mono + interval
 ```

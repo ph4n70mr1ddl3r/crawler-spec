@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Acceptance Criteria
@@ -14,11 +14,12 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 ## Ingestion & normalization
 
-- AC-001: For each case in a 50-case normalization vector set (percent-encoding, default ports, dot-segments, fragments, IDN, uppercase hosts, empty paths), output matches the expected identity exactly; function is pure (repeat calls identical).
-- AC-002: Seeds with disallowed scheme or userinfo abort startup with exit code ≠ 0 before any network I/O.
+- AC-001: For each case in a 50-case normalization vector set (percent-encoding incl. reserved-octet preservation and unreserved decoding, uppercase hex, default ports, dot-segments, fragments, IDN, uppercase hosts, empty paths), output matches the expected identity exactly; function is pure (repeat calls identical).
+- AC-002: Seeds that are unparseable, have a disallowed scheme, or contain userinfo abort startup with exit code ≠ 0 before any network I/O.
 - AC-003: A page containing 100 duplicate links yields exactly one new URL Record.
 - AC-004: With scope_mode=SEED_DOMAINS, a link from sub.example.org to example.org is IN_SCOPE; to other.org is OUT_OF_SCOPE and never fetched.
 - AC-005: Startup with scope_mode=PREFIX_LIST where a seed matches no entry of [CFG-039] aborts with exit code ≠ 0 before any network I/O [V-4].
+- AC-006: With [CFG-006]=2, exactly two page successes per Registrable Domain are fetched; further in-scope discoveries on that domain are recorded ST-190/`CAP_REACHED` and never fetched, other domains are unaffected, and ST-190 audit records do not consume the [CFG-005] budget [FR-005].
 
 ## Politeness & robots
 
@@ -27,6 +28,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-012: robots.txt Disallow for UA group blocks matching URLs → ST-190/ROBOTS_DISALLOW; Allow longer-match wins on tie per [R-101]; `*` ignored when token group exists.
 - AC-013: robots.txt returning 503 defers ALL host fetches; retry after backoff succeeds once robots returns 200; no page was fetched during deferral.
 - AC-014: Crawl-delay=12s honored over CFG-007=5s; Retry-After=120s overrides backoff when larger.
+- AC-015: A redirect whose hop target is disallowed by the target Host's robots.txt terminates the chain with outcome=PERMANENT and error_class=ERR-017; the source URL → ST-180; the target is never fetched; the hop appears in the source's `redirect_chain` [R-131].
 
 ## Fetching & errors
 
@@ -38,6 +40,8 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
 - AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133].
 - AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103].
+- AC-028: A 3xx response with a missing or unparsable `Location` header yields outcome=PERMANENT with error_class=ERR-011; no follow occurs [DOC-09 §4].
+- AC-029: With [CFG-028]=false, fetching an allowed non-HTML type (e.g. `application/pdf`) stores no blob, records error_class=ERR-008, and the URL → ST-180; with [CFG-028]=true the payload is stored and no parse artifacts are produced [R-143].
 
 ## State machine & durability
 

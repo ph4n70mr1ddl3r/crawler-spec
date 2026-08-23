@@ -1,7 +1,7 @@
 ---
 id: DOC-05
 title: Non-Functional Requirements
-version: 1.1.0
+version: 1.4.0
 ---
 
 # Non-Functional Requirements
@@ -13,7 +13,7 @@ Targets are for reference hardware: 4 vCPU, 8 GiB RAM, SSD, 100 Mbps.
 | NFR-001 | Throughput | Sustained steady-state rate of ≥ 10 pages/sec and burst capability of ≥ 50 pages/sec, provided remote hosts permit it within politeness constraints. Politeness caps dominate throughput by design. |
 | NFR-002 | Latency | Scheduler decision latency (due URL selected → dispatched) ≤ 50 ms at p99 under load ≤ 100k queued URLs. |
 | NFR-003 | Memory | RSS ≤ 512 MiB regardless of frontier size; Frontier MUST spill to the Metadata Store, never grow unboundedly in RAM. |
-| NFR-004 | Disk | Content Store growth bounded by [CFG-005] × mean page size; retention job enforces [DOC-11 §6]. |
+| NFR-004 | Disk | Content Store growth is bounded: at most [CFG-005] distinct payloads per recrawl generation, with at most ceil([CFG-027]/[CFG-025]) generations retained when recrawl is enabled ([CFG-025]>0), else one; the retention job enforces [DOC-11 §6]. |
 | NFR-005 | Startup | Cold start with 1M existing URL Records ≤ 60 s before first fetch. |
 | NFR-006 | Determinism | Same inputs (config, seeds, captured network fixture) ⇒ same sequence of fetch decisions. Enables replay testing. |
 | NFR-007 | Observability | Every state transition increments a labeled metric; every fetch writes a structured log line [DOC-15]. |

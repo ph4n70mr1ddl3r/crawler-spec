@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.2.0
+version: 1.4.0
 ---
 
 # URL Model and Normalization
@@ -16,7 +16,14 @@ version: 1.2.0
 
 Given an accepted URL, produce the **Normalized URL** by applying, in order:
 
-1. Parse per RFC 3986; percent-decode then re-encode path and query components using unreserved set = ALPHA / DIGIT / `-._~`, uppercase hex.
+1. Parse per RFC 3986; percent-normalize the path and query components per
+   RFC 3986 §6.2.2: (a) uppercase the two hex digits of every `%XX`;
+   (b) decode `%XX` only when it encodes a character in the unreserved set
+   ALPHA / DIGIT / `-._~`; (c) leave percent-encoded reserved octets (e.g.
+   `%2F`, `%3F`, `%26`) encoded and leave literal reserved delimiters
+   (`/`, `=`, `&`, …) as they appear. URLs that fail to parse (e.g. a stray
+   `%`) are discarded at discovery time identically to [R-001]; as seeds they
+   abort startup [FR-002].
 2. Lowercase scheme.
 3. Lowercase hostname (after punycode conversion).
 4. Remove port if it equals the scheme default (80 for http, 443 for https).
@@ -47,11 +54,11 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 |---|---|
 | IN_SCOPE | scope_mode=SEED_DOMAINS: URL's Registrable Domain ∈ seed Registrable Domains set |
 | IN_SCOPE | scope_mode=SEED_HOSTS: URL's Host ∈ seed Hosts set |
-| IN_SCOPE | scope_mode=PREFIX_LIST: URL starts with ≥1 entry of [CFG-039] (scheme+host+path prefix match) |
+| IN_SCOPE | scope_mode=PREFIX_LIST: URL's (scheme, host, path) matches ≥1 entry of [CFG-039]: identical scheme+host and a path equal to the entry's path or beginning with it followed by `/` (segment-boundary prefix; query string ignored) |
 | OUT_OF_SCOPE | otherwise |
 
-- R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome `REDIRECT_OUT_OF_SCOPE`; no fetch of the target occurs.
-- R-031: The Scope predicate is evaluated once per new identity; verdict cached on the URL Record.
+- R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome PERMANENT and error_class ERR-015; no fetch of the target occurs.
+- R-031: The Scope predicate is evaluated exactly once per new identity, at ingestion; the verdict is reflected in the record's state (ST-190/`OUT_OF_SCOPE` vs. queued) and is never re-evaluated for that identity. Redirect targets are evaluated per hop [R-030].
 
 ## 5. Trap mitigation (pre-scheduling filters)
 
@@ -66,3 +73,7 @@ Applied to IN_SCOPE URLs in order; first match wins:
 - R-041: Excluded URLs keep records (state ST-190) so re-discovery is O(1) and
   auditable — except OUT_OF_SCOPE URLs when [CFG-038]=false, which are dropped
   with no record per [FR-004].
+- R-042: Path-shape counters (filter 3) are maintained in memory and rebuilt
+  at startup from URL Records via the `host_key` index [DOC-11 §1]; every
+  record on the Host — including excluded ones — contributes its shape, so
+  the rebuild is deterministic and re-discovery stays O(1).

@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.3.0
+version: 1.4.0
 ---
 
 # URL Lifecycle State Machine
@@ -46,11 +46,20 @@ ST-140 ─► ST-100                recrawl due [FR-050] (attempts reset to 0)
 
 No other transitions exist. Any observed other transition is a defect.
 
+Note on the two robots-exclusion paths: the robots gate [FR-011(d)] is
+normally evaluated during dispatch selection, while the record is ST-100
+(ST-100→ST-190). The ST-110→ST-190 path covers verdicts that change after the
+dispatch transaction [T-1] but before the request is sent (e.g. a robots
+cache refresh between commit and send). In both cases the held concurrency
+slot is released exactly once [R-051].
+
 ## 3. State-dependent rules
 
 - R-050: Only ST-100 records are visible to the Scheduler.
 - R-051: ST-110/ST-120 records own one inflight unit each against host/global caps; caps are released exactly once, on the first transition out of {ST-110, ST-120} (to ST-130, ST-150, ST-180, or ST-190 — including the robots-exclusion path [FR-031]).
-- R-052: ST-140→ST-100 recrawl resets `attempts=0`; priority is recomputed per [DOC-12 §2] (R-201).
+- R-052: ST-140→ST-100 transitions (recrawl due [FR-050] and rediscovery
+  refresh [FR-051]) reset `attempts=0` and set `due_at_mono` per their
+  trigger; priority is recomputed per [DOC-12 §2] (R-201).
 - R-053: `attempts` is incremented exactly once per fetch attempt, inside the
   dispatch transaction [FR-012], [T-1]; it is therefore already counted when a
   crash mid-fetch is classified as retryable [DOC-13 §5].

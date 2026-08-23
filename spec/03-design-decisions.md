@@ -1,7 +1,7 @@
 ---
 id: DOC-02
 title: Binding Design Decisions
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Design Decisions
@@ -21,5 +21,5 @@ this document and bumping the KB version.
 | DEC-008 | Scheduling uses per-host virtual clocks and a global due-queue; no wall-clock timers per URL. | Enables deterministic simulation and testing. |
 | DEC-009 | Redirect hops do NOT count toward the depth limit; only extraction depth (link distance from seeds, seeds = 0) counts. | Prevents surprising interactions between redirect chains and scope rules. |
 | DEC-010 | The crawler identifies itself honestly: fixed UA Token, no rotation of fingerprints, honors `From` if configured. | Ethical baseline; simplifies webmaster contact. |
-| DEC-011 | Configuration is a versioned, validated document (JSON/YAML) conforming to [DOC-15]; invalid config aborts startup before any network activity. | Fail-fast; no partial-crawl surprises. |
+| DEC-011 | Configuration is a versioned, validated document (JSON/YAML) conforming to [DOC-14]; invalid config aborts startup before any network activity. | Fail-fast; no partial-crawl surprises. |
 | DEC-012 | Time inside the scheduler is monotonic; wall-clock time appears only in records/logs. | Restart-safe delays; immune to clock jumps. |

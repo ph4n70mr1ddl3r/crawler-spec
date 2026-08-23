@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.0.0
+version: 1.4.0
 ---
 
 # Observability
@@ -15,8 +15,8 @@ Counters:
 | urls_discovered_total | outcome{ingested,duplicate,excluded} | [FR-003..FR-004] |
 | state_transitions_total | from,to | every legal transition pair [ST-*] |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
-| bytes_downloaded_total | content_type_class | post-decode payload sizes |
-| robots_queries_total | verdict{allow,disallow,deferred} | [DOC-08] |
+| bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + rss + atom) |
+| robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
 | exclusions_total | reason | ST-190 reasons |
 
 Gauges:
@@ -27,6 +27,7 @@ Gauges:
 | inflight_global / inflight_per_host{host} | live concurrency |
 | host_next_allowed_ms{host} | ms until host eligible |
 | dead_count, excluded_count | lifecycle totals |
+| suspicious_hosts | count of hosts with `suspicious=true` [R-402] |
 
 Histograms: `fetch_duration_ms` (by outcome), `payload_size_bytes`.
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Fetching
@@ -11,9 +11,10 @@ version: 1.3.0
 | Aspect | Rule |
 |---|---|
 | Method | GET only. |
-| HTTP versions | HTTP/1.1 mandatory; HTTP/2 optional via ALPN; no h2c upgrade. |
+| HTTP versions | HTTP/1.1 mandatory; HTTP/2 optional via ALPN; no h2c upgrade; HTTP/2 server push, if negotiated, MUST be disabled (no unsolicited resources are fetched). |
+| TLS | TLS 1.2 minimum; certificate verification is mandatory and fail-closed [ERR-003]. |
 | Headers | `User-Agent` = [CFG-018] exact; `Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`; `Accept-Encoding: gzip, deflate, br`; `From` iff [CFG-019]; conditional validators on refetches [R-121]. |
-| Forbidden | Cookies, Authorization, custom fingerprint headers, referer spoofing. |
+| Forbidden | Cookies, Authorization, custom fingerprint headers, referer spoofing; no request headers beyond those specified here. |
 | Body | None. |
 
 - R-160: The crawler MUST be stateless with respect to site state: it MUST NOT store cookies, MUST NOT transmit any cookie received from any site, and MUST ignore `Set-Cookie` headers entirely.
@@ -33,7 +34,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 ## 3. Redirects
 
 - R-130: Follow 301, 302, 303, 307, 308 up to [CFG-017] hops; method stays GET throughout.
-- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021]. Each hop request MUST additionally respect the target Host's politeness window and concurrency caps ([FR-011] b, c) before being sent.
+- R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030], robots check [FR-021]. Each hop request MUST additionally respect the target Host's politeness window and concurrency caps ([FR-011] b, c) before being sent. A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`.
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
 - R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
 
@@ -50,13 +51,15 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | other 4xx | permanent | ST-180, ERR-014 |
 | 5xx | retryable | → ST-150, increments host consecutive_failures |
 | 3xx non-followable (loop/cap/out-of-scope) | per cause | ERR-011, or ERR-015 for out-of-scope targets [R-030] |
+| 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
+| 3xx without parsable `Location` | permanent | ST-180, ERR-011 (nothing to follow) |
 
 ## 5. Payload handling
 
 - R-140: Decode Content-Encoding before hashing [FR-024]; unknown encodings ⇒ ERR-013 (retryable once, then permanent).
 - R-141: Content-Length vs actual bytes mismatch ⇒ trust actual bytes, log anomaly metric.
 - R-142: Charset detection order: HTTP `charset` param → BOM → HTML meta charset in first 1024 bytes → default UTF-8 (strict errors ⇒ replacement char, never fatal).
-- R-143: Non-text types: sniff Content-Type only; payload stored iff [CFG-028] and type allowed list = {`image/*`, `application/pdf`, `text/plain`, `application/xml`, `application/rss+xml`, `application/atom+xml`}.
+- R-143: Non-text types: sniff Content-Type only; payload stored iff [CFG-028] and type allowed list = {`image/*`, `application/pdf`, `text/plain`, `application/xml`, `application/rss+xml`, `application/atom+xml`}. The effective allowed list is that set intersected with [CFG-028]; types outside it ⇒ ERR-008 [DOC-13 §1]. A missing `Content-Type` header is treated as `application/octet-stream`.
 - R-144: A 304 response whose previously stored payload blob no longer exists
   on disk (e.g., removed by retention [DOC-11 §6]) MUST be treated as a cache
   miss: refetch with a full GET and store a fresh payload.
@@ -83,3 +86,8 @@ Every attempt returns exactly:
 ```
 
 Scheduler consumes outcomes per [DOC-13].
+
+- R-145: For redirect chains, `timings_ms.total` spans the entire chain
+  (including per-hop politeness waits); `dns`/`connect`/`tls`/`ttfb` refer to
+  the final hop's connection; `payload_sha256`/`payload_size`/`content_type`
+  describe the final response.

@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Storage Model
@@ -14,6 +14,8 @@ are integers (implementation may map to wall-clock offsets at rest).
 ```sql
 urls (
   url_identity      TEXT PRIMARY KEY,     -- normalized URL [DOC-06]
+  host_key          TEXT NOT NULL,        -- (scheme, hostname, port) of the identity [glossary]; host queries, trap-shape rebuild [R-042]
+  registrable_domain TEXT NOT NULL,       -- eTLD+1; per-domain success cap key [FR-005]
   raw_first_seen    TEXT NOT NULL,        -- first raw form observed
   state             TEXT NOT NULL,        -- ST-nnn code
   exclude_reason    TEXT NULL,            -- for ST-190
@@ -23,6 +25,7 @@ urls (
   source_run_id     INT  NOT NULL,
   discovered_from   TEXT NULL,            -- parent url_identity
   attempts          INT  NOT NULL DEFAULT 0,
+  consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
   due_at_mono       INT NULL,             -- scheduler key component
   last_fetch_mono   INT NULL,
@@ -65,6 +68,7 @@ hosts (
   robots_rules      TEXT NULL,            -- parsed robots.txt rules JSON [DOC-08 §2.4]
   robots_fetched_at TEXT NULL,
   robots_deferred_until_mono INT NULL,
+  robots_deferred_since_mono INT NULL,    -- first deferral of the current streak [R-103]
   next_allowed_fetch_at_mono INT NOT NULL DEFAULT 0,
   inflight          INT  NOT NULL DEFAULT 0,
   consecutive_failures INT NOT NULL DEFAULT 0,
@@ -119,7 +123,7 @@ Read-only access via SQL over Metadata Store + direct file reads over Content St
 
 ## 5. Scale assumptions
 
-Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity).
+Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain).
 
 ## 6. Retention
 
@@ -130,4 +134,8 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
     `pages` row references its payload_sha256 (payloads are shared across URL
     identities via dedup [AC-042] — age alone never justifies deletion);
   - DEAD/EXCLUDED url records with `updated_at` older than 180 days deleted.
-- Deletion order: artifacts → pages rows → blob files → url records, per-commit consistent so Consumer never sees dangling references.
+- Deletion order within each sweep: pages rows → page_artifacts rows and blobs
+  left unreferenced by those deletions → url records. Each step commits before
+  the next begins, so the Consumer never sees dangling references. (Deleting
+  artifacts or blobs before the pages rows that reference them would contradict
+  the unreferenced-only rule above.)

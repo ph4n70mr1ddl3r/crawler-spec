@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Architecture
@@ -77,8 +77,8 @@ version: 1.3.0
 - Worker pool of size `global_concurrency` [CFG-010].
 - Performs DNS resolution + SSRF checks [DOC-16 §2], HTTP exchange with all
   timeout/retry rules [DOC-09], redirect following within caps.
-- Returns a FetchResult: `{outcome, status, headers, payload_ref, final_url,
-  timings, error}`. Never parses bodies beyond content-type sniffing for caps.
+- Returns a FetchResult with exactly the fields defined in [DOC-09 §6]. Never
+  parses bodies beyond content-type sniffing for caps.
 
 ### C6 EXTRACTOR
 - For each successful fetch of a parseable type: decode charset, parse HTML,

@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.3.0
+version: 1.4.0
 ---
 
 # Parsing and Extraction
@@ -21,7 +21,7 @@ Candidate sources, in order of processing:
 | Source | Attribute | Notes |
 |---|---|---|
 | anchors | `href` of `<a>` | primary discovery |
-| images | `src`, `srcset` entries | stored as discovered URLs, type=image |
+| images | `src`, `srcset` entries | discovered like anchors (same filters; typically stored-not-parsed under [R-143]) |
 | iframes | `src` | treated as pages |
 | link elements | `href` where rel ∈ {canonical, alternate} | canonical → metadata; alternate → discovery |
 | meta refresh | `content="N; url=..."` | treat as redirect hint (discovery + metadata) |
@@ -42,6 +42,7 @@ Stored in Metadata Store as JSON document keyed by payload hash:
 | title | text of first `<title>` in head, trimmed |
 | description | `meta[name=description]` content |
 | canonical_url | normalized `link[rel=canonical]` href (informational only — does NOT change URL Identity [DEC-004]) |
+| meta_refresh | first `http-equiv=refresh` target URL (normalized) and delay, if present |
 | lang | `lang` attribute of `<html>`, lowercased |
 | meta_robots | union value(s) of `meta[name=robots]` |
 | headings | ordered list of `{level, text}` for h1–h3 |
