@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Observability
@@ -32,7 +32,10 @@ Gauges:
 
 Histograms: `fetch_duration_ms` (by outcome), `payload_size_bytes`.
 
-- R-240: Counters are monotonic; gauges reflect current truth; all labeled values come from closed enums in this KB.
+- R-240: Counters are monotonic; gauges reflect current truth; all labeled
+  values come from closed enums in this KB, except the per-host series'
+  `host` label — a host key, unbounded in value but bounded in cardinality
+  by the set of Hosts the crawl has contacted.
 
 ## 2. Structured logs
 

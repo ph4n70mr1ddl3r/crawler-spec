@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Storage Model
@@ -124,7 +124,13 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for the single Host unit the attempt still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
+- T-2: Completion transaction = {urls.state update — together with the
+  completion-time URL fields it owns: `last_fetch_mono` := attempt
+  completion time, the recrawl `due_at_mono` and `consecutive_unchanged`
+  [DOC-12 §4], and, on failures, `last_error_class` and
+  `once_retried_classes` [DOC-13 §3], [R-232] — pages insert(s),
+  fetch_event insert, hosts.inflight−1 for the single Host unit the attempt
+  still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
@@ -135,7 +141,7 @@ Read-only access via SQL over Metadata Store + direct file reads over Content St
 
 ## 5. Scale assumptions
 
-Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain), plus composites (state, priority DESC, url_identity ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain, state) for the cap gates [FR-005], [FR-011(e)]. The retention sweeps [§6] additionally require indexes on (fetch_events.ts), (pages.fetch_ts), (pages.payload_sha256), and (pages.final_url_identity, payload_sha256) for the blob/artifact reference checks.
+Design point: 10M URL records, 5M blobs, single host. All queries above must use indexes on (state), (due_at_mono), (url_identity), (host_key), (registrable_domain), plus composites (state, priority DESC, url_identity ASC) for dispatch selection [FR-010], [NFR-002] and (registrable_domain, state) for the cap gates [FR-005], [FR-011(e)]. The retention sweeps [§6] additionally require indexes on (fetch_events.ts), (pages.fetch_ts), (pages.payload_sha256), (pages.final_url_identity, payload_sha256) for the blob/artifact reference checks, and on (state, updated_at) plus (state, last_seen_at) for the DEAD/EXCLUDED url-record scan (retention basis: `last_seen_at` when set, else `updated_at` [§6]).
 
 ## 6. Retention
 

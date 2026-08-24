@@ -1,10 +1,94 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Changelog
+
+## 1.13.0 — 2026-08-24 (review pass v13: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- The DOC-07 §2 transition list omitted every [R-062] upsert-overwrite
+  edge: R-062 (and AC-026, AC-061) require a redirect final-target upsert
+  to *replace the state of a pre-existing record* — e.g. ST-190/`CAP_REACHED`
+  →ST-130 on success, ST-180→ST-150 on a retryable outcome, ST-140→ST-180 on
+  a permanent one — but the machine listed only the creation arrow for new
+  target records while declaring "no other transitions exist … any observed
+  other transition is a defect". An R-062-conformant upsert onto an existing
+  record would itself be a "defect", and AC-052's only-legal-pairs metric
+  check would fail on it (same defect class as the v1.8/v1.11/v1.12
+  missing-edge fixes). Grouped edge added, with the no-metric rule for
+  same-state landings (ST-150→ST-150, ST-180→ST-180, ST-190→ST-190) so the
+  metric check stays decidable. New AC-061(e).
+- NFR-004's disk bound was false at the [CFG-027]=0 edge: the
+  generations-retained formula ceil([CFG-027]×86400 / …) evaluates to 0
+  when retention is disabled, while [CFG-027]=0 in fact means *keep
+  forever* — pages never expire, so growth across recrawl generations is
+  unbounded. The bound is now scoped to [CFG-025]>0 *and* [CFG-027]>0, with
+  the keep-forever case explicitly excluded from the NFR's claim (operator
+  choice, not a system property).
+- R-132 loop detection did not include the original identity in the
+  repetition check, so A→B→A was only catchable on a *later* B — yet AC-021
+  requires detection "at first repetition". The rule now fires when a hop
+  target equals the original identity or any earlier hop target. This in
+  turn exposed a contradiction in R-133: `redirect_chain` "never [contains]
+  the original identity", yet the loop-refused hop target *is* the original
+  identity and AC-015/AC-020 require refused hops to be recorded. R-133 now
+  says the list holds hop targets only (never the requested URL as such) and
+  a loop-refused target equal to the original identity is still recorded.
+  AC-021 extended to pin both.
+
+### Completeness additions
+
+- robots.txt status interpretation had no row for a final response that is
+  neither 2xx, 4xx, 5xx/network-error, nor decode-failure, and not a
+  followable redirect — concretely a spurious `304` (the robots request
+  sends no validators, but servers MUST NOT is not a guarantee [R-144]) or
+  a `300`. Such a verdict was undefined, so implementations could diverge
+  (e.g. treat 304 as "reuse cache", which no rule defines). DOC-08 §2.3 now
+  routes every such final status to UNKNOWN/deferral, fail closed
+  [DEC-007]. AC-013 extended.
+- Page-fetch classification had the mirror gap: a `3xx` outside the
+  followable set {301, 302, 303, 307, 308} — e.g. `300`, with or without a
+  `Location` — matched no row of the DOC-09 §4 table (only
+  missing/unparsable `Location` was covered). R-130 and the table now
+  terminate such an attempt PERMANENT/ERR-011, with the `304` carve-out
+  noted (success-unchanged per §4).
+- [R-062] field hygiene on overwrite upserts was unspecified: moving a
+  record out of ST-190 left a stale `exclude_reason` (the schema defines
+  the column only for ST-190 [DOC-11 §1]), and landing outside ST-150 left
+  a stale `next_attempt_mono`. Both are now cleared by rule. New AC-061(e).
+- [R-062] yes-once accounting ([R-232]) was unspecified for the target
+  record: a chain failing ERR-003/ERR-013 on its final hop appends the class
+  to the source's `once_retried_classes`, but nothing said whether the
+  upserted target's list is touched — leaving the target's own later retry
+  cycle with undefined once-only semantics. The mirror rule is now
+  normative: the class is evaluated against (and appended to) the target's
+  own list; already-listed ⇒ PERMANENT for the target. New AC-061(f).
+- T-2's transaction set said only "urls.state update" while several rules
+  make [T-2] the commit point for other URL columns: the recrawl
+  `due_at_mono` and `consecutive_unchanged` [DOC-12 §4] (R-211 already
+  asserted this), and on failures `last_error_class` and
+  `once_retried_classes` [DOC-13 §3], [R-232]. The set now names them, so
+  crash-atomicity coverage is explicit rather than inferred.
+- DOC-11 §5's index list omitted every index needed by the DEAD/EXCLUDED
+  url-record retention scan (the §6 sweep keys on `last_seen_at` else
+  `updated_at` filtered by state). Added (state, updated_at) and
+  (state, last_seen_at).
+
+### Consistency fixes
+
+- R-240 claimed "all labeled values come from closed enums in this KB",
+  but `inflight_per_host{host}` and `host_next_allowed_ms{host}` label on
+  host keys — not a closed enum. The rule now scopes the closed-enum
+  guarantee to everything except the per-host series' `host` label
+  (cardinality bounded by contacted Hosts).
+
+### Versioning
+
+- KB version 1.12.0 → 1.13.0; all touched documents bumped accordingly.
 
 ## 1.12.0 — 2026-08-24 (review pass v12: correctness, completeness, consistency, unambiguity)
 

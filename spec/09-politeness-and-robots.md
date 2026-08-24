@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Politeness and robots.txt
@@ -62,7 +62,11 @@ Per Host `(scheme, host, port)`:
      size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
-     failure) → **UNKNOWN**: mark Host `robots_deferred_until_mono = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
+     failure) / a final status in none of the categories above and not a
+     followable redirect (`1xx`, or a `3xx` outside the [R-130] follow set —
+     e.g. a spurious `304`: the robots request carries no validators, and
+     servers MUST NOT send `304` to an unconditional request, but MUST NOT
+     is not a guarantee [R-144]) → **UNKNOWN**: mark Host `robots_deferred_until_mono = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
      persisted as `hosts.robots_defer_failures` [DOC-11 §1] so escalation
      survives restarts, and is cleared when an authoritative verdict is
      obtained — cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak; both deferral timestamps (`robots_deferred_until_mono`, `robots_deferred_since_mono`) are cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].

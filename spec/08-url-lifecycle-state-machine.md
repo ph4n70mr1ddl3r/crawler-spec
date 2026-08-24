@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.12.0
+version: 1.13.0
 ---
 
 # URL Lifecycle State Machine
@@ -76,6 +76,18 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 (audited; attempts := 0, due_at_mono := now,
                                 last error class cleared, priority
                                 recomputed per [DOC-12 §2])
+{ST-100, ST-130, ST-140, ST-150,
+ ST-180, ST-190} ─► ST-130/ST-150/ST-180
+                                redirect final-target upsert onto a
+                                pre-existing record [R-062]: the fetch-outcome
+                                state replaces the record's current state (the
+                                same rule that creates new records directly in
+                                the outcome states above). Never from
+                                {ST-110, ST-120} — an independent fetch in
+                                flight is untouched by the upsert. A same-state
+                                landing (ST-150→ST-150, ST-180→ST-180,
+                                ST-190→ST-190) is not a transition: no
+                                metric is emitted for it.
 ```
 
 No other transitions exist. Any observed other transition is a defect.
@@ -191,7 +203,11 @@ exactly once [R-051].
   would corrupt its unit accounting [R-051]): the chain records `last_seen_at`
   and its `pages` row only, and the concurrent attempt's own [T-2] governs
   the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
-  takes the fetch-outcome state as above.
+  takes the fetch-outcome state as above. An upsert that moves a record out
+  of ST-190 clears `exclude_reason` (the exclusion no longer applies — the
+  column is defined only for ST-190 [DOC-11 §1]); a landing outside ST-150
+  clears `next_attempt_mono` (a stale backoff timer must not survive into
+  ST-130/ST-180).
 
   Failure upserts set `last_error_class` to the outcome's class; success
   upserts clear it (mirroring [DOC-13 §3]). A RETRYABLE-outcome upsert
@@ -205,3 +221,13 @@ exactly once [R-051].
   [DOC-12 §1], and the defensive ST-150→ST-180 edge is otherwise
   unreachable [§2] — so no ST-150 record ever holds `attempts` ≥
   [CFG-020], preserving the invariant asserted by [DOC-12 §1].
+
+  Yes-once classes ([R-232]) are accounted on the target exactly as on the
+  source — one chain, one schedule: a RETRYABLE outcome whose class is
+  ERR-003 or ERR-013 is evaluated against the target's own
+  `once_retried_classes`; when the class is not yet listed there it is
+  appended (mirroring the source's bookkeeping), and when it is already
+  listed the outcome is PERMANENT for the target (ST-180,
+  `last_error_class` := that class), independently of where the source
+  record lands. Success upserts leave the list to the normal clearing rule
+  ([R-232]: cleared when `attempts` resets to 0).

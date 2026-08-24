@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Fetching
@@ -38,7 +38,11 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   resolved against the current hop's URL per RFC 3986 §5; a hop target that
   is not an acceptable absolute http(s) URL after resolution (disallowed
   scheme, or userinfo [R-001], [R-002]) terminates the chain with outcome
-  PERMANENT and error_class ERR-011 (unacceptable target).
+  PERMANENT and error_class ERR-011 (unacceptable target). A `3xx` status
+  outside the followable set (e.g. `300`) likewise terminates the attempt
+  PERMANENT/ERR-011, with or without a `Location` — no follow is defined
+  for it (a `304` is not such a case: it is classified earlier, as
+  success-unchanged [§4], [R-144]).
 - R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030],
   robots check [FR-021], and URL-blocklist check ([CFG-037]: a hop target
   matching the blocklist terminates the chain identically to [R-030] —
@@ -81,8 +85,12 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
      (`next_allowed_fetch_at = max(next_allowed_fetch_at, now) +
      EffectiveDelay`); while the request is in flight the task holds that
      one unit and no other Host unit [R-051].
-- R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
-- R-133: The chain's outcome URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1]. `redirect_chain` lists, in order, every hop target the chain acted on — each `Location` target it followed, and each it refused at a gate or limit (loop [R-132], redirect cap [R-130], scope [ERR-015], robots [ERR-017], blocklist [ERR-019], SSRF [ERR-004], robots deferral [ERR-010], rate-limit abort [ERR-018]) — and never the original identity; on any chain that received a final response the followed final target is its last element. It is empty for a no-redirect fetch. `final_url_identity` is the URL of the last response received in the attempt: the identity itself for a no-redirect fetch, the redirecting hop's URL for a pre-send abort, and the final target's URL when a final response arrived.
+- R-132: Redirect loop detection: a hop target whose identity equals the
+  original identity or repeats any earlier hop target's identity within the
+  chain ⇒ stop, ERR-011 (the check fires at the first such repetition —
+  A→B→A is caught when the second hop target `A` is seen, not only on a
+  later B).
+- R-133: The chain's outcome URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1]. `redirect_chain` lists, in order, every hop target the chain acted on — each `Location` target it followed, and each it refused at a gate or limit (loop [R-132], redirect cap [R-130], scope [ERR-015], robots [ERR-017], blocklist [ERR-019], SSRF [ERR-004], robots deferral [ERR-010], rate-limit abort [ERR-018]) — and never contains the requested identity as such (the list holds hop targets only; a loop-refused hop target that happens to equal the original identity is still recorded — it is a refused hop target, not the requested URL [R-132]); on any chain that received a final response the followed final target is its last element. It is empty for a no-redirect fetch. `final_url_identity` is the URL of the last response received in the attempt: the identity itself for a no-redirect fetch, the redirecting hop's URL for a pre-send abort, and the final target's URL when a final response arrived.
 
 ## 4. Response classification
 
@@ -102,6 +110,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | 3xx hop target fails SSRF/egress policy | permanent | chain terminates at that hop; source → ST-180, ERR-004, referring Host flagged `suspicious=true`; target never fetched [R-400], [R-402] |
 | 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150, window opening floors `next_attempt_mono` |
 | 3xx without parsable `Location` | permanent | ST-180, ERR-011 (missing, unparsable, or non-http(s) target [R-130]) |
+| 3xx outside the followable set (e.g. 300) | permanent | ST-180, ERR-011, with or without a `Location` [R-130]; a `304` is not this case — the success-unchanged row above applies |
 
 ## 5. Payload handling
 
