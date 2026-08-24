@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Storage Model
@@ -124,7 +124,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 ## 3. Transactions & consistency
 
 - T-1: Dispatch transaction = {urls.state→ST-110, urls.attempts+1 [FR-012], hosts.inflight+1, hosts.next_allowed_fetch_at advance} — single commit.
-- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for the single Host unit the attempt still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived; the [ERR-018]/[ERR-010]/[ERR-017]/[ERR-019] hop aborts likewise release exactly the unit held, on the Host whose response carried the unfollowable redirect). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
+- T-2: Completion transaction = {urls.state update, urls.last_fetch_mono := attempt completion time, pages insert(s), fetch_event insert, hosts.inflight−1 for the single Host unit the attempt still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
@@ -139,7 +139,8 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
 
 ## 6. Retention
 
-- Retention job runs hourly:
+- The retention job — an in-process maintenance task of the single crawler
+  process [DEC-002] — runs every [CFG-046] seconds:
   - fetch_events older than [CFG-033] days deleted (aggregate metrics preserved separately);
   - pages rows whose `fetch_ts` < now − [CFG-027] deleted oldest-first;
   - a page_artifacts row MAY be deleted only when NO remaining `pages` row

@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Architecture
@@ -118,7 +118,9 @@ version: 1.11.0
 ## Deployment model
 
 Single OS process; graceful shutdown on SIGINT/SIGTERM (stop issuing fetches,
-finish in-flight requests up to total-timeout, commit all state, exit code 0).
+finish in-flight fetch tasks within their bounded timers — per-hop
+[CFG-015], inter-hop waits ≤ [CFG-035] [DOC-09 §2], [R-131] — commit all
+state, exit code 0).
 Each process start opens a new Run record (after config validation succeeds
 [DEC-011]); graceful shutdown closes it (`finished_at`); a Run whose process
 died is finalized by the next startup. A Crawl Session [DOC-00] spans all

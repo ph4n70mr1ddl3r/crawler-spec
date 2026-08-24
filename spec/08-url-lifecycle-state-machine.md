@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.11.0
+version: 1.12.0
 ---
 
 # URL Lifecycle State Machine
@@ -55,6 +55,10 @@ ST-110 ─► ST-150                crash recovery reclassification [R-060],
                                 [DOC-13 §5] (applies from ST-120
                                 identically; request-sent status unknown,
                                 conservatively retryable)
+ST-110 ─► ST-180                crash recovery reclassification with the
+                                retry budget exhausted [R-060], [DOC-13 §5]
+                                (likewise applies from ST-120 identically;
+                                subsumed there by the edge below)
 ST-120 ─► ST-150                retryable failure [DOC-13 §3]
 ST-120 ─► ST-180                permanent failure or retry budget exhausted
 ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
@@ -69,7 +73,9 @@ ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
                                 [FR-051] (attempts reset to 0)
 ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
-                                (audited; attempts := 0, last error class cleared)
+                                (audited; attempts := 0, due_at_mono := now,
+                                last error class cleared, priority
+                                recomputed per [DOC-12 §2])
 ```
 
 No other transitions exist. Any observed other transition is a defect.
@@ -113,8 +119,10 @@ exactly once [R-051].
   - changed to DISALLOW ⇒ the record moves ST-110→ST-190/`ROBOTS_DISALLOW`
     with unit release [R-051];
   - changed to UNKNOWN (Host deferred) ⇒ the dispatch is compensated: the
-    record returns to ST-100, the units are released [R-051], and the
-    the record is reconsidered after deferral expiry [R-103] — at the
+    record returns to ST-100 with `due_at_mono` := now (immediately due;
+    the UNKNOWN verdict suppresses candidacy until the verdict changes),
+    the units are released [R-051], and the
+    record is reconsidered after deferral expiry [R-103] — at the
     [CFG-040] threshold it is excluded `ROBOTS_UNKNOWN_TIMEOUT` like any
     gated record.
   The politeness advance of [T-1] is never rolled back in either case (the
@@ -150,8 +158,17 @@ exactly once [R-051].
   depth (redirects do not count toward depth [DEC-009]),
   `discovered_from` = source identity, and state per the fetch outcome
   (ST-130 on success, then normal progression; ST-150/ST-180 on failure).
-  The upsert never modifies the target's `attempts` (the attempt is
-  accounted on the source record [T-1]). Intermediate hops are persisted on
+  The upsert applies only when the chain reached its final target — the
+  final request was actually sent (a final response arrived, or a
+  transport failure was classified against it). A chain aborted before
+  sending to its would-be next hop (scope [ERR-015], robots [ERR-017],
+  URL blocklist [ERR-019], SSRF [ERR-004], robots deferral [ERR-010], an
+  over-threshold politeness wait [ERR-018], or loop/cap exhaustion
+  [ERR-011]) has no fetched final target: the outcome is recorded on the
+  source record only, and the unfetched hop URL receives no URL Record
+  (each hop rule's "target never fetched"). The upsert never modifies
+  the target's `attempts` (the attempt is accounted on the source record
+  [T-1]). Intermediate hops are persisted on
   the source's `redirect_chain` [R-133] and receive no URL Records. The
   final target is exempt from the trap filters ([DOC-06 §5] items 2–4) at
   this creation point (it was already fetched); scope, robots, SSRF, and
@@ -169,10 +186,22 @@ exactly once [R-051].
   are overwritten with the fetch outcome: this records a completed,
   gate-verified fetch (scope, robots, SSRF, and blocklist were re-checked per
   hop [R-131]) and is neither the forbidden automated re-activation of
-  [DOC-13 §4] nor a rediscovery under [FR-051]; a success upsert also clears
-  `last_error_class`. A record in {ST-110, ST-120} — an independent fetch in
+  [DOC-13 §4] nor a rediscovery under [FR-051]. A record in {ST-110, ST-120} — an independent fetch in
   flight — MUST NOT have its state or `attempts` modified (overwriting it
   would corrupt its unit accounting [R-051]): the chain records `last_seen_at`
   and its `pages` row only, and the concurrent attempt's own [T-2] governs
   the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
   takes the fetch-outcome state as above.
+
+  Failure upserts set `last_error_class` to the outcome's class; success
+  upserts clear it (mirroring [DOC-13 §3]). A RETRYABLE-outcome upsert
+  lands in ST-150 — with `next_attempt_mono` mirroring the source's (one
+  chain, one retry schedule: the source's next attempt re-runs the chain
+  [R-131] and re-upserts) — only when the record's `attempts` <
+  [CFG-020]; a record whose own budget is already exhausted (e.g. a
+  budget-exhausted DEAD record overwritten by the chain) takes ST-180
+  instead. Without this guard the upsert could strand a record in ST-150
+  forever: the ST-150→ST-100 promotion requires `attempts` < [CFG-020]
+  [DOC-12 §1], and the defensive ST-150→ST-180 edge is otherwise
+  unreachable [§2] — so no ST-150 record ever holds `attempts` ≥
+  [CFG-020], preserving the invariant asserted by [DOC-12 §1].

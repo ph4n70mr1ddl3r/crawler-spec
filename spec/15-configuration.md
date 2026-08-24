@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.10.0
+version: 1.12.0
 ---
 
 # Configuration
@@ -83,6 +83,8 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-032 | log_level | enum | `info` | debug/info/warn/error |
 | CFG-033 | fetch_event_retention_days | int | 7 | ≥0; 0 = keep forever [DOC-11 §6] |
 | CFG-034 | health_listen_addr | string | null | optional HTTP endpoint for metrics/health [DOC-15]; also exposes operator actions [DOC-16 §5] |
+| CFG-045 | run_summary_every | int | 1000 | ≥1; completions between `run_summary` events [DOC-15 §4] |
+| CFG-046 | retention_sweep_interval_s | int | 3600 | 60–86400; retention job cadence [DOC-11 §6] |
 | CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
 | CFG-038 | record_out_of_scope | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] (renamed from `log_exclusions`: it governs audit rows, not logging — the exclusions_total metric [DOC-15 §1] is always emitted) |
 
@@ -91,7 +93,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | ID | Name | Type | Default | Range / notes |
 |----|------|------|---------|---------------|
 | CFG-041 | egress_deny_ips | list | `[]` | IPs/CIDRs appended to the SSRF block set [R-400] |
-| CFG-042 | egress_allow_private_ranges | bool | false | test-harness escape hatch from [R-400] [R-405]; MUST NOT be enabled in production; startup logs WARN when true |
+| CFG-042 | egress_allow_private_ranges | bool | false | test-harness escape hatch from [R-400] and [R-401] [R-405]; MUST NOT be enabled in production; startup logs WARN when true |
 
 ## Validation rules
 

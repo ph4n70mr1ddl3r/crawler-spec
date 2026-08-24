@@ -1,10 +1,125 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Changelog
+
+## 1.12.0 — 2026-08-24 (review pass v12: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- The DOC-07 §2 transition list was missing the crash-recovery edge
+  ST-110→ST-180: [R-060] reclassifies every {ST-110, ST-120} record at
+  startup and sends budget-exhausted ones to ST-180, but the machine listed
+  the crash edge from ST-110 only to ST-150 while declaring every unlisted
+  transition a defect — an R-060-conformant restart would itself be a
+  "defect", and AC-052's only-legal-pairs metric check would fail on it
+  (same defect class as the v1.8.0 missing-edge fixes). Edge added; AC-030
+  extended to kill during either in-flight state.
+- [R-062] retryable upserts could strand a record in ST-150 forever:
+  overwriting a terminal ST-180 record whose `attempts` = [CFG-020] (the
+  normal state of a budget-exhausted DEAD record) with a chain's RETRYABLE
+  outcome produced an ST-150 record holding attempts ≥ [CFG-020] — but the
+  ST-150→ST-100 promotion requires attempts < [CFG-020] [DOC-12 §1], the
+  defensive ST-150→ST-180 edge is unreachable [DOC-07 §2], and retention
+  deletes only DEAD/EXCLUDED records, so the record could never leave
+  ST-150. A RETRYABLE-outcome upsert now lands in ST-180 when the target's
+  own budget is exhausted, restoring the invariant that ST-150 records
+  always hold attempts < [CFG-020]. New AC-061(b).
+- T-2 hop-abort unit accounting risked a double decrement: it said the
+  [ERR-018]/[ERR-010]/[ERR-017]/[ERR-019] aborts "release exactly the unit
+  held, on the Host whose response carried the unfollowable redirect" —
+  but under [R-051]/[R-131] release-before-acquire that unit was already
+  released when the redirect response arrived (R-131's own robots-await
+  note says "no Host unit held"), and R-131 never pinned where the hop
+  gate checks sit relative to the release. The protocol now fixes the
+  order — release at response receipt, then gate evaluation holding no
+  unit, then the wait, then acquire immediately before the send — and T-2
+  decrements the unit of the most recent request still in flight (none
+  for pre-send aborts).
+- [R-401] vs. the test harness: the fixture server had to bind port
+  80/443 (privileged ports) because no escape hatch existed for the port
+  restriction — [CFG-042] relaxed only R-400.2 — making every
+  local-fixture AC impractical in unprivileged CI despite NFR-009.
+  [CFG-042]=true now also relaxes [R-401] (test-only, WARN, and
+  production-forbidden unchanged) [R-405].
+
+### Completeness additions
+
+- `robots_state` was never assigned by any rule: the enum
+  (INITIAL|OK|ALLOW_ALL|DEFERRED) existed in the schema, but nothing mapped
+  outcomes to states or states to gate verdicts — e.g. the verdict after a
+  deferral expires but before the [R-105] retry completes was undefined.
+  New R-106: parsed 2xx ⇒ OK, 4xx ⇒ ALLOW_ALL, deferral ⇒ DEFERRED,
+  authoritative verdict clears DEFERRED; the gate returns UNKNOWN iff
+  robots_state ∈ {INITIAL, DEFERRED}. AC-013 asserts the transitions.
+- [R-062] scope for aborted chains was undefined: "on completion of a
+  redirect chain … the chain's final target" did not say whether a chain
+  aborted before sending to its would-be next hop ([ERR-004]/[ERR-015]/
+  [ERR-017]/[ERR-019]/[ERR-010]/[ERR-018]/loop/cap) upserts a target
+  record — every hop rule says "target never fetched", yet R-062's
+  failure states (ST-150/ST-180) invited the opposite reading. Now: the
+  upsert applies only when the final request was sent; pre-send aborts
+  record the outcome on the source only. New AC-061(c).
+- [R-062] failure upserts left the target's `last_error_class` and
+  `next_attempt_mono` undefined. Now: failure upserts set
+  `last_error_class` to the outcome's class (success clears it), and a
+  retryable upsert's `next_attempt_mono` mirrors the source's — one
+  chain, one retry schedule, since the source's next attempt re-runs the
+  chain [R-131] and re-upserts. New AC-061(d).
+- [R-133] `redirect_chain` membership was ambiguous (does the list include
+  the followed final target, or only blocked hops?): AC-015 requires
+  never-fetched blocked hops in the list, so the symmetric definition is
+  now normative — every hop target the chain acted on (followed, or
+  refused at a gate/limit), never the original identity, empty for a
+  no-redirect fetch. `final_url_identity` is likewise pinned: the URL of
+  the last response received (self for no-redirect; the redirecting hop
+  for a pre-send abort; the final target otherwise). AC-020 extended.
+- DOC-09 §4 lacked a row for SSRF-blocked redirect hops — [R-400]/[R-402]
+  define the outcome but the response-classification table omitted it
+  (permanent, ERR-004, referring Host flagged suspicious, target never
+  fetched). Row added.
+- [R-141] referenced an undefined "anomaly metric" (R-240's closed-enum
+  discipline has no such series). New `content_length_mismatch_total`
+  counter [DOC-15 §1].
+- Hardcoded cadences parameterized per DOC-14's every-tunable-has-a-CFG-id
+  rule (same class as the v1.9.0 CFG-044 fix): new CFG-045
+  `run_summary_every` (was "N=1000" [DOC-15 §4]) and CFG-046
+  `retention_sweep_interval_s` (was "runs hourly" [DOC-11 §6]); the
+  retention job is also identified as an in-process maintenance task
+  [DEC-002].
+- The operator DEAD reset [DOC-13 §4] and the [R-054] UNKNOWN compensation
+  did not set `due_at_mono` (immediate candidacy was only inferable from
+  the stale pre-dispatch value): both now set `due_at_mono` := now.
+- ST-150→ST-100 retry promotions left priority handling unspecified (a
+  determinism-relevant ordering input): they preserve the record's
+  priority; priority is recomputed only on [R-052] transitions and the
+  operator reset [DOC-12 §1].
+
+### Consistency fixes
+
+- `text/xml` was absent from [R-143]'s stored-non-HTML set while
+  `application/xml` was included — both are common XML media types and
+  RSS/Atom feeds are frequently served as `text/xml`. Added, with the
+  [DOC-15 §1] `content_type_class` xml note aligned.
+- AC-050's "in-flight complete ≤ total_transfer_timeout" is unsatisfiable
+  for multi-hop chains ([CFG-015] resets per hop [DOC-09 §2]; inter-hop
+  waits ≤ [CFG-035] are legal [R-131]) — and DOC-03's drain wording had
+  the same over-tight bound. Both now state the real bound: completion
+  within the task's bounded timers.
+- NFR-004's "at most [CFG-005] distinct payloads per recrawl generation"
+  now carries the [R-062] bounded-exemption qualifier ([FR-005]) — the
+  total can exceed [CFG-005] by in-flight-chain final targets.
+- Crawl Session "lineage" was undefined although the term anchors the
+  Run-spanning semantics [DOC-03], [DOC-11 §1]: a Session is now the
+  sequence of Runs over one Metadata Store lineage; the first Run against
+  a fresh (empty) store begins a new Session [DOC-00].
+
+### Versioning
+
+- KB version 1.11.0 → 1.12.0; all touched documents bumped accordingly.
 
 ## 1.11.0 — 2026-08-24 (review pass v11: correctness, completeness, consistency, unambiguity)
 

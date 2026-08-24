@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.8.0
+version: 1.12.0
 ---
 
 # Security and Abuse Prevention
@@ -33,7 +33,9 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 - R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
 - R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the referring URL's Host is flagged `suspicious=true` (operator-visible metric only).
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
-- R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted);
+- R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted)
+  and R-401 (non-default ports permitted — the fixture server need not
+  bind the privileged port 80/443);
   it exists solely so the acceptance-test fixture server [DOC-17] is
   reachable, defaults to false, MUST log a WARN at startup when enabled, and
   MUST NOT be enabled in production deployments.

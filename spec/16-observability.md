@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Observability
@@ -15,7 +15,8 @@ Counters:
 | urls_discovered_total | outcome{ingested,duplicate,excluded,dropped} | [FR-003..FR-004]; `dropped` = no-record discards ([R-001]/[R-002] unacceptable URLs; OUT_OF_SCOPE with [CFG-038]=false) |
 | state_transitions_total | from,to | every legal transition pair [ST-*]; `from=creation` labels the record-creating transitions — filter outcomes and the redirect final-target upsert [R-062] ([DOC-07 §2]) |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
-| bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + rss + atom) |
+| bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |
+| content_length_mismatch_total | — | counted when received body size ≠ the `Content-Length` header value [R-141] |
 | robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
 | exclusions_total | reason | ST-190 reasons |
 
@@ -50,7 +51,7 @@ frontier_size, inflight_global, version, config_hash}`.
 
 ## 4. Run summary
 
-On graceful shutdown or every N=1000 completions, emit a `run_summary` event:
+On graceful shutdown or every [CFG-045] completions, emit a `run_summary` event:
 counts by final state, by error class, elapsed time, bytes total. This event is
 the operator's primary progress signal. Process-level counters are
 monotonic within a Run and reset on restart; `run_summary` events and the

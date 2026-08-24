@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.9.0
+version: 1.12.0
 ---
 
 # Errors and Retry
@@ -75,8 +75,9 @@ on PERMANENT outcome:               → ST-180 immediately
 
 ST-180 records retain last error class and are excluded from scheduling forever,
 except: an operator MAY reset a URL to ST-100 via the runtime API (explicit,
-audited action; the reset clears `attempts` to 0, clears the last error
-class, and recomputes priority per [DOC-12 §2]). Automated re-activation of
+audited action; the reset clears `attempts` to 0, sets `due_at_mono` := now
+(the reset URL is immediately due), clears the last error class, and
+recomputes priority per [DOC-12 §2]). Automated re-activation of
 DEAD URLs is forbidden.
 
 ## 5. Crash classification

@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Scheduling and Recrawl
@@ -27,7 +27,10 @@ part of the loop, not fetch dispatches):
   at fetch completion [§4]) [FR-050].
 
 Both promotions are wake sources for the loop [R-211]; a promoted record is
-dispatchable in the same iteration.
+dispatchable in the same iteration. The retry promotion (ST-150 → ST-100)
+preserves the record's priority: priority is recomputed only on the
+[R-052] transitions (recrawl due, rediscovery refresh) and the operator
+reset [DOC-13 §4] — never mid-cycle.
 
 ## 2. Priority computation (0–1000, default 500)
 

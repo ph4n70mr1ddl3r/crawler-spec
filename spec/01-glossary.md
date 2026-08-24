@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.10.0
+version: 1.12.0
 ---
 
 # Glossary
@@ -24,7 +24,7 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | **Registrable Domain** | The effective top-level domain plus one label (eTLD+1), computed with the Public Suffix List. For a Host that is an IP literal, the Registrable Domain is the canonical literal string itself [R-003]. |
 | **Page** | One successfully transferred response body of a URL, persisted per Run in the `pages` table; payloads are content-deduplicated by SHA-256 [DOC-11]. |
 | **Fetch** | One attempt to retrieve the representation of a URL over HTTP(S). |
-| **Crawl Session** | A period during which the crawler runs continuously; may span process restarts. |
+| **Crawl Session** | A period during which the crawler runs continuously; may span process restarts. Concretely: the sequence of Runs over one Metadata Store lineage — every process start appends a Run to the current Session, and the first Run against a fresh (empty) store begins a new Session [DOC-03]. |
 
 ## Processing stages
 

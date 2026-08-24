@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Fetching
@@ -57,7 +57,14 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
      single global unit is unaffected — it spans [T-1]..[T-2] [DOC-00], so
      hops never wait on global capacity and never hold a second global
      unit.
-  2. Before the next hop request is sent, the target Host's politeness
+  2. Holding no Host unit, the target's hop gates are evaluated (first
+     paragraph of this rule: DNS+SSRF, scope, robots, blocklist). A
+     refusal aborts the chain with the outcome stated there — holding no
+     Host unit, so nothing remains to release at completion beyond the
+     global unit. A robots verdict of UNKNOWN merely because an
+     acquisition is in flight on the target Host is awaited here per
+     [R-105] (no Host unit held).
+  3. Before the next hop request is sent, the target Host's politeness
      window and per-Host concurrency cap [CFG-009] MUST be respected. Waits
      hold no Host unit. If respecting the politeness window would delay the
      send by more than [CFG-035] (e.g. an adversarially large `Crawl-delay`
@@ -69,13 +76,13 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
      holders are in-flight requests that complete within their timeouts,
      and the waiting task holds no Host unit, so the wait is bounded and
      cannot cycle.
-  3. Immediately before the hop request is sent, one unit is acquired on
+  4. Immediately before the hop request is sent, one unit is acquired on
      the target Host and the window is advanced identically to [FR-012]
      (`next_allowed_fetch_at = max(next_allowed_fetch_at, now) +
      EffectiveDelay`); while the request is in flight the task holds that
      one unit and no other Host unit [R-051].
 - R-132: Redirect loop detection: if any hop URL identity repeats within the chain ⇒ stop, ERR-011.
-- R-133: The final hop's URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1].
+- R-133: The chain's outcome URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1]. `redirect_chain` lists, in order, every hop target the chain acted on — each `Location` target it followed, and each it refused at a gate or limit (loop [R-132], redirect cap [R-130], scope [ERR-015], robots [ERR-017], blocklist [ERR-019], SSRF [ERR-004], robots deferral [ERR-010], rate-limit abort [ERR-018]) — and never the original identity; on any chain that received a final response the followed final target is its last element. It is empty for a no-redirect fetch. `final_url_identity` is the URL of the last response received in the attempt: the identity itself for a no-redirect fetch, the redirecting hop's URL for a pre-send abort, and the final target's URL when a final response arrived.
 
 ## 4. Response classification
 
@@ -92,6 +99,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | 3xx non-followable (loop/cap/out-of-scope) | per cause | ERR-011, or ERR-015 for out-of-scope targets [R-030] |
 | 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
 | 3xx hop target matches the [CFG-037] blocklist | permanent | chain terminates at that hop; source → ST-180, ERR-019 [R-131] |
+| 3xx hop target fails SSRF/egress policy | permanent | chain terminates at that hop; source → ST-180, ERR-004, referring Host flagged `suspicious=true`; target never fetched [R-400], [R-402] |
 | 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150, window opening floors `next_attempt_mono` |
 | 3xx without parsable `Location` | permanent | ST-180, ERR-011 (missing, unparsable, or non-http(s) target [R-130]) |
 
@@ -102,8 +110,8 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 - R-142: Charset detection order: HTTP `charset` param → BOM → HTML meta charset in first 1024 bytes → default UTF-8 (strict errors ⇒ replacement char, never fatal).
 - R-143: Non-HTML types: sniff Content-Type only; payload stored iff
   [CFG-028]=true and the media type is in the fixed set {`image/*`,
-  `application/pdf`, `text/plain`, `application/xml`, `application/rss+xml`,
-  `application/atom+xml`} — the **effective allowed list** (empty when
+  `application/pdf`, `text/plain`, `application/xml`, `text/xml`,
+  `application/rss+xml`, `application/atom+xml`} — the **effective allowed list** (empty when
   [CFG-028]=false). Types outside the effective allowed list ⇒ ERR-008
   [DOC-13 §1]; the payload is discarded [FR-041]. A missing `Content-Type`
   header is treated as `application/octet-stream`.

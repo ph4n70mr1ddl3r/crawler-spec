@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Acceptance Criteria
@@ -26,7 +26,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-010: With two workers and CFG-007=5000ms, request starts to one host are ≥ 5000 ms apart across 20 fetches (start-to-start).
 - AC-011: Per-host inflight never exceeds CFG-009 under any fixture — counting every in-flight HTTP request to the Host (initial requests, redirect hops [R-131], robots.txt exchanges [DOC-08 §2.2]); global inflight never exceeds CFG-010 — counting in-flight HTTP tasks (one unit per dispatched record from [T-1] to [T-2] spanning its hops, plus robots exchanges) [DOC-00].
 - AC-012: robots.txt Disallow for UA group blocks matching URLs → ST-190/ROBOTS_DISALLOW; Allow longer-match wins on tie per [R-101]; `*` ignored when token group exists. Rule matching per [R-101]: values match byte-wise, case-sensitively, against path plus `?query` when present (`Disallow: /*?` blocks a URL with any query); a terminal `$` anchors the end; a `*` matches any sequence incl. empty; no group matches and no `*` group exists ⇒ all URLs allowed; an empty `Disallow` value ⇒ allow all.
-- AC-013: robots.txt returning 503 defers ALL host fetches; retry after backoff succeeds once robots returns 200; no page was fetched during deferral.
+- AC-013: robots.txt returning 503 defers ALL host fetches; retry after backoff succeeds once robots returns 200; no page was fetched during deferral; the Host's `robots_state` is DEFERRED throughout the deferral and OK once the 200 is parsed [R-106].
 - AC-014: Crawl-delay=12 s honored over CFG-007=5000 ms (unit normalization per [DOC-08 §4] — the seconds-valued Crawl-delay must dominate the ms-valued defaults); Retry-After=120 s overrides backoff when larger.
 - AC-015: A redirect whose hop target is disallowed by the target Host's robots.txt terminates the chain with outcome=PERMANENT and error_class=ERR-017; the source URL → ST-180; the target is never fetched; the hop appears in the source's `redirect_chain` [R-131].
 - AC-016: Between dispatch [T-1] and request send, a robots cache refresh to DISALLOW moves the record ST-110→ST-190/`ROBOTS_DISALLOW` and releases its units; a refresh to UNKNOWN (Host deferred) compensates the record back to ST-100. In both cases no request is sent, no fetch_event is written, and the [T-1] attempts increment is rolled back [R-053], [R-054]; no request is sent while the Host is deferred.
@@ -36,7 +36,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 ## Fetching & errors
 
-- AC-020: 6-hop redirect chain with CFG-017=5 stops at hop 5; outcome=PERMANENT with error_class=ERR-011 recorded [DOC-09 §6].
+- AC-020: 6-hop redirect chain with CFG-017=5 stops at hop 5; outcome=PERMANENT with error_class=ERR-011 recorded [DOC-09 §6]; the un-followed 6th `Location` target is recorded in the source's `redirect_chain` [R-133].
 - AC-021: Redirect loop (A→B→A) detected at first repetition.
 - AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded.
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
@@ -49,7 +49,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 ## State machine & durability
 
-- AC-030: kill -9 during ST-120 leaves the record resumable; after restart it is reclassified per the crash rule [DOC-13 §5], [R-060]: attempts preserved, state ST-150 with backoff-scheduled retry (ST-180 when the budget was exhausted by the crash), no politeness violation (persisted next_allowed_fetch_at respected), and `inflight` rebuilt to 0.
+- AC-030: kill -9 during ST-110 (dispatched, request-sent status unknown) or ST-120 leaves the record resumable; after restart it is reclassified per the crash rule [DOC-13 §5], [R-060]: attempts preserved, state ST-150 with backoff-scheduled retry (ST-180 when the budget was exhausted by the crash — from either state), no politeness violation (persisted next_allowed_fetch_at respected), and `inflight` rebuilt to 0.
 - AC-031: kill -9 after blob write but before T-2 commit leaves an orphan blob that the retention sweep removes; no pages row references a missing blob ever (invariant scan passes).
 - AC-032: Full restart with unchanged config produces zero duplicate ingestions [NFR-012].
 - AC-033: Replay of a recorded fixture produces identical fetch decision sequences across three runs [NFR-006].
@@ -63,7 +63,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 ## Operations
 
-- AC-050: SIGTERM triggers drain: no new dispatches, in-flight complete ≤ total_transfer_timeout, exit code 0, run_summary emitted.
+- AC-050: SIGTERM triggers drain: no new dispatches, in-flight fetch tasks complete within their bounded timers (per-hop [CFG-015]; inter-hop waits ≤ [CFG-035] [R-131]), exit code 0, run_summary emitted.
 - AC-051: Startup with 1M-record store reaches first fetch within 60 s [NFR-005].
 - AC-052: All metrics counters appear after exercise; state_transitions_total contains only legal transition pairs.
 - AC-053: Operator reset of a DEAD URL via the runtime API returns the record to ST-100 with attempts=0 and last error class cleared, emits the ST-180→ST-100 transition metric [DOC-15 §1], and writes an audit log entry [DOC-13 §4].
@@ -74,3 +74,4 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190/`OUT_OF_SCOPE` only for the [V-4] case with [CFG-038]=true ([FR-002] violations record nothing — no identity, no reason code [FR-006]); a valid injection behaves identically to a config seed [FR-006].
 - AC-059: A 304 with no usable stored payload triggers exactly one full unconditional refetch completing the same fetch attempt (no extra `attempts` increment): (a) blob removed by retention — the refetch stores a fresh payload and the attempt succeeds; (b) first-fetch 304 (no validators sent) — if the refetch also returns 304, the outcome is PERMANENT/ERR-014 [R-144].
 - AC-060: A configuration violating any validation rule [V-1]–[V-6] — e.g. [CFG-015] < [CFG-014] [V-2], an empty [CFG-003] [V-6], a [CFG-018] not matching the UA Token pattern or an invalid [CFG-019] email [V-5], any out-of-range value [V-1] — aborts startup with exit code ≠ 0 before any network I/O, and the error identifies the offending key [DEC-011].
+- AC-061: Redirect final-target failure upserts [R-062]: (a) a chain completing with a RETRYABLE outcome whose final target has no pre-existing record creates it in ST-150 with `next_attempt_mono` equal to the source's; (b) a RETRYABLE-outcome upsert onto a pre-existing terminal record whose `attempts` ≥ [CFG-020] (e.g. a budget-exhausted DEAD record) lands in ST-180 — after any upsert, no ST-150 record holds `attempts` ≥ [CFG-020] [DOC-12 §1]; (c) a chain aborted before sending to its final target (e.g. an ERR-017 robots-blocked hop) creates no target URL Record — the failure and `redirect_chain` are recorded on the source only; (d) failure upserts set the target's `last_error_class` to the outcome's class, success upserts clear it.

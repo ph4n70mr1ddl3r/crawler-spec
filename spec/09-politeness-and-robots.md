@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Politeness and robots.txt
@@ -119,6 +119,18 @@ Per Host `(scheme, host, port)`:
   its initiator was implicit in §2.1's "else fetch"). While no
   authoritative verdict exists, the gate returns UNKNOWN [DEC-007]; an
   acquisition's completion is a scheduler wake source [R-211].
+- R-106: `robots_state` lifecycle (the column is the single authoritative
+  gate input [DOC-11 §1]): INITIAL from Host-row creation until the first
+  authoritative verdict; a parsed 2xx response ⇒ OK (rules cached, the
+  applicable group's `crawl_delay_s` stored); a 4xx response ⇒ ALLOW_ALL
+  (empty rule set — allow everything); entering deferral (§2.3, including a
+  failed revalidation [R-104]) ⇒ DEFERRED; obtaining an authoritative
+  verdict ⇒ OK or ALLOW_ALL with all three deferral columns cleared
+  (§2.3). The gate verdict is UNKNOWN iff `robots_state` ∈ {INITIAL,
+  DEFERRED} — including after a deferral expires while the retry [R-105]
+  is still in flight — and is otherwise computed from the cached rules:
+  ALLOW/DISALLOW under OK, ALLOW under ALLOW_ALL. `robots_fetched_at_mono`
+  is (re)set exactly when an authoritative verdict is stored (§2.4).
 
 ## 3. Enforcement points
 
