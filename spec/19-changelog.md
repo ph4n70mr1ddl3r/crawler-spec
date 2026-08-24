@@ -1,10 +1,111 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Changelog
+
+## 1.11.0 — 2026-08-24 (review pass v11: correctness, completeness, consistency, unambiguity)
+
+### Correctness fixes
+
+- The DOC-07 transition list was incomplete and self-contradictory: it
+  showed only two record-creating arrows ((creation)→ST-100,
+  (creation)→ST-190) and declared "no other transitions exist", yet the
+  [R-062] redirect final-target upsert creates records directly in the
+  fetch-outcome states (ST-130/ST-150/ST-180) — an implementer following
+  DOC-07 literally would reject those transitions as defects, and
+  [DOC-15 §1] hardcoded "the two record-creating transitions", leaving
+  the upsert's creation metrics unspecified. Added the creation arrow
+  (with its no-ST-100-phase rationale: every per-hop gate was verified in
+  flight [R-131]) and aligned DOC-15.
+- FR-005 contradicted itself: the enqueue-time clause asserted "the total
+  of non-EXCLUDED records never exceeds [CFG-005]", while the same
+  requirement exempts [R-062] final-target upserts from [CFG-005] (bounded
+  by in-flight chains) — so the total CAN exceed the cap by exactly those
+  upserts. The parenthetical is now qualified with the exemption.
+- robots.txt TTL was the only scheduler-consumed expiry measured against
+  wall-clock time (`robots_fetched_at`), violating [DEC-012] (scheduler
+  time is monotonic) and breaking replay determinism [NFR-006], [AC-033]:
+  every other gate-relevant expiry (politeness window, deferral, backoff,
+  due times) is monotonic, but a wall-clock TTL drifts under virtual time
+  and clock jumps. New `hosts.robots_fetched_at_mono` column is the TTL
+  basis ([DOC-08 §2.1]); the TEXT field remains as an audit timestamp
+  only [DOC-11 §1].
+- FR-031's exclusion timing was undefined in the dispatch loop: the
+  [DOC-12 §3] pseudocode waits for and picks only gate-PASSING
+  candidates, so a due record whose robots verdict is DISALLOW that is
+  never selected (e.g. outranked by higher-priority work on other Hosts,
+  or its Host's window never opens) would linger in ST-100 forever —
+  never dispatched, never excluded, invisible to the [R-103] sweep
+  (UNKNOWN timeouts only) and to retention (which deletes only
+  DEAD/EXCLUDED records). §3 now requires the ST-100→ST-190/
+  `ROBOTS_DISALLOW` exclusion at verdict-evaluation time, with the same
+  termination argument as gate (e).
+
+### Completeness additions
+
+- R-105's trigger list omitted the post-deferral case: after
+  `robots_deferred_until_mono` expires, some event must re-initiate
+  robots acquisition, but only INITIAL and TTL-expiry triggers were
+  enumerated (the §2.3 retry's initiator was implicit in §2.1's "else
+  fetch"). The first gate query after a deferral expires is now an
+  explicit trigger.
+- Robots redirect-hop failure causes were under-enumerated: "terminates
+  without a final response" listed only redirect-cap exhaustion, SSRF
+  block, and ERR-018 — omitting redirect loops [R-132], missing/
+  unparsable/non-http(s) `Location` [R-130], and URL-blocklist matches.
+  All are now listed, and the [CFG-037] blocklist is explicitly applied
+  to robots redirect hops (R-131's not-bypassable rule, robots fetches
+  included; previously unstated whether it applied at all).
+- Robots-exchange unit acquisition atomicity: [DOC-08 §2.2] said the
+  exchange "holds one per-Host and one global unit while in flight" but
+  not how they are acquired. Now: both units are acquired atomically
+  before the request is sent (mirroring [T-1]); while waiting for
+  capacity the exchange holds no units — ruling out a capacity-wait
+  cycle against a saturated global pool by the same release-before-
+  acquire argument as [R-131].
+- `robots_deferred_until_mono` is now explicitly cleared together with
+  `robots_deferred_since_mono` and the streak counter when an
+  authoritative verdict is obtained (a stale expiry value could
+  otherwise mis-key R-211's sleep list).
+- R-131 vs R-105 interplay: a hop robots check returning UNKNOWN merely
+  because an acquisition is in flight on the target Host is AWAITED
+  (bounded by the robots exchange's timeouts, no Host unit held) —
+  ERR-010 aborts apply only to actual deferral. Previously "verdict is
+  UNKNOWN" read as an unconditional abort, wasting a retry attempt on a
+  healthy Host whose robots.txt was simply still downloading.
+- R-102: multiple `Crawl-delay` lines in the applicable group — the
+  first one applies (error-tolerant parsing ignores the rest).
+- `meta_robots` tokenization defined ([DOC-10 §3]): tokens split on
+  commas/whitespace; `none` ≡ `noindex,nofollow`; unknown tokens ignored
+  — previously `none` and separator handling were unstated, yet
+  [FR-045]'s noindex/nofollow behavior keys off this artifact.
+- New AC-060: the configuration validation rules [V-1]–[V-6] had no
+  acceptance criterion (V-4/V-5 were only partially covered via
+  AC-002/AC-005); it verifies abort-before-any-I/O with an offending-key
+  error for every V-rule.
+
+### Consistency fixes
+
+- "Terminal" was used in two senses: the DOC-07 §1 table marks ST-140
+  Terminal?=yes (yet it has outgoing transitions), while [R-062] writes
+  "Terminal records (ST-180, ST-190)". §1 now defines the term (fetch-
+  cycle terminal, no failure-path exits) and notes that rules meaning
+  {ST-180, ST-190} name the states explicitly.
+- INV-1 said hop chains are "persisted on the source record's
+  `redirect_chain`" — the column lives on the attempt's `fetch_events`
+  row [R-133], [DOC-11 §1]; wording fixed.
+- DOC-12 §4: "any full 200 resets it" → any full (non-304) 2xx success
+  (a 204/206-style success also ends an unchanged streak; "200" read
+  literally excluded them).
+- FR-032 carried a duplicated trailing "[DOC-08 §4]" cross-reference;
+  removed.
+
+### Versioning
+
+- KB version 1.10.0 → 1.11.0; all touched documents bumped accordingly.
 
 ## 1.10.0 — 2026-08-23 (review pass v10: correctness, completeness, consistency, unambiguity)
 

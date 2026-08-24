@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Scheduling and Recrawl
@@ -64,6 +64,18 @@ loop:
   hand to fetcher worker pool
 ```
 
+Robots verdicts evaluated while scanning for a gate-passing candidate are
+acted on immediately: a due record whose verdict is DISALLOW moves
+ST-100→ST-190/`ROBOTS_DISALLOW` [FR-031] — exclusion, not deferral (same
+termination argument as gate (e): ST-190 is terminal, so each exclusion
+shrinks the candidate set); an UNKNOWN verdict merely removes the record
+from candidacy until the verdict changes [R-103], [R-054]. The DISALLOW
+exclusion must happen at verdict-evaluation time: the pseudocode above
+picks only gate-passing candidates, so a never-selected DISALLOW record
+would otherwise linger in ST-100 forever — never dispatched, never
+excluded, and not covered by the [R-103] sweep (which handles only
+UNKNOWN timeouts).
+
 - R-210: Starvation freedom [NFR-015]: if a candidate is due and its gates pass,
   it MUST be dispatched within one loop iteration; gates are the ONLY reason to wait.
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
@@ -101,7 +113,8 @@ if validators present and server returned 304 on a refetch:
                   interval doubles per consecutive 304, capped at
                   4 × base_interval
                   // consecutive-304 count persists as urls.consecutive_unchanged
-                  // [DOC-11 §1]; any full 200 resets it (and the multiplier) to 0/1
+                  // [DOC-11 §1]; any full (non-304) 2xx success resets it (and the
+                  // multiplier) to 0/1
                   // Retry-After never affects recrawl intervals
 due_at_mono     = fetch_complete_mono + interval
 ```

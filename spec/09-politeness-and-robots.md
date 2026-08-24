@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Politeness and robots.txt
@@ -15,7 +15,10 @@ version: 1.10.0
 
 Per Host `(scheme, host, port)`:
 
-1. Cache lookup: valid cached entry within TTL [CFG-008] ⇒ use it.
+1. Cache lookup: valid cached entry within TTL [CFG-008] — elapsed
+   monotonic time since `robots_fetched_at_mono` [DOC-11 §1], so TTL expiry
+   is replay-deterministic like every other scheduler-consumed expiry
+   [DEC-012], [NFR-006] — ⇒ use it.
 2. Else fetch `scheme://host:port/robots.txt` with UA Token, using the same
    fetch/timeout machinery as pages. Acquisition is single-flight per Host
    [R-105]: while an exchange is in flight, concurrent gate queries await
@@ -25,12 +28,17 @@ Per Host `(scheme, host, port)`:
    the host politeness window, advances `next_allowed_fetch_at` identically to
    a page dispatch [FR-012], and holds one per-Host and one global unit
    while in flight. Redirect responses for the robots request itself are
-   followed per [DOC-09 §3] hop rules — SSRF [R-400], politeness, and caps
-   apply — but scope [R-030] and robots gates are not applied recursively
+   followed per [DOC-09 §3] hop rules — SSRF [R-400], the [CFG-037] URL
+   blocklist [R-131], politeness, and caps apply — but scope [R-030] and
+   robots gates are not applied recursively
    (there is no robots-for-robots); the verdict is taken from the final
    response. A robots fetch that terminates without a final response —
-   redirect cap exhausted [R-130], hop SSRF block [R-400], or [ERR-018]
-   hop-wait abort — is a network-class failure: the Host moves to
+   redirect cap exhausted [R-130], redirect loop [R-132], a `Location`
+   that is missing, unparsable, or not an acceptable absolute http(s) URL
+   [R-130], hop SSRF block [R-400], a hop target matching the [CFG-037]
+   URL blocklist (the blocklist MUST NOT be bypassable by redirects —
+   robots fetches included), or an [ERR-018] hop-wait abort — is a
+   network-class failure: the Host moves to
    UNKNOWN/deferral per item 3 (fail closed [DEC-007]). robots.txt exchanges
    are not page fetches: they create no
    fetch_events rows (visibility is via robots_queries_total [DOC-15 §1])
@@ -39,7 +47,12 @@ Per Host `(scheme, host, port)`:
    effects of [T-1]/[T-2] — the window advances before the robots request is
    sent, and the units are released when the exchange completes and its
    verdict/cache update commits — but no URL Record participates: robots
-   exchanges commit neither [T-1] nor [T-2].
+   exchanges commit neither [T-1] nor [T-2]. The one global and one
+   per-Host unit are acquired atomically before the robots request is sent
+   (mirroring [T-1]'s single-commit acquisition): while waiting for
+   capacity the exchange holds no units, so a saturated global pool cannot
+   deadlock against robots acquisition — in-flight tasks release their
+   units within their timeouts.
 3. Interpret the HTTP status of the robots request per RFC 9309:
    - `2xx` → parse per RFC 9309. Parsing is error-tolerant (NFR-014):
      unrecognized or malformed lines are ignored, so a 2xx body always yields
@@ -49,11 +62,11 @@ Per Host `(scheme, host, port)`:
      size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
-     failure) → **UNKNOWN**: mark Host `robots_deferred_until = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
+     failure) → **UNKNOWN**: mark Host `robots_deferred_until_mono = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
      persisted as `hosts.robots_defer_failures` [DOC-11 §1] so escalation
      survives restarts, and is cleared when an authoritative verdict is
-     obtained — cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak and cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
-4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at; persisted on the Host row (`robots_rules`) [DOC-11 §1].
+     obtained — cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak; both deferral timestamps (`robots_deferred_until_mono`, `robots_deferred_since_mono`) are cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
+4. Cache stores: verdict function inputs + crawl_delay (seconds, from the applicable group) + fetched_at — the monotonic TTL basis `robots_fetched_at_mono` plus the wall-clock audit timestamp `robots_fetched_at`; persisted on the Host row (`robots_rules`) [DOC-11 §1].
 
 - R-100: Group selection (RFC 9309): a group matches the crawler when its
   `User-agent` value is a case-insensitive substring of the UA Token's
@@ -71,7 +84,7 @@ Per Host `(scheme, host, port)`:
   Precedence between a matching `Allow` and a matching `Disallow` is by
   longest rule value in characters (wildcards counting as one); tie ⇒
   `Allow`. An empty `Disallow` value ⇒ ALLOW everything.
-- R-102: `Crawl-delay` is honored exactly as received — no clamping, including values > 60 s; a missing `Crawl-delay` ⇒ use [CFG-007].
+- R-102: `Crawl-delay` is honored exactly as received — no clamping, including values > 60 s; a missing `Crawl-delay` ⇒ use [CFG-007]. If the applicable group contains multiple `Crawl-delay` lines, the first one applies (error-tolerant parsing ignores the rest).
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
   [CFG-040] — measured from `robots_deferred_since_mono` [DOC-11 §1] — every
   URL Record on that Host in a gated state (ST-100 or ST-150) MUST be moved
@@ -100,8 +113,10 @@ Per Host `(scheme, host, port)`:
   gate query arriving while an acquisition is in flight awaits that
   exchange's verdict (committed atomically per [R-104]) instead of starting
   another. The exchange is initiated by the first event needing a verdict:
-  a gate query against a Host with `robots_state` = INITIAL [FR-030], or the
-  first gate query after cache TTL expiry ([R-104] revalidation). While no
+  a gate query against a Host with `robots_state` = INITIAL [FR-030], the
+  first gate query after cache TTL expiry ([R-104] revalidation), or the
+  first gate query after a deferral expires (the §2.3 retry — previously
+  its initiator was implicit in §2.1's "else fetch"). While no
   authoritative verdict exists, the gate returns UNKNOWN [DEC-007]; an
   acquisition's completion is a scheduler wake source [R-211].
 

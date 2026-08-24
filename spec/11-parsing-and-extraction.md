@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.8.0
+version: 1.11.0
 ---
 
 # Parsing and Extraction
@@ -49,7 +49,7 @@ blob [FR-043] but hold distinct artifacts when their resolved outlinks differ:
 | canonical_url | normalized `link[rel=canonical]` href (informational only — does NOT change URL Identity [DEC-004]) |
 | meta_refresh | first `http-equiv=refresh` target URL (normalized) and delay, if present |
 | lang | `lang` attribute of `<html>`, lowercased |
-| meta_robots | union value(s) of `meta[name=robots]` |
+| meta_robots | union of directives from all `meta[name=robots]` content values — tokens are split on commas and whitespace; `none` ≡ `noindex,nofollow`; unknown tokens are ignored (only `noindex` and `nofollow` are recognized, and they drive [FR-045]) |
 | headings | ordered list of `{level, text}` for h1–h3 (capped at 1000 entries; overflow sets `truncated`) |
 | main_text | text content of `<body>` after removing script/style/nav/footer/aside/template/noscript, whitespace-normalized, capped at 1 MiB characters |
 | word_count | count of whitespace-separated tokens in `main_text` |

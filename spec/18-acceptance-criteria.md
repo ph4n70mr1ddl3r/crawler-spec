@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Acceptance Criteria
@@ -73,3 +73,4 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-057: With scope_mode=SEED_DOMAINS and an IP-literal seed (e.g. `http://93.184.216.34/`), other URLs on the same IP literal are IN_SCOPE and every named host is OUT_OF_SCOPE [DOC-00]; `[2001:0DB8::1]` and `[2001:db8::1]` normalize to one URL Identity [R-003].
 - AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190/`OUT_OF_SCOPE` only for the [V-4] case with [CFG-038]=true ([FR-002] violations record nothing — no identity, no reason code [FR-006]); a valid injection behaves identically to a config seed [FR-006].
 - AC-059: A 304 with no usable stored payload triggers exactly one full unconditional refetch completing the same fetch attempt (no extra `attempts` increment): (a) blob removed by retention — the refetch stores a fresh payload and the attempt succeeds; (b) first-fetch 304 (no validators sent) — if the refetch also returns 304, the outcome is PERMANENT/ERR-014 [R-144].
+- AC-060: A configuration violating any validation rule [V-1]–[V-6] — e.g. [CFG-015] < [CFG-014] [V-2], an empty [CFG-003] [V-6], a [CFG-018] not matching the UA Token pattern or an invalid [CFG-019] email [V-5], any out-of-range value [V-1] — aborts startup with exit code ≠ 0 before any network I/O, and the error identifies the offending key [DEC-011].

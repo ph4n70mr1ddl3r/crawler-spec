@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Functional Requirements
@@ -14,7 +14,7 @@ Numbering is grouped by component area. "The system" = the Crawler.
 - FR-002: The system MUST reject, at startup, any seed that is not an absolute, parseable http(s) URL (there is no base to resolve against), whose scheme ∉ allowed schemes [CFG-003], or whose URL contains userinfo [R-002]; rejection of ≥1 seed aborts startup [DEC-011].
 - FR-003: For every normalized URL passing the Scope predicate ([DOC-06 §4]) the system MUST create a URL Record in state ST-100 — new identities only; rediscovery of an existing record never re-creates it and instead follows [FR-051]/[INV-5]. Seed URLs have depth 0; discovered URLs have depth = parent depth + 1 [FR-042].
 - FR-004: URLs failing the Scope predicate MUST be recorded as ST-190 with reason `OUT_OF_SCOPE` only if [CFG-038]=true; otherwise silently dropped. They MUST NOT be stored in the Frontier.
-- FR-005: The system MUST enforce global caps at two points. (1) Enqueue time (early exclusion): if the count of URL Records in non-EXCLUDED states is already ≥ [CFG-005] before insertion, the discovery is recorded ST-190/`CAP_REACHED` and never enqueued (the total of non-EXCLUDED records never exceeds [CFG-005]); and per-Registrable-Domain budget — with D the candidate's Registrable Domain, if successes(D) + inflight(D) ≥ [CFG-006], where successes(D) = URL Records for D in {ST-130, ST-140} and inflight(D) = URL Records for D in {ST-110, ST-120}, the discovery is recorded ST-190/`CAP_REACHED` and never fetched. (2) Dispatch time (authoritative gate [FR-011(e)]): a due candidate satisfying successes(D) + inflight(D) ≥ [CFG-006] moves to ST-190/`CAP_REACHED` and is never fetched — the enqueue-time check alone cannot bound successes, because discoveries routinely enqueue before any fetch completes. ST-190 audit records do not consume the [CFG-005] budget. Redirect final-target upserts [R-062] are exempt from [CFG-005] (bounded by in-flight chains) and count toward the target domain's [CFG-006] budget from completion; a domain can exceed the cap only by chains already in flight when it was reached. The enqueue-time [CFG-005] check and the record insertion are one transaction (ingestion is serialized in C1), so concurrent discoveries cannot overshoot the total.
+- FR-005: The system MUST enforce global caps at two points. (1) Enqueue time (early exclusion): if the count of URL Records in non-EXCLUDED states is already ≥ [CFG-005] before insertion, the discovery is recorded ST-190/`CAP_REACHED` and never enqueued (the total of non-EXCLUDED records never exceeds [CFG-005] — the sole exception being the redirect final-target upserts exempted below); and per-Registrable-Domain budget — with D the candidate's Registrable Domain, if successes(D) + inflight(D) ≥ [CFG-006], where successes(D) = URL Records for D in {ST-130, ST-140} and inflight(D) = URL Records for D in {ST-110, ST-120}, the discovery is recorded ST-190/`CAP_REACHED` and never fetched. (2) Dispatch time (authoritative gate [FR-011(e)]): a due candidate satisfying successes(D) + inflight(D) ≥ [CFG-006] moves to ST-190/`CAP_REACHED` and is never fetched — the enqueue-time check alone cannot bound successes, because discoveries routinely enqueue before any fetch completes. ST-190 audit records do not consume the [CFG-005] budget. Redirect final-target upserts [R-062] are exempt from [CFG-005] (bounded by in-flight chains) and count toward the target domain's [CFG-006] budget from completion; a domain can exceed the cap only by chains already in flight when it was reached. The enqueue-time [CFG-005] check and the record insertion are one transaction (ingestion is serialized in C1), so concurrent discoveries cannot overshoot the total.
 - FR-006: Runtime seed injection via the operator API MUST behave identically to config seeds (same normalization, filtering, caps). A runtime seed that violates [FR-002] MUST be rejected with an error
 response and MUST NOT be recorded — identically to discovery-time discards
 [R-001], [R-002] (an invalid URL has no URL Identity to store, and no ST-190
@@ -49,7 +49,7 @@ ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The see
 
 - FR-030: While a Host's `robots_state` = INITIAL (i.e., before any first fetch to that Host), the system MUST obtain an authoritative robots verdict via [DOC-08 §2] (acquisition is single-flight per Host and initiated lazily [R-105]); UNKNOWN ⇒ defer, never fetch.
 - FR-031: DISALLOW verdicts MUST move the URL Record to ST-190/`ROBOTS_DISALLOW` without fetching.
-- FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) — all terms unit-normalized to milliseconds per [DOC-08 §4] — [DOC-08 §4].
+- FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) — all terms unit-normalized to milliseconds per [DOC-08 §4].
 
 ## Extraction & storage (C6/C7/C8)
 

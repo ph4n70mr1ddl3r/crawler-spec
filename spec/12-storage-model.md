@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Storage Model
@@ -71,7 +71,8 @@ hosts (
   robots_state      TEXT NOT NULL,        -- INITIAL|OK|ALLOW_ALL|DEFERRED
   crawl_delay_s     REAL NULL,           -- group Crawl-delay, seconds, exactly as received [R-102] (fractional values preserved)
   robots_rules      TEXT NULL,            -- parsed robots.txt rules JSON [DOC-08 §2.4]
-  robots_fetched_at TEXT NULL,
+  robots_fetched_at TEXT NULL,        -- wall-clock audit timestamp only
+  robots_fetched_at_mono INT NULL,    -- robots TTL basis [CFG-008]; monotonic per [DEC-012] [DOC-08 §2.1]
   robots_deferred_until_mono INT NULL,
   robots_deferred_since_mono INT NULL,    -- first deferral of the current streak [R-103]
   robots_defer_failures INT NOT NULL DEFAULT 0, -- consecutive robots-acquisition failures; deferral-backoff exponent [DOC-08 §2.3]; cleared on an authoritative verdict

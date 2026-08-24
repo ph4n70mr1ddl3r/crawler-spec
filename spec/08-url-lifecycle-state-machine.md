@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.10.0
+version: 1.11.0
 ---
 
 # URL Lifecycle State Machine
@@ -22,12 +22,24 @@ version: 1.10.0
 Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIMEOUT`,
 `TRAP_PARAM`, `TRAP_PATH_BUDGET`, `DEPTH_LIMIT`, `CAP_REACHED`, `BLOCKLIST`.
 
+*Terminal* in the table above means the record's current fetch cycle is
+complete and has no failure-path exit. ST-140 is terminal with respect to its
+fetch cycle — it re-enters ST-100 only via recrawl [FR-050], rediscovery
+refresh [FR-051], or the [R-062] upsert ([FR-051]'s "terminal-success"
+records). Where a rule means {ST-180, ST-190} by `terminal` (e.g. [R-062]),
+it names the states explicitly.
+
 ## 2. Transitions
 
 ```
 (creation)          ─► ST-100   filters passed [FR-003]
 (creation)          ─► ST-190   scope/trap/blocklist filter failed [FR-004],
                                 [DOC-06 §5], or enqueue-time cap reached [FR-005]
+(creation)          ─► ST-130/ST-150/ST-180
+                                redirect final-target upsert [R-062]: the target
+                                record is created at chain completion directly
+                                in the fetch-outcome state (no ST-100 phase —
+                                every per-hop gate was verified in flight [R-131])
 ST-100 ─► ST-110                scheduler dispatch [FR-012], atomic
 ST-100 ─► ST-190                robots DISALLOW at gate time [FR-031],
                                 dispatch-time domain cap [FR-011(e)]

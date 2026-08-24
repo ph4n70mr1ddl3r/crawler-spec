@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.8.0
+version: 1.11.0
 ---
 
 # Architecture
@@ -103,7 +103,8 @@ version: 1.8.0
 - INV-1: Every URL identity dispatched from the Frontier exists as a URL Record
   before fetching begins. Redirect-hop targets are the sole exception: they are
   authorized in-flight by [R-131] and persisted on the source record's
-  `redirect_chain` [R-133]; the chain's final target receives its own URL Record
+  attempt row (`fetch_events.redirect_chain`)
+  [R-133]; the chain's final target receives its own URL Record
   at completion per [R-062] [DOC-07 §4].
 - INV-2: A payload in the Content Store is written before any metadata row that
   references its hash is committed (referential safety after crash).

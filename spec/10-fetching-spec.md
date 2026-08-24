@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.10.0
+version: 1.11.0
 ---
 
 # Fetching
@@ -44,7 +44,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   matching the blocklist terminates the chain identically to [R-030] —
   outcome PERMANENT, error_class ERR-019, source URL → ST-180, target never
   fetched, hop recorded in `redirect_chain`; the blocklist MUST NOT be
-  bypassable by redirects). A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN (target Host deferred [DOC-08 §2.3]) aborts the chain as outcome RETRYABLE with error_class ERR-010: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source.
+  bypassable by redirects). A hop target that fails the target Host's robots gate terminates the chain identically to [R-030]: outcome PERMANENT, error_class ERR-017, source URL → ST-180, target never fetched, hop recorded in `redirect_chain`. A hop target whose robots verdict is UNKNOWN aborts the chain as outcome RETRYABLE with error_class ERR-010 — UNKNOWN because the target Host is deferred [DOC-08 §2.3]; an UNKNOWN returned merely because a robots acquisition is in flight on the target Host is instead awaited per [R-105] (bounded by the robots exchange's timeouts, no Host unit held [R-051]). In the ERR-010 case: source URL → ST-150 under normal retry accounting [DOC-13 §3], no request is sent to the target Host during deferral, and the next attempt re-runs the chain from the source.
 
   Hop dispatch protocol (release-before-acquire [R-051] — a waiting task
   holds no Host unit, so politeness and capacity waits can never deadlock
