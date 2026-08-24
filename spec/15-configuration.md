@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.12.0
+version: 1.14.0
 ---
 
 # Configuration
@@ -62,19 +62,19 @@ Every parameter is referenced elsewhere only by its CFG id.
 | ID | Name | Type | Default | Range |
 |----|------|------|---------|-------|
 | CFG-021 | refresh_on_rediscovery | bool | false | [FR-051] |
-| CFG-025 | recrawl_interval_s | int | 604800 (7 d) | 0 = never recrawl |
+| CFG-025 | recrawl_interval_s | int | 604800 (7 d) | ≥0; 0 = never recrawl |
 | CFG-026 | recrawl_jitter_fraction | float | 0.2 | 0–0.9 |
 
 ## Storage & traps
 
 | ID | Name | Type | Default | Range |
 |----|------|------|---------|-------|
-| CFG-027 | retention_days | int | 90 | 0 = keep forever |
+| CFG-027 | retention_days | int | 90 | ≥0; 0 = keep forever |
 | CFG-028 | store_non_html | bool | true | allowed types [R-143] |
 | CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names (names extracted per [DOC-06 §5] filter 2) |
 | CFG-030 | max_similar_paths_per_host | int | 500 | >0; trap guard [DOC-06 §5] — at most [CFG-030] URLs per Host may share a path shape |
 | CFG-031 | manual_boosts | list | `[]` | `{prefix, boost}` pairs, boost 0–300; a prefix matches as a case-sensitive string prefix of the URL identity; multiple matches ⇒ largest single boost [DOC-12 §2] |
-| CFG-043 | url_record_retention_days | int | 180 | 0 = keep forever; DEAD/EXCLUDED record retention basis [DOC-11 §6] |
+| CFG-043 | url_record_retention_days | int | 180 | ≥0; 0 = keep forever; DEAD/EXCLUDED record retention basis [DOC-11 §6] |
 
 ## Operations
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.13.0
+version: 1.14.0
 ---
 
 # Storage Model
@@ -103,7 +103,7 @@ runs (
   started_at TEXT NOT NULL, finished_at TEXT NULL,
   config_hash TEXT NOT NULL, config_json TEXT NOT NULL
 )
--- Run lifecycle [DOC-03 §Deployment]: one Run per process start, created after
+-- Run lifecycle [DOC-03 Deployment model]: one Run per process start, created after
 -- config validation succeeds [DEC-011]; finished_at is set at graceful
 -- shutdown; a Run whose process died is finalized (finished_at := crash-
 -- detection time) by the next startup. A Crawl Session [DOC-00] spans all

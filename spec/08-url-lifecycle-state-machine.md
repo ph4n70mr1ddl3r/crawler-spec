@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.13.0
+version: 1.14.0
 ---
 
 # URL Lifecycle State Machine
@@ -11,7 +11,7 @@ version: 1.13.0
 | ID | Name | Terminal? | Meaning |
 |----|------|-----------|---------|
 | ST-100 | QUEUED | no | Passed filters; awaiting scheduling. |
-| ST-110 | SCHEDULED | no | Dispatched; holding its global unit and source-Host unit [R-051]. |
+| ST-110 | SCHEDULED | no | Dispatched; holding its global unit and at most one Host unit [R-051]. |
 | ST-120 | FETCHING | no | HTTP request in flight. |
 | ST-130 | FETCHED | no | Payload stored; extraction pending. |
 | ST-140 | DONE | yes | Parsed, extracted, artifacts stored. |
@@ -193,8 +193,14 @@ exactly once [R-051].
   payload and resolution base ⇒ identical artifacts, upsert-idempotent
   [R-157].
 
-  If a URL Record for the target identity already exists, the upsert's state
-  effect depends on that record's state. Terminal records (ST-180, ST-190)
+  If a URL Record for the target identity already exists, the creation-time
+  fields — `depth`, `discovered_from`, `source_run_id`, `raw_first_seen`,
+  `is_seed` — are NOT rewritten: a pre-existing record keeps its own
+  provenance and seed fields, and the upsert's field effects are exactly
+  those this rule and [T-2] name (state, `last_seen_at`,
+  `last_error_class`, the `exclude_reason`/`next_attempt_mono` clearing,
+  `once_retried_classes`, and the completion-time fields [T-2] owns).
+  The upsert's state effect depends on that record's state. Terminal records (ST-180, ST-190)
   are overwritten with the fetch outcome: this records a completed,
   gate-verified fetch (scope, robots, SSRF, and blocklist were re-checked per
   hop [R-131]) and is neither the forbidden automated re-activation of

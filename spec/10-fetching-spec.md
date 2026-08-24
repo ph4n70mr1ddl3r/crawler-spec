@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.13.0
+version: 1.14.0
 ---
 
 # Fetching
@@ -26,7 +26,7 @@ version: 1.13.0
 | DNS | [CFG-036] | resolution start | includes SSRF check time |
 | Connect | [CFG-012] | connect start | TCP established |
 | TLS | [CFG-013] | handshake start | certificate verified, fail closed |
-| Response headers | [CFG-014] | request bytes written | until full header block received |
+| Response headers | [CFG-014] | request bytes written | until the final status line's full header block received; interim `1xx` blocks do not satisfy it [§4] |
 | Total transfer | [CFG-015] | request start | resets at each redirect hop; it does NOT span the whole chain |
 
 Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR-012 (headers/total).
@@ -96,6 +96,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 
 | Status | Class | Action |
 |---|---|---|
+| 1xx (interim) | — (never an outcome) | interim responses are consumed by the transport (RFC 9110 §15.2); the attempt continues and the [CFG-014] header timer keeps running until the final status line's header block arrives — a stream yielding no final status before the timer aborts ERR-012 [§2] |
 | 200–299 | success | store payload [FR-043] → ST-130 |
 | 304 | success-unchanged | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144] |
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |

@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.11.0
+version: 1.14.0
 ---
 
 # Functional Requirements
@@ -20,7 +20,7 @@ response and MUST NOT be recorded — identically to discovery-time discards
 [R-001], [R-002] (an invalid URL has no URL Identity to store, and no ST-190
 reason code applies). A runtime seed violating [V-4] MUST be rejected with
 an error response and, when [CFG-038]=true, recorded
-ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The seed set used by the Scope predicate ([DOC-06 §4]) is derived from all URL Records with `is_seed=true` — config seeds are re-ingested idempotently on every start [NFR-012], and injected seeds persist as seed records — so Crawl Scope is stable across restarts.
+ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The seed set used by the Scope predicate ([DOC-06 §4]) is derived from all URL Records with `is_seed=true` — config seeds are re-ingested idempotently on every start [NFR-012], and injected seeds persist as seed records — so Crawl Scope is stable across restarts. Ingesting a seed whose identity already has a URL Record (config re-ingestion or runtime injection) sets `is_seed=true` on that record idempotently (with priority recomputed per [DOC-12 §2]) and otherwise follows rediscovery semantics [FR-051]: injection never re-activates DEAD or EXCLUDED records [DOC-13 §4] — the flag change alone expands the scope set and the priority seed bonus.
 
 ## Frontier & scheduling (C2/C3)
 

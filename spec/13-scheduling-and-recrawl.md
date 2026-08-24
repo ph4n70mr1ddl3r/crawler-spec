@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.12.0
+version: 1.14.0
 ---
 
 # Scheduling and Recrawl
@@ -97,6 +97,22 @@ UNKNOWN timeouts).
   can gate or un-gate candidates) — so an empty frontier
   never causes an unbounded sleep and no scheduler-relevant time is slept
   past.
+- R-212: Dispatch serialization and the global-unit pool. The scheduling
+  loop is the sole executor of [T-1], and dispatch transactions are strictly
+  serialized (the single loop of §3), so gates (a)–(c) cannot be raced by
+  another dispatch between selection and commit — [T-1] itself re-verifies
+  (c) and per-Host capacity atomically [DOC-08 §4]. The global-unit counter
+  is in-memory only (a crash clears it: every holder died with the process
+  [R-060]) and is mutated only atomically: acquisitions are
+  check-and-increments — [T-1]'s global unit and every robots-exchange
+  acquisition [DOC-08 §2.2], which can be initiated from fetch workers
+  evaluating hop gates [R-131] — and releases are decrements. A dispatch
+  that finds the global pool full at commit time commits nothing: the
+  record stays ST-100 and is re-selected on the next wake [R-211]
+  (unit-releasing events — fetch completion [T-2], robots-exchange
+  completion — are wake sources), so [FR-011(b)] can never be overshot.
+  Gate (e) cannot be raced either: ingestion is serialized in C1 [FR-005],
+  and the [R-103] sweep is performed by the loop itself.
 
 ## 4. Freshness & recrawl
 

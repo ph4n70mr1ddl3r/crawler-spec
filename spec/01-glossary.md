@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.12.0
+version: 1.14.0
 ---
 
 # Glossary
@@ -20,7 +20,7 @@ qualified term (e.g., "fetch-timeout" vs "total-timeout").
 | **URL Record** | The persistent database row representing one unique URL identity and its crawl state. See [DOC-07]. |
 | **URL Identity** | The normalized form of a URL used as its primary key. Defined in [DOC-06]. |
 | **Frontier** | The ordered collection of discovered URLs pending fetch. |
-| **Host** | A `(scheme, hostname, port)` triple. |
+| **Host** | A `(scheme, hostname, port)` triple. The port component is the *effective* port: the URL's explicit port if present, else the scheme default (80 for `http`, 443 for `https`) — so two spellings of one Host (`http://h/` and `http://h:80/`) share a single Host key ([DOC-06 §2] strips only default ports from identities). |
 | **Registrable Domain** | The effective top-level domain plus one label (eTLD+1), computed with the Public Suffix List. For a Host that is an IP literal, the Registrable Domain is the canonical literal string itself [R-003]. |
 | **Page** | One successfully transferred response body of a URL, persisted per Run in the `pages` table; payloads are content-deduplicated by SHA-256 [DOC-11]. |
 | **Fetch** | One attempt to retrieve the representation of a URL over HTTP(S). |

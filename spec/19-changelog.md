@@ -1,10 +1,91 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.13.0
+version: 1.14.0
 ---
 
 # Changelog
+
+## 1.14.0 — 2026-08-24 (review pass v14: correctness, consistency, completeness, unambiguity)
+
+### Correctness fixes
+
+- Global-concurrency TOCTOU on [FR-011(b)]: the gate was verified only at
+  selection time, but robots exchanges acquire a global unit from outside
+  the dispatch loop — a hop-gate query on a fetch worker can initiate an
+  acquisition [R-105], [R-131] — so a robots acquisition landing between
+  selection and [T-1] could push global inflight past [CFG-010].
+  [DOC-08 §2.2] had made the robots side's acquisition atomic, but nothing
+  said the page side's was. New R-212: the scheduling loop is the sole
+  executor of [T-1] (dispatches strictly serialized), the global counter is
+  in-memory and mutated only atomically (acquisitions are
+  check-and-increments shared by dispatch and robots exchanges; releases
+  are decrements), and a dispatch finding the pool full at commit time
+  commits nothing — the record stays ST-100 and is re-selected on the next
+  wake (unit-releasing events are wake sources [R-211]).
+
+### Completeness additions
+
+- Runtime seed injection onto a pre-existing record was undefined:
+  [FR-006] said injections "behave identically to config seeds", but for
+  an identity that already has a URL Record nothing said whether `is_seed`
+  flips — and the scope set ([DOC-06 §4]) is derived from seed records, so
+  an operator injecting a seed to expand scope could silently get no
+  expansion. Ingesting a seed onto an existing record (config re-ingestion
+  or injection) now sets `is_seed=true` idempotently, recomputes priority,
+  and otherwise follows rediscovery semantics [FR-051] — injection never
+  re-activates DEAD/EXCLUDED records [DOC-13 §4]. AC-058 extended.
+- Interim `1xx` responses had no classification for page fetches: a stream
+  that ends (or stalls) without a final status matched no row of the
+  DOC-09 §4 table. New row: `1xx` is never an outcome — interim responses
+  are consumed by the transport, the [CFG-014] header timer runs until the
+  final status line's header block, and its expiry classifies ERR-012
+  (robots already treated a final `1xx` as deferral [DOC-08 §2.3]); the
+  §2 timer note aligned.
+- [R-062] creation-time vs. overwrite fields: the rule assigns `depth` and
+  `discovered_from` (and, implicitly, `source_run_id`, `raw_first_seen`,
+  `is_seed`) to the target record but never said whether an upsert onto a
+  pre-existing record rewrites them — an implementer could clobber the
+  record's provenance (e.g. replace a discovered record's depth-0 lineage).
+  These fields are now written only at creation; a pre-existing record
+  keeps them, and the upsert's field effects are exactly those R-062/[T-2]
+  name. New AC-061(g).
+- Glossary **Host** did not define its port component: "a
+  `(scheme, hostname, port)` triple" is ambiguous about whether the port is
+  the URL's explicit port or the scheme default — `http://h/` and
+  `http://h:80/` must share one Host key for robots, politeness, and scope.
+  The port is now defined as the *effective* port (explicit if present,
+  else the scheme default).
+- [CFG-025], [CFG-027], [CFG-043] carried no explicit lower bound
+  ("0 = never/keep forever" implies but does not state ≥0); the range
+  column now states it so [V-1] validation is total for every key.
+
+### Consistency fixes
+
+- Every reference of the form "[DOC-08 §2.2]"/"§2.3"/"§2.4" (glossary,
+  [DOC-09], [DOC-11], [DOC-13], [DOC-17]) pointed at subsections that did
+  not exist as headings — DOC-08 §2 was a numbered list, so the anchors
+  were unresolvable and an implementer had to guess that "§2.3" meant
+  list item 3. The four items are now real subsections (§2.1 Cache lookup,
+  §2.2 Fetch, §2.3 Status interpretation, §2.4 Cache stores), in-text
+  "per item 3"-style references were normalized to the new anchors, and
+  R-105's stale historical aside ("previously its initiator was implicit in
+  §2.1's 'else fetch'") was dropped.
+- [R-000] now states the specific-over-general tiebreak the README prose
+  asserted but the normative rule omitted: within a level, the more
+  specific document wins; R-nnn rules rank with FR/NFR except the security
+  and politeness blocks already claimed by levels (1)–(2).
+- [DOC-07 §1]'s ST-110 description ("holding its global unit and
+  source-Host unit") contradicted [R-051]'s unit-transfer rule once a
+  chain has hopped (the held unit belongs to the Host of the most recent
+  request, not the source's). Now "at most one Host unit [R-051]".
+- Unresolvable named section references normalized: "[DOC-03 §Deployment]"
+  → "[DOC-03 Deployment model]" and "[DOC-01 §Success]" → "[DOC-01
+  Success criteria]" (the headings are unnumbered).
+
+### Versioning
+
+- KB version 1.13.0 → 1.14.0; all touched documents bumped accordingly.
 
 ## 1.13.0 — 2026-08-24 (review pass v13: correctness, completeness, consistency, unambiguity)
 

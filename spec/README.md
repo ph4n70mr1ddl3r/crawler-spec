@@ -1,6 +1,6 @@
 ---
 kb: web-crawler-spec
-version: 1.13.0
+version: 1.14.0
 status: APPROVED-DRAFT
 last-updated: 2026-08-24
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.
@@ -65,3 +65,8 @@ expressed as a numbered, testable requirement or rule.
 [R-000]: When two statements conflict, resolve in this order:
 (1) DOC-16 security rules, (2) DOC-08 politeness rules,
 (3) numbered FR/NFR requirements, (4) prose explanation.
+Within a level, the more specific document wins: a topic document
+([DOC-06]–[DOC-17]) overrides a general one ([DOC-01]–[DOC-05]) at the
+same level. R-nnn rules rank with FR/NFR at level (3), except the blocks
+already claimed above: security rules R-3xx/R-4xx ([DOC-16]) at (1) and
+[DOC-08]'s politeness rules at (2).
