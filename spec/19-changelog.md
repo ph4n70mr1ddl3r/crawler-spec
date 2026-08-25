@@ -1,10 +1,51 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Changelog
+
+## 1.18.0 — 2026-08-25 (review pass v18: correctness, consistency, completeness)
+
+### Correctness fixes
+
+- FR-042 mandated resolving every discovered link "against the final response
+  URL (post-redirect)", directly contradicting [R-021]/[R-153], which let a
+  valid `<base href>` override the final URL as resolution base — an
+  implementation following FR-042 verbatim would mis-resolve outlinks on
+  base-href pages and violate [R-157]'s determinism contract for them.
+  FR-042 now resolves against the extraction base ([R-020] with the [R-021]
+  override); `discovered_from` remains the page's final URL identity, glossed
+  as provenance rather than resolution base. AC-040 extended with a
+  `<base href>` fixture.
+
+### Consistency fixes
+
+- The `page_artifacts.final_url_identity` column comment cited only [R-020]
+  as "the link-resolution base", while its owning definition [DOC-10 §3] and
+  the determinism framing treat the base as [R-020]/[R-021] (the payload's
+  own `<base href>` participates). Comment aligned.
+- The operator DEAD reset ([DOC-13 §4], [DOC-07 §2] edge label) left a stale
+  `next_attempt_mono` in place — inert while the record sits in ST-100, but
+  contradicting the field-hygiene principle [R-062] pinned for upsert
+  landings ("a stale backoff timer must not survive" outside ST-150). Both
+  statements now clear it; the reset's `once_retried_classes` clearing is
+  cross-referenced to [R-232].
+
+### Completeness additions
+
+- `urls_discovered_total{dropped}` was ambiguous for runtime-seed rejects:
+  [FR-006] demands rejection "identically to discovery-time discards"
+  ([R-001]/[R-002]), but whether those rejects increment the dropped bucket
+  (they have no URL Identity, yet the counter needs none) was unspecified and
+  counts could diverge across conformant implementations (R-240's
+  closed-enum discipline). Pinned: they count as `dropped` [DOC-15 §1].
+
+### Versioning
+
+- KB version 1.17.0 → 1.18.0; touched documents (DOC-04, DOC-07, DOC-11,
+  DOC-13, DOC-15, DOC-17) bumped accordingly.
 
 ## 1.17.0 — 2026-08-25 (review pass v17: correctness, consistency, completeness)
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Storage Model
@@ -61,8 +61,11 @@ pages (
 
 page_artifacts (
   payload_sha256    TEXT NOT NULL,
-  final_url_identity TEXT NOT NULL,        -- link-resolution base [R-020]; artifacts are a
-                                            -- function of bytes AND base [DOC-10 §3]
+  final_url_identity TEXT NOT NULL,        -- page's final URL identity; with the
+                                            -- payload's own <base href> it determines
+                                            -- the link-resolution base [R-020]/[R-021];
+                                            -- artifacts are a function of bytes AND
+                                            -- base [DOC-10 §3]
   json              TEXT NOT NULL,         -- [DOC-10 §3], deterministic
   PRIMARY KEY (payload_sha256, final_url_identity)
 )

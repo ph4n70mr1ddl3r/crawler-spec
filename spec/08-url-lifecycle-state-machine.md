@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.16.0
+version: 1.17.0
 ---
 
 # URL Lifecycle State Machine
@@ -76,7 +76,8 @@ ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
                                 [FR-051] (attempts reset to 0)
 ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 (audited; attempts := 0, due_at_mono := now,
-                                last error class cleared, priority
+                                last error class and any stale
+                                next_attempt_mono cleared, priority
                                 recomputed per [DOC-12 §2])
 {ST-100, ST-130, ST-140, ST-150,
  ST-180, ST-190} ─► ST-130/ST-150/ST-180

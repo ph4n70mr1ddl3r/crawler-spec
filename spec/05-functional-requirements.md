@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Functional Requirements
@@ -55,7 +55,7 @@ ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The see
 
 - FR-040: Successful responses with content-type `text/html` or `application/xhtml+xml` MUST be parsed and links + content extracted per [DOC-10].
 - FR-041: Other content types: store payload iff [CFG-028]=true and type ∈ allowed list [R-143]; skip parsing except recording `Content-Type` and length metadata [DEC-006]. Types outside the effective allowed list are classified PERMANENT/ERR-008 [DOC-13 §1] and the payload is discarded.
-- FR-042: Every discovered link MUST be resolved against the final response URL (post-redirect), then normalized and filtered like a seed [FR-001..FR-005], with depth = parent depth + 1 [DEC-009] and `discovered_from` = the page's final URL identity (the extraction base [R-020]).
+- FR-042: Every discovered link MUST be resolved against the page's extraction base ([R-020]: the final response URL, post-redirect, overridden by a valid `<base href>` per [R-021]), then normalized and filtered like a seed [FR-001..FR-005], with depth = parent depth + 1 [DEC-009] and `discovered_from` = the page's final URL identity (provenance of the discovery — not the resolution base).
 - FR-043: Payloads MUST be stored in the Content Store keyed by SHA-256(payload bytes) [R-500]; byte-identical payloads MUST reuse the existing blob (no duplicate bytes) while page records reference the shared hash.
 - FR-044: Page Records MUST capture: url identity, final URL identity, payload hash, content type, charset, length, fetch timestamp, http status, etag/last-modified (if present), title, canonical link rel=canonical if present, meta robots directives. Scalar columns live in `pages`; canonical URL and meta robots directives are captured in the page artifacts JSON [DOC-10 §3], which is part of the page record set [DOC-11 §1].
 - FR-045: If `meta robots` contains `noindex`, the page MUST still be stored but flagged `noindex=true` for the Downstream Consumer; page-level `nofollow` MUST suppress ingestion of anchor-derived candidates from that page (outlinks are still recorded, flagged, per [DOC-10 §3]).

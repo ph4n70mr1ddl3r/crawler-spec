@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Acceptance Criteria
@@ -56,7 +56,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 ## Extraction & storage
 
-- AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs.
+- AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs; a variant fixture whose valid relative `<base href>` overrides the final URL resolves its outlink candidates against that base ([R-021], [FR-042]).
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
 - AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash. Two URLs on different Hosts returning byte-identical HTML containing relative links additionally hold distinct page_artifacts rows, keyed `(payload_sha256, final_url_identity)` — mirrors share bytes, never each other's resolved outlinks [DOC-11 §1].
 - AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted. With [CFG-027]=0, [CFG-033]=0, or [CFG-043]=0, the corresponding sweep step deletes nothing (keep forever [DOC-11 §6]).
