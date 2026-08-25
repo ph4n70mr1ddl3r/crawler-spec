@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.14.0
+version: 1.15.0
 ---
 
 # URL Lifecycle State Machine
@@ -24,10 +24,12 @@ Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIME
 
 *Terminal* in the table above means the record's current fetch cycle is
 complete and has no failure-path exit. ST-140 is terminal with respect to its
-fetch cycle — it re-enters ST-100 only via recrawl [FR-050], rediscovery
-refresh [FR-051], or the [R-062] upsert ([FR-051]'s "terminal-success"
-records). Where a rule means {ST-180, ST-190} by `terminal` (e.g. [R-062]),
-it names the states explicitly.
+fetch cycle: it leaves ST-140 only via the two ST-100 re-entry paths —
+recrawl [FR-050] and rediscovery refresh [FR-051] (the records [FR-051]
+calls "terminal-success") — or via the [R-062] upsert, which moves it
+directly to a new fetch-outcome state (ST-130/ST-150/ST-180) without passing
+through ST-100. Where a rule means {ST-180, ST-190} by `terminal`
+(e.g. [R-062]), it names the states explicitly.
 
 ## 2. Transitions
 

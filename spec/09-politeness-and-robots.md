@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Politeness and robots.txt
@@ -74,10 +74,16 @@ Interpret the HTTP status of the robots request per RFC 9309:
      followable redirect (`1xx`, or a `3xx` outside the [R-130] follow set —
      e.g. a spurious `304`: the robots request carries no validators, and
      servers MUST NOT send `304` to an unconditional request, but MUST NOT
-     is not a guarantee [R-144]) → **UNKNOWN**: mark Host `robots_deferred_until_mono = now + backoff` (starts [CFG-044], ×2 (fixed) per consecutive failure — the streak is
-     persisted as `hosts.robots_defer_failures` [DOC-11 §1] so escalation
-     survives restarts, and is cleared when an authoritative verdict is
-     obtained — cap [CFG-040]); `robots_deferred_since_mono` is set on the first deferral of the streak; both deferral timestamps (`robots_deferred_until_mono`, `robots_deferred_since_mono`) are cleared when an authoritative verdict is obtained. No page fetches to that Host while deferred [DEC-007].
+     is not a guarantee [R-144]) → **UNKNOWN**: mark Host
+     `robots_deferred_until_mono = now + backoff` (backoff starts at [CFG-044]
+     and doubles (×2, fixed) per consecutive failure, capped at [CFG-040]; the
+     failure streak is persisted as `hosts.robots_defer_failures` [DOC-11 §1]
+     so escalation survives restarts and is cleared when an authoritative
+     verdict is obtained); `robots_deferred_since_mono` is set on the first
+     deferral of the streak; both deferral timestamps
+     (`robots_deferred_until_mono`, `robots_deferred_since_mono`) are cleared
+     when an authoritative verdict is obtained. No page fetches to that Host
+     while deferred [DEC-007].
 
 ### 2.4 Cache stores
 

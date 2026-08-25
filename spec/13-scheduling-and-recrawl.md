@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Scheduling and Recrawl
@@ -86,8 +86,9 @@ UNKNOWN timeouts).
   next recrawl `due_at_mono` over ST-140 [FR-050], next politeness expiry,
   next robots-deferral expiry, next robots-unknown threshold expiry
   (`robots_deferred_since_mono + [CFG-040]` [R-103])), and is woken
-  immediately by any event that creates or re-due-s a candidate or changes
-  a sleep-list key or a gate verdict — discovery/ingestion [C1], operator
+  immediately by any event that creates a candidate, makes a record due, or
+  changes a sleep-list key or a gate verdict — discovery/ingestion
+  [C1], operator
   actions (seed injection [FR-006], DEAD reset [DOC-13 §4]), fetch
   completion ([T-2] persists the recrawl due time computed at fetch
   completion [§4], which may precede the current sleep target), extraction

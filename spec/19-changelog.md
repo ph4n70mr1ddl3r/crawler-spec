@@ -1,10 +1,56 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Changelog
+
+## 1.15.0 — 2026-08-25 (review pass v15: correctness, consistency, completeness, unambiguity)
+
+### Correctness fixes
+
+- DOC-07 §1's terminal note asserted that ST-140 "re-enters ST-100 only via
+  recrawl [FR-050], rediscovery refresh [FR-051], **or the [R-062] upsert**",
+  but the upsert never lands a record in ST-100 — its edges go directly to
+  fetch-outcome states ([DOC-07 §2]). The note now separates ST-140's exits:
+  the two ST-100 re-entry paths (recrawl, rediscovery refresh) versus the
+  upsert's direct move to ST-130/ST-150/ST-180 without passing through
+  ST-100.
+
+### Completeness additions
+
+- DOC-10 §4 mandates a parse-failure reason string "recorded on the `pages`
+  row only", but the `pages` schema had no column to store it in.
+  `pages.parse_reason` (NULL when `parse_ok=true`) now carries the ERR-009
+  detail [DOC-11 §1].
+- R-310's decompression-bomb abort named no error class; it is now pinned to
+  the over-cap classification of [FR-023] — outcome PERMANENT, error_class
+  ERR-007, no partial payload persisted. AC-022 extended with the
+  decoded-size case.
+
+### Consistency fixes
+
+- DOC-09 §2's total-transfer timer note ("resets at each redirect hop; it
+  does NOT span the whole chain") read as contradicting [R-145]'s
+  "`timings_ms.total` spans the entire chain": one governs the enforcement
+  timer, the other the reported metric. The note now states both explicitly.
+- DOC-16 §5 said operator actions are served by the HTTP listener "when
+  [CFG-034] is set", omitting [R-406]'s disablement on non-loopback binds;
+  now scoped to loopback addresses with the cross-reference added.
+- DOC-08 §2.3's deferral-backoff parenthetical buried the [CFG-040] cap after
+  a clause about streak clearing ("...is cleared when an authoritative
+  verdict is obtained — cap [CFG-040]"), making the cap's attachment
+  ambiguous; restructured so the cap attaches to the backoff and the
+  streak-clearing reads cleanly (no semantic change).
+- R-211's wake-source clause contained a garbled verb form ("creates or
+  re-due-s a candidate"); rewritten as "creates a candidate, makes a record
+  due".
+
+### Versioning
+
+- KB version 1.14.0 → 1.15.0; touched documents (DOC-07, DOC-08, DOC-09,
+  DOC-11, DOC-12, DOC-16, DOC-17) bumped accordingly.
 
 ## 1.14.0 — 2026-08-24 (review pass v14: correctness, consistency, completeness, unambiguity)
 

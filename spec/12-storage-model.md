@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Storage Model
@@ -51,6 +51,7 @@ pages (
   title             TEXT NULL,
   noindex           BOOL NOT NULL DEFAULT FALSE,
   parse_ok          BOOL NOT NULL DEFAULT TRUE,
+  parse_reason      TEXT NULL,            -- ERR-009 detail when parse_ok=false [DOC-10 §4]
   PRIMARY KEY (url_identity, run_id)
 )
 

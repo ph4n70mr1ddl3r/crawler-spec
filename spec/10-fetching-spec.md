@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Fetching
@@ -27,7 +27,7 @@ version: 1.14.0
 | Connect | [CFG-012] | connect start | TCP established |
 | TLS | [CFG-013] | handshake start | certificate verified, fail closed |
 | Response headers | [CFG-014] | request bytes written | until the final status line's full header block received; interim `1xx` blocks do not satisfy it [§4] |
-| Total transfer | [CFG-015] | request start | resets at each redirect hop; it does NOT span the whole chain |
+| Total transfer | [CFG-015] | request start | resets at each redirect hop — the *enforcement timer* is per-hop and does NOT span the whole chain (the reported `timings_ms.total` metric does span it [§6], [R-145]) |
 
 Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR-012 (headers/total).
 

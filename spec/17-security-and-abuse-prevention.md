@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Security and Abuse Prevention
@@ -60,6 +60,8 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 
 - R-310: Decompression bomb defense: decoded size counts toward [CFG-016];
   decoding streams MUST abort as soon as the running byte count exceeds it.
+  The abort is classified identically to [FR-023]: outcome PERMANENT,
+  error_class ERR-007, and no partial payload is persisted.
 
 ## 4. Content hygiene
 
@@ -72,6 +74,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 Runtime API (local only): inject seeds [FR-006], reset DEAD URL [DOC-13 §4],
 trigger graceful drain. When [CFG-034] is null, the actions are exposed over
 an implementation-defined local channel (e.g., Unix-domain socket or stdin)
-that accepts no network connections; when [CFG-034] is set, they are
-additionally served by the HTTP listener. Actions are logged with operator
-identity when available.
+that accepts no network connections; when [CFG-034] is set to a loopback
+address, they are additionally served by the HTTP listener (a non-loopback
+bind disables the mutating actions entirely per [R-406]). Actions are logged
+with operator identity when available.

@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Acceptance Criteria
@@ -38,7 +38,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 
 - AC-020: 6-hop redirect chain with CFG-017=5 stops at hop 5; outcome=PERMANENT with error_class=ERR-011 recorded [DOC-09 §6]; the un-followed 6th `Location` target is recorded in the source's `redirect_chain` [R-133].
 - AC-021: Redirect loop (A→B→A) detected at first repetition — the hop target equal to the original identity counts [R-132]; the refused loop-back hop target appears in the source's `redirect_chain` (a refused hop target, not the requested-URL prefix) [R-133].
-- AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded.
+- AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded. A gzip body whose *decoded* size exceeds [CFG-016] aborts identically (the running byte count is checked during decode) — PERMANENT, ERR-007, no partial payload persisted [R-310].
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
 - AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3]. A yes-once class failing twice — e.g. two ERR-003 outcomes with [CFG-020]=5 — reaches DEAD at the second occurrence [R-232]; after a success and a recrawl promotion ([R-052] attempts reset), the class is eligible for one retry again.
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
