@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Security and Abuse Prevention
@@ -53,7 +53,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 | payload size | [CFG-016] | abort mid-stream, discard partial [FR-023] |
 | redirects | [CFG-017] | [R-130] |
 | header size | 64 KiB fixed | reject beyond, ERR-016 |
-| URLs per page | 1000 extracted + overflow flag | [DOC-10 §3 outlinks cap] |
+| URLs per page | 1000 extracted + overflow flag | ingestion cap [DOC-10 §2 R-159]; recorded outlink list likewise capped [DOC-10 §3] |
 | path shapes per host | [CFG-030] | trap guard [DOC-06 §5] |
 | total records | [CFG-005] | [FR-005] |
 | metadata row size | artifacts JSON ≤ 2 MiB | tail-truncate per the fixed order in [DOC-10 §3] (headings → main_text → outlinks), flag `truncated` |

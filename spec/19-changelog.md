@@ -1,10 +1,55 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.20.0
+version: 1.21.0
 ---
 
 # Changelog
+
+## 1.21.0 — 2026-08-25 (review pass v21: correctness, consistency, completeness)
+
+### Correctness fixes
+
+- AC-057's example IP-literal seed was `http://93.184.216.34/` — a globally
+  routable address (example.com's former A record). DOC-17's preamble promises
+  hermetic fixtures ("a local HTTP test server + recorded responses"), and
+  IN_SCOPE URLs are enqueued and fetched, so a suite following the example
+  would contact the real internet — non-deterministic and offline-breaking.
+  The example is now `http://127.0.0.1/`, served by the local fixture under
+  the [CFG-042]=true escape hatch [R-405]; scope matching is lexical over
+  Registrable Domains, never DNS-dependent, so the AC's verdicts are
+  unchanged.
+
+### Consistency fixes
+
+- NFR-004's generation-bound sentence contradicted itself on [CFG-027]=0:
+  "else one" was the complement of "recrawl and retention are both enabled",
+  so it covered [CFG-027]=0 — the very case the same sentence's parenthetical
+  had just exempted ("this NFR claims no bound"). Restructured into explicit,
+  disjoint cases: both enabled ⇒ ceil(...) generations; [CFG-025]=0 ⇒ one
+  generation per URL; [CFG-027]=0 ⇒ keep forever, no bound claimed whatever
+  [CFG-025] is.
+
+### Completeness additions
+
+- DOC-16 §3 declares a hard per-page resource cap ("URLs per page: 1000
+  extracted + overflow flag", enforced pre-allocation), but DOC-10 §2 — which
+  owns extraction — pinned no cap on the combined candidate set from its six
+  sources; the only 1000 there was the outlinks artifact cap, which bounds
+  the recorded list, not ingestion. An adversarial page could therefore flood
+  discovery unboundedly while nominally violating the declared cap, and two
+  conformant implementations would diverge. New R-159 pins it: after
+  resolution, normalization, filtering ([R-153], [R-155]) and within-page
+  deduplication ([R-154]), at most 1000 candidates per page proceed to
+  ingestion — first 1000 in document order, overflow dropped with `truncated`
+  set. The truncated-flag definition includes the new cap ([DOC-10 §3]), the
+  urls_discovered_total{dropped} definition covers cap overflow — keeping the
+  four-bucket partition exact ([DOC-15 §1]) — and AC-062 verifies the cap.
+
+### Versioning
+
+- KB version 1.20.0 → 1.21.0; touched documents (DOC-05, DOC-10, DOC-15,
+  DOC-16, DOC-17) bumped accordingly.
 
 ## 1.20.0 — 2026-08-25 (review pass v20: correctness, consistency, completeness)
 

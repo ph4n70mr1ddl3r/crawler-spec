@@ -1,7 +1,7 @@
 ---
 id: DOC-05
 title: Non-Functional Requirements
-version: 1.13.0
+version: 1.14.0
 ---
 
 # Non-Functional Requirements
@@ -13,7 +13,7 @@ Targets are for reference hardware: 4 vCPU, 8 GiB RAM, SSD, 100 Mbps.
 | NFR-001 | Throughput | Sustained steady-state rate of ≥ 10 pages/sec and burst capability of ≥ 50 pages/sec, provided remote hosts permit it within politeness constraints. Politeness caps dominate throughput by design. |
 | NFR-002 | Latency | Scheduler decision latency (due URL selected → dispatched) ≤ 50 ms at p99 under load ≤ 100k queued URLs. |
 | NFR-003 | Memory | RSS ≤ 512 MiB regardless of frontier size; Frontier MUST spill to the Metadata Store, never grow unboundedly in RAM. |
-| NFR-004 | Disk | Content Store growth is bounded: at most [CFG-005] distinct payloads per recrawl generation (modulo the bounded [R-062] redirect-target exemption [FR-005]), with at most ceil([CFG-027] × 86400 / ([CFG-025] × (1 − [CFG-026]))) generations retained when recrawl and retention are both enabled ([CFG-025]>0 and [CFG-027]>0 — with [CFG-027]=0 the operator has disabled retention (keep forever), pages never expire, and growth across generations is unbounded by explicit operator choice, so this NFR claims no bound; [CFG-027] is days, [CFG-025] seconds — the formula converts to seconds before dividing; the divisor is the *minimum* jittered interval: jitter only shrinks intervals and the 304 multiplier (≤ 4×) only grows them, so the bound holds for every URL; [CFG-026] < 1 by range, so the divisor is positive), else one; the retention job enforces [DOC-11 §6]. |
+| NFR-004 | Disk | Content Store growth is bounded: at most [CFG-005] distinct payloads per recrawl generation (modulo the bounded [R-062] redirect-target exemption [FR-005]); when recrawl and retention are both enabled ([CFG-025]>0 and [CFG-027]>0), at most ceil([CFG-027] × 86400 / ([CFG-025] × (1 − [CFG-026]))) generations are retained ([CFG-027] is days, [CFG-025] seconds — the formula converts to seconds before dividing; the divisor is the *minimum* jittered interval: jitter only shrinks intervals and the 304 multiplier (≤ 4×) only grows them, so the bound holds for every URL; [CFG-026] < 1 by range, so the divisor is positive); when [CFG-025]=0 each URL is fetched at most once — a single generation per URL; when [CFG-027]=0 the operator has disabled retention (keep forever): pages never expire and growth across generations is unbounded by explicit operator choice, so this NFR claims no bound whatever [CFG-025] is; the retention job enforces [DOC-11 §6]. |
 | NFR-005 | Startup | Cold start with 1M existing URL Records ≤ 60 s before first fetch. |
 | NFR-006 | Determinism | Same inputs (config, seeds, captured network fixture) ⇒ same sequence of fetch decisions. Enables replay testing. |
 | NFR-007 | Observability | Every state transition increments a labeled metric; every fetch writes a structured log line [DOC-15]. |

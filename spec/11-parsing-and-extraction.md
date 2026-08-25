@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.11.0
+version: 1.12.0
 ---
 
 # Parsing and Extraction
@@ -33,6 +33,14 @@ Rules:
 - R-154: Deduplicate candidates within one page before ingestion.
 - R-155: `rel=nofollow` on an anchor ⇒ that candidate is NOT ingested. Page-level `nofollow` ([FR-045]) suppresses all anchor-derived candidates from that page.
 - R-156: Extracted links record anchor text (first 256 chars, whitespace-collapsed) as metadata on the discovery edge.
+- R-159: Per-page candidate cap: after resolution, normalization, and filtering
+  ([R-153], [R-155]) and within-page deduplication ([R-154]), at most 1000
+  candidates per page proceed to ingestion — the first 1000 kept in document
+  order, the overflow dropped (no record; counted in urls_discovered_total{dropped}
+  [DOC-15 §1]) and the page's `truncated` flag set ([§3]). This enforces the
+  declared per-page resource cap [DOC-16 §3], bounding discovery work under
+  link-farm and trap inputs [G-4]; the outlinks artifact cap ([§3]) bounds only
+  the recorded list, not ingestion.
 
 ## 3. Content artifacts (per page)
 
@@ -54,7 +62,7 @@ blob [FR-043] but hold distinct artifacts when their resolved outlinks differ:
 | main_text | text content of `<body>` after removing script/style/nav/footer/aside/template/noscript, whitespace-normalized, capped at 1 MiB characters |
 | word_count | count of whitespace-separated tokens in `main_text` |
 | outlinks | list of `{url_identity, anchor_text, nofollow}` (capped 1000/page; overflow flagged) |
-| truncated | `true` iff any per-page cap (headings, outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
+| truncated | `true` iff any per-page cap (extracted-candidate overflow [R-159], headings, outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
 
 `outlinks` records all extracted anchor candidates — including `nofollow`
 ones, flagged — regardless of ingestion [R-155]; a page-level `nofollow` page

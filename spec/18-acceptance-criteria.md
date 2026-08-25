@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.20.0
+version: 1.21.0
 ---
 
 # Acceptance Criteria
@@ -60,6 +60,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
 - AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash. Two URLs on different Hosts returning byte-identical HTML containing relative links additionally hold distinct page_artifacts rows, keyed `(payload_sha256, final_url_identity)` — mirrors share bytes, never each other's resolved outlinks [DOC-11 §1].
 - AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted. With [CFG-027]=0, [CFG-033]=0, or [CFG-043]=0, the corresponding sweep step deletes nothing (keep forever [DOC-11 §6]). Seed records (`is_seed=true`) are never deleted by the DEAD/EXCLUDED step, however stale [FR-006], [DOC-11 §6].
+- AC-062: A fixture page whose filtered, deduplicated candidates exceed the per-page cap — e.g. 1200 distinct in-scope anchor hrefs — ingests exactly 1000 URL Records (the first 1000 in document order), sets `truncated=true` on its artifacts, and counts the 200 overflow candidates in urls_discovered_total{dropped} [R-159], [DOC-15 §1].
 
 ## Operations
 
@@ -70,7 +71,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-054: With [CFG-034] bound to a non-loopback address, the mutating operator actions (seed injection, DEAD reset, drain trigger) are disabled, a startup WARN is logged, and /healthz and /metrics remain available [R-406].
 - AC-055: A redirect hop whose target Host's Crawl-delay implies a politeness wait > [CFG-035] aborts the chain with outcome=RETRYABLE and error_class=ERR-018; the source → ST-150; no Host concurrency unit is held during any politeness or capacity wait [R-051], and no fetch worker is held for an over-threshold wait — the chain aborts instead (waits ≤ [CFG-035] do hold the task's worker, never a Host unit); `next_attempt_mono` is floored at the target Host's window opening; if the window never opens within the retry budget, the URL reaches ST-180 [R-131], [DOC-13 §3].
 - AC-056: Hop-target acceptance [R-130], [R-131], one fixture per case: (a) a relative `Location` value resolves against the hop URL to the correct absolute target (chain follows it); (b) a `Location` with a non-http(s) scheme yields outcome=PERMANENT, error_class=ERR-011, no follow; (c) a hop target matching a [CFG-037] pattern yields outcome=PERMANENT, error_class=ERR-019, source → ST-180, target never fetched, hop recorded in `redirect_chain`.
-- AC-057: With scope_mode=SEED_DOMAINS and an IP-literal seed (e.g. `http://93.184.216.34/`), other URLs on the same IP literal are IN_SCOPE and every named host is OUT_OF_SCOPE [DOC-00]; `[2001:0DB8::1]` and `[2001:db8::1]` normalize to one URL Identity [R-003].
+- AC-057: With scope_mode=SEED_DOMAINS and an IP-literal seed (e.g. `http://127.0.0.1/`, served by the local fixture server under [CFG-042]=true [R-405]), other URLs on the same IP literal are IN_SCOPE and every named host is OUT_OF_SCOPE — scope matching is lexical over Registrable Domains, never DNS-dependent [DOC-00]; `[2001:0DB8::1]` and `[2001:db8::1]` normalize to one URL Identity [R-003].
 - AC-058: Runtime seed injection of a URL violating [FR-002] (bad scheme, unparseable, userinfo) or, with scope_mode=PREFIX_LIST, matching no [CFG-039] entry [V-4] returns an error, does not abort the process, and records ST-190/`OUT_OF_SCOPE` only for the [V-4] case with [CFG-038]=true ([FR-002] violations record nothing — no identity, no reason code [FR-006]); a valid injection behaves identically to a config seed [FR-006] — including setting `is_seed=true` idempotently on a pre-existing record (scope-set expansion [DOC-06 §4], priority recomputed [DOC-12 §2]) without re-activating DEAD or EXCLUDED records [FR-051].
 - AC-059: A 304 with no usable stored payload triggers exactly one full unconditional refetch completing the same fetch attempt (no extra `attempts` increment): (a) blob removed by retention — the refetch stores a fresh payload and the attempt succeeds; (b) first-fetch 304 (no validators sent) — if the refetch also returns 304, the outcome is PERMANENT/ERR-014 [R-144].
 - AC-060: A configuration violating any validation rule [V-1]–[V-6] — e.g. [CFG-015] < [CFG-014] [V-2], an empty [CFG-003] [V-6], a [CFG-018] not matching the UA Token pattern or an invalid [CFG-019] email [V-5], any out-of-range value [V-1] — aborts startup with exit code ≠ 0 before any network I/O, and the error identifies the offending key [DEC-011].
