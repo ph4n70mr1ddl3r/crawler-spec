@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Politeness and robots.txt
@@ -109,8 +109,10 @@ Cache stores: verdict function inputs + crawl_delay (seconds, from the applicabl
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
   [CFG-040] — measured from `robots_deferred_since_mono` [DOC-11 §1] — every
   URL Record on that Host in a gated state (ST-100 or ST-150) MUST be moved
-  to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` (bounded resource use under permanent
-  robots failure [G-4]); until that threshold is reached, gated URLs stay in
+  to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` with `next_attempt_mono` cleared (a
+  backoff timer must not survive outside ST-150 [DOC-13 §4], [R-062];
+  bounded resource use under permanent robots failure [G-4]); until that
+  threshold is reached, gated URLs stay in
   their current state and are reconsidered after each deferral expiry. In-flight
   records (ST-110/ST-120) are never affected; ST-130 records complete normally.
   The threshold expiry (`robots_deferred_since_mono + [CFG-040]`) is a

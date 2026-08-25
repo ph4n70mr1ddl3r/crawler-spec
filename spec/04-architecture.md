@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.12.0
+version: 1.13.0
 ---
 
 # Architecture
@@ -113,7 +113,8 @@ version: 1.12.0
 - INV-4: Two fetches to the same Host are separated by ≥ Effective Delay,
   measured start-to-start, enforced via HOST REGISTRY.
 - INV-5: Discovery of a URL already present as a URL Record never duplicates it;
-  it MAY update `last_seen_at` and refresh scheduling if configured [CFG-021].
+  it updates `last_seen_at` ([FR-051] mandates the update in every rediscovery
+  branch) and refreshes scheduling only if configured [CFG-021].
 
 ## Deployment model
 

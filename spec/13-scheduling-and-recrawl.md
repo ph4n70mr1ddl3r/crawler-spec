@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Scheduling and Recrawl
@@ -22,15 +22,19 @@ part of the loop, not fetch dispatches):
 
 - ST-150 → ST-100 when `now ≥ next_attempt_mono` (and `attempts <
   [CFG-020]`, which always holds — [DOC-13 §3] evaluates the budget at
-  failure time), setting `due_at_mono := next_attempt_mono` [DOC-07 §2];
+  failure time), setting `due_at_mono := next_attempt_mono` and clearing
+  `next_attempt_mono` [DOC-07 §2] (field hygiene — a backoff timer must not
+  survive outside ST-150 [DOC-13 §4], [R-062]; with the [R-103] sweep
+  clearing likewise, `next_attempt_mono` is non-NULL only in ST-150);
 - ST-140 → ST-100 when `now ≥ due_at_mono` (the recrawl due time computed
   at fetch completion [§4]) [FR-050].
 
 Both promotions are wake sources for the loop [R-211]; a promoted record is
 dispatchable in the same iteration. The retry promotion (ST-150 → ST-100)
 preserves the record's priority: priority is recomputed only on the
-[R-052] transitions (recrawl due, rediscovery refresh) and the operator
-reset [DOC-13 §4] — never mid-cycle.
+[R-052] transitions (recrawl due, rediscovery refresh), the operator
+reset [DOC-13 §4], and when ingestion sets `is_seed=true` on a
+pre-existing record [FR-006] — never mid-cycle.
 
 ## 2. Priority computation (0–1000, default 500)
 
@@ -50,7 +54,8 @@ boost applies (matches are never summed); the boost term remains within 0–300.
 
 - R-200: Priority never affects politeness or caps; it only reorders due work.
 - R-201: Priority is recomputed on each ST-140→ST-100 transition (recrawl due
-  and rediscovery refresh [R-052]) and on the operator DEAD reset [DOC-13 §4] —
+  and rediscovery refresh [R-052]), on the operator DEAD reset [DOC-13 §4],
+  and when ingestion sets `is_seed=true` on a pre-existing record [FR-006] —
   the same recomputation points [DOC-12 §1] assigns; it is never recomputed
   mid-cycle.
 

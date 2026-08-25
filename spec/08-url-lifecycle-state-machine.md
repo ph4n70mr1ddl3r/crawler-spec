@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.17.0
+version: 1.18.0
 ---
 
 # URL Lifecycle State Machine
@@ -116,8 +116,12 @@ exactly once [R-051].
   while waiting (politeness or capacity waits therefore cannot deadlock
   [G-4]). All units the record still holds are released exactly once, on
   the first transition out of {ST-110, ST-120} (to ST-100, ST-130, ST-150,
-  ST-180, or ST-190 — including the robots paths [FR-031], [R-054] and the
-  dispatch-time cap gate [FR-011(e)]).
+  ST-180, or ST-190 — including the robots paths [FR-031], [R-054]).
+  Exclusions that fire on an ST-100 candidate before [T-1] — the
+  dispatch-time cap gate [FR-011(e)], selection-time robots exclusions
+  ([FR-031] at gate time, [R-103]) — release nothing: the record holds no
+  units before [T-1] (decrementing there would corrupt the counters
+  [R-212], [INV-3]).
 - R-052: ST-140→ST-100 transitions (recrawl due [FR-050] and rediscovery
   refresh [FR-051]) reset `attempts=0` and set `due_at_mono` per their
   trigger; priority is recomputed per [DOC-12 §2] (R-201).

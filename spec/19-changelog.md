@@ -1,10 +1,65 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.18.0
+version: 1.19.0
 ---
 
 # Changelog
+
+## 1.19.0 — 2026-08-25 (review pass v19: correctness, consistency, completeness)
+
+### Correctness fixes
+
+- R-051 counted the dispatch-time cap gate [FR-011(e)] among unit-release
+  cases, but that exclusion fires on an ST-100 candidate before [T-1]
+  ([DOC-12 §3]): the record holds no units yet, and a literal implementation
+  following R-051's list would decrement counters it never incremented —
+  corrupting [INV-3]/[FR-011(b)] accounting. R-051 now states the no-unit
+  fact for pre-dispatch exclusions explicitly.
+- R-231 claimed `attempts` "resets to 0 only when the record leaves ST-140
+  for ST-100", denying the operator DEAD reset's documented `attempts := 0`
+  ([DOC-13 §4], [DOC-07 §2] edge) — an implementation treating R-231 as
+  exhaustive would preserve exhausted budgets across resets. The reset path
+  is now listed (same defect class as the v1.16.0 R-201 narrowing).
+
+### Consistency fixes
+
+- Priority recomputation points were enumerated inconsistently: [FR-006]
+  recomputes priority when ingestion sets `is_seed=true` on a pre-existing
+  record, while [R-201]/[DOC-12 §1] declared their three-point list
+  exhaustive ("never recomputed mid-cycle"). The seed-flag case joined both
+  enumerations.
+- INV-5 said rediscovery "MAY update `last_seen_at`", but every [FR-051]
+  branch mandates the update — the invariant understated a MUST.
+- The `next_attempt_mono` field-hygiene principle ("a backoff timer must not
+  survive outside ST-150", [DOC-13 §4]/[R-062]) was violated by two legal
+  exits that left stale timers behind: the ST-150→ST-100 promotion
+  ([DOC-12 §1]) and the [R-103] robots-unknown sweep (ST-150→ST-190). Both
+  now clear the column; with this and the existing writers,
+  `next_attempt_mono` is non-NULL only in ST-150. AC-027 and AC-053
+  extended to verify it.
+
+### Completeness additions
+
+- `urls_discovered_total{duplicate}` had no defined trigger — the last
+  unpinned bucket of that counter (same defect class as the v1.16–v1.18
+  pins): whether a rediscovery, a seed re-injection hit, or an upsert onto
+  a pre-existing record incremented it was unspecified and counts could
+  diverge across conformant implementations (R-240's closed-enum
+  discipline). Pinned: `duplicate` = ingestion events finding a
+  pre-existing record ([FR-051]/[INV-5], seed re-injection [FR-006],
+  [R-062] upserts onto pre-existing records), making the four buckets an
+  exact partition of every ingestion event [DOC-15 §1].
+- `bytes_downloaded_total`'s counting basis was undefined for discarded
+  bodies: an [ERR-008]-rejected type or an [ERR-007] mid-stream abort could
+  plausibly count or not, diverging implementations. Pinned: every received
+  body counts (abort bodies up to the abort; a `304` body contributes
+  nothing) [DOC-15 §1]. AC-052 extended.
+
+### Versioning
+
+- KB version 1.18.0 → 1.19.0; touched documents (DOC-03, DOC-07, DOC-08,
+  DOC-12, DOC-13, DOC-15, DOC-17) bumped accordingly.
 
 ## 1.18.0 — 2026-08-25 (review pass v18: correctness, consistency, completeness)
 

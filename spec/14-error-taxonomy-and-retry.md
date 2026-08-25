@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.13.0
+version: 1.14.0
 ---
 
 # Errors and Retry
@@ -69,7 +69,7 @@ on PERMANENT outcome:               → ST-180 immediately
   list is cleared exactly when `attempts` is reset to 0 (ST-140→ST-100
   [R-052]; operator reset §4), so the rule needs no fetch_events history and
   cannot be affected by [CFG-033] retention.
-- R-231: Any successful page fetch resets host `consecutive_failures` to 0; the full increment/reset semantics are defined by [R-112] (robots.txt exchanges never modify it). The URL `attempts` counter resets to 0 only when the record leaves ST-140 for ST-100 (recrawl [R-052] or rediscovery refresh [FR-051]); it is never reset by a retry-path success.
+- R-231: Any successful page fetch resets host `consecutive_failures` to 0; the full increment/reset semantics are defined by [R-112] (robots.txt exchanges never modify it). The URL `attempts` counter resets to 0 only when the record leaves ST-140 for ST-100 (recrawl [R-052] or rediscovery refresh [FR-051]) or is operator-reset to ST-100 from ST-180 [DOC-13 §4]; it is never reset by a retry-path success.
 
 ## 4. Dead-letter semantics
 
