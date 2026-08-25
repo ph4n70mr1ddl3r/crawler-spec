@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Storage Model
@@ -131,8 +131,11 @@ tmp/                     staging dir; atomic rename into place [R-500]
   [DOC-12 §4], `last_error_class` on both branches — PERMANENT outcomes set
   it, successful outcomes (SUCCESS|UNCHANGED) clear it (a stale class must
   not outlive recovery: a record can carry one set by a RETRYABLE
-  redirect-chain upsert [R-062]), ordinary RETRYABLE outcomes leave it
-  unchanged [DOC-13 §3] — and, on failures, `once_retried_classes` [R-232] — pages insert(s),
+   redirect-chain upsert [R-062]), ordinary RETRYABLE outcomes leave it
+   unchanged, while a RETRYABLE outcome that exhausts the budget enters
+   ST-180 and sets it ([DOC-13 §3]'s DEAD branch — the class of the outcome
+   that entered ST-180 is durable [DOC-13 §4]) — and, on failures,
+   `once_retried_classes` [R-232] — pages insert(s),
   fetch_event insert, hosts.inflight−1 for the single Host unit the attempt
   still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
@@ -151,15 +154,19 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
 
 - The retention job — an in-process maintenance task of the single crawler
   process [DEC-002] — runs every [CFG-046] seconds:
-  - fetch_events older than [CFG-033] days deleted (aggregate metrics preserved separately);
+  - fetch_events older than [CFG-033] days deleted (aggregate metrics
+    preserved separately); [CFG-033]=0 disables this deletion — keep
+    forever [DOC-14];
   - pages rows whose `fetch_ts` < now − [CFG-027] deleted oldest-first;
+    [CFG-027]=0 disables page expiry — keep forever ([DOC-14], [NFR-004]);
   - a page_artifacts row MAY be deleted only when NO remaining `pages` row
     references its `(payload_sha256, final_url_identity)` pair; a blob file
     MAY be deleted only when NO remaining `pages` row references its
     payload_sha256 (payloads are shared across URL identities via dedup
     [AC-042] — age alone never justifies deletion);
   - DEAD/EXCLUDED url records not re-discovered for [CFG-043] days —
-    `last_seen_at` when set, else `updated_at` — deleted. A deleted record
+    `last_seen_at` when set, else `updated_at` — deleted; [CFG-043]=0
+    disables this deletion — keep forever [DOC-14]. A deleted record
     MAY be re-created by later discovery; that bounded re-evaluation
     (≤ [CFG-020] attempts per [CFG-043]-day cycle) is not automated
     re-activation [DOC-13 §4].

@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Observability
@@ -18,7 +18,7 @@ Counters:
 | bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |
 | content_length_mismatch_total | — | counted when received body size ≠ the `Content-Length` header value [R-141] |
 | robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
-| exclusions_total | reason | ST-190 reasons |
+| exclusions_total | reason | ST-190 records by reason code; the series is exposed regardless of [CFG-038], but OUT_OF_SCOPE drops under [CFG-038]=false create no ST-190 record and are counted only by `urls_discovered_total{dropped}` [FR-004] |
 
 Gauges:
 

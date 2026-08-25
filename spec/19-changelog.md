@@ -1,10 +1,45 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Changelog
+
+## 1.17.0 — 2026-08-25 (review pass v17: correctness, consistency, completeness)
+
+### Correctness fixes
+
+- Retention contradicted its own "0 = keep forever" parameters: [DOC-14]
+  defines [CFG-027]=0, [CFG-033]=0, and [CFG-043]=0 as *keep forever*
+  (and [NFR-004] reasons explicitly about the [CFG-027]=0 case), but every
+  §6 deletion condition was stated as a bare threshold — "older than 0
+  days" / "`fetch_ts` < now − 0" — which would purge the entire store on
+  each sweep at those settings. Each of the three steps now states its
+  zero-disables-deletion semantics. AC-043 extended.
+
+### Completeness additions
+
+- T-2 enumerated `last_error_class` writers incompletely: it listed only
+  PERMANENT-sets / success-clears / ordinary-RETRYABLE-unchanged, but a
+  RETRYABLE outcome that exhausts the budget enters ST-180 and sets the
+  class ([DOC-13 §3]'s DEAD branch, echoed by the schema comment and
+  [DOC-13 §4]'s "retain last error class"). An implementer reading only
+  T-2 could leave the column NULL or stale on budget exhaustion. T-2 now
+  names the DEAD branch; AC-024 extended to assert the recorded class.
+- The counting basis of `exclusions_total` was ambiguous for OUT_OF_SCOPE
+  drops under [CFG-038]=false: they produce no ST-190 record, so whether
+  they increment a metric whose Meaning is "ST-190 reasons" was undefined
+  and counts could diverge across conformant implementations (R-240's
+  closed-enum discipline). Pinned: the series counts ST-190 records by
+  reason code and is exposed regardless of [CFG-038]; drops are counted
+  only by `urls_discovered_total{dropped}` [DOC-15 §1]; CFG-038's note
+  aligned.
+
+### Versioning
+
+- KB version 1.16.0 → 1.17.0; touched documents (DOC-11, DOC-14, DOC-15,
+  DOC-17) bumped accordingly.
 
 ## 1.16.0 — 2026-08-25 (review pass v16: correctness, consistency, completeness, unambiguity)
 

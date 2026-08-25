@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.14.0
+version: 1.15.0
 ---
 
 # Configuration
@@ -86,7 +86,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-045 | run_summary_every | int | 1000 | ≥1; completions between `run_summary` events [DOC-15 §4] |
 | CFG-046 | retention_sweep_interval_s | int | 3600 | 60–86400; retention job cadence [DOC-11 §6] |
 | CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
-| CFG-038 | record_out_of_scope | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] (renamed from `log_exclusions`: it governs audit rows, not logging — the exclusions_total metric [DOC-15 §1] is always emitted) |
+| CFG-038 | record_out_of_scope | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] (renamed from `log_exclusions`: it governs audit rows, not logging — the exclusions_total series [DOC-15 §1] is exposed regardless of this setting, and drops are counted in `urls_discovered_total{dropped}`) |
 
 ## Security
 

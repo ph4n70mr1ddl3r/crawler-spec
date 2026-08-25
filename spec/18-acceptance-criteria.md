@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Acceptance Criteria
@@ -40,7 +40,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-021: Redirect loop (A→B→A) detected at first repetition — the hop target equal to the original identity counts [R-132]; the refused loop-back hop target appears in the source's `redirect_chain` (a refused hop target, not the requested-URL prefix) [R-133].
 - AC-022: Payload of CFG-016+1 bytes aborted mid-stream; nothing persisted for it; ERR-007 recorded. A gzip body whose *decoded* size exceeds [CFG-016] aborts identically (the running byte count is checked during decode) — PERMANENT, ERR-007, no partial payload persisted [R-310].
 - AC-023: gzip body decoded before hashing; stored hash equals SHA-256 of decoded bytes.
-- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD. A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3]. A yes-once class failing twice — e.g. two ERR-003 outcomes with [CFG-020]=5 — reaches DEAD at the second occurrence [R-232]; after a success and a recrawl promotion ([R-052] attempts reset), the class is eligible for one retry again.
+- AC-024: 429 with Retry-After honored; attempts stop at CFG-020; then DEAD, with `urls.last_error_class` = the budget-exhausting outcome's class (the DEAD branch records it durably [DOC-13 §3], [T-2]). A 429 `Retry-After` larger than [CFG-035] is honored unclamped [DOC-13 §3]. A yes-once class failing twice — e.g. two ERR-003 outcomes with [CFG-020]=5 — reaches DEAD at the second occurrence [R-232]; after a success and a recrawl promotion ([R-052] attempts reset), the class is eligible for one retry again.
 - AC-025: Connection to a host resolving to 127.0.0.1 (from a page link) is blocked with ERR-004 and never connects.
 - AC-026: A redirect chain crossing into a second host waits for that host's politeness window before each hop request [R-131]; on success the final target has its own URL Record with depth equal to the source's [R-062], and the chain is persisted on the source's fetch_events row [R-133]; per [R-051]/[R-131] the task holds at most one Host unit at any time — the source Host's unit is released when its redirect response is received (unit transfer) and the final hop's Host unit is released exactly once at completion [T-2], so no Host slot leaks. A deadlock fixture with [CFG-009]=1 on two Hosts A and B and two concurrent cross-host chains A→B and B→A completes both chains: each releases its held unit before waiting, so the waits cannot cycle [R-131]. If the final target's identity already has a terminal record (e.g. ST-190/`CAP_REACHED`), the upsert overwrites it with the fetch outcome [R-062] — a completed, gate-verified fetch is not automated re-activation [DOC-13 §4], and `last_error_class` is cleared on success; if it is independently in flight ({ST-110, ST-120}), its state and `attempts` are untouched and the chain records `last_seen_at` plus its `pages` row only. On chain success both page rows (source's and target's) commit in one [T-2].
 - AC-027: With robots.txt persistently returning 5xx for ≥ [CFG-040], gated URLs (ST-100 and ST-150) transition to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` and are never fetched [R-103]; the sweep fires at the threshold expiry itself (a scheduler wake source [R-211]). Records entering gated states after the threshold passed (a new discovery, a ST-140→ST-100 recrawl promotion) are excluded by the next sweep evaluation [R-103].
@@ -59,7 +59,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs.
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
 - AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash. Two URLs on different Hosts returning byte-identical HTML containing relative links additionally hold distinct page_artifacts rows, keyed `(payload_sha256, final_url_identity)` — mirrors share bytes, never each other's resolved outlinks [DOC-11 §1].
-- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted.
+- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted. With [CFG-027]=0, [CFG-033]=0, or [CFG-043]=0, the corresponding sweep step deletes nothing (keep forever [DOC-11 §6]).
 
 ## Operations
 
