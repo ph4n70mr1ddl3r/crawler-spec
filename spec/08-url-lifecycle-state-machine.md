@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.18.0
+version: 1.19.0
 ---
 
 # URL Lifecycle State Machine
@@ -69,7 +69,10 @@ ST-150 ─► ST-180                attempts = [CFG-020]
                                 (defensive: unreachable in practice — the
                                 budget is evaluated at failure time
                                 [DOC-13 §3], so ST-150 records always hold
-                                attempts < [CFG-020])
+                                attempts < [CFG-020]); `next_attempt_mono`
+                                cleared (field hygiene — a backoff timer
+                                must not survive outside ST-150
+                                [DOC-12 §1])
 ST-150 ─► ST-190                host robots-unknown timeout [R-103]
 ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh

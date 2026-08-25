@@ -1,10 +1,52 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.21.0
+version: 1.22.0
 ---
 
 # Changelog
+
+## 1.22.0 — 2026-08-25 (review pass v22: consistency, completeness)
+
+### Consistency fixes
+
+- The defensive ST-150→ST-180 edge stranded a stale `next_attempt_mono`,
+  contradicting the field-hygiene invariant it sits under: [DOC-12 §1]
+  asserts `next_attempt_mono` is non-NULL only in ST-150, and every other
+  exit from ST-150 states its clearing (the due-time promotion, the
+  [R-103] sweep, the operator reset, upsert landings outside ST-150) —
+  but the machine's own legal edge (unreachable in practice, yet listed,
+  so bound by AC-052's legality check) did not. An implementation
+  exercising the defensive branch would carry a backoff timer into ST-180.
+  The edge now clears the column like every sibling exit.
+
+### Completeness additions
+
+- Robots-exchange redirect hops had no pinned unit accounting: §2.2 sends
+  the exchange with one global + one per-Host unit and follows redirects
+  "per [DOC-09 §3] hop rules", but nothing said the per-Host unit
+  transfers at each hop. An implementation could hold the original Host's
+  unit through a cross-host robots redirect and its subsequent politeness/
+  capacity waits, so per-host inflight attribution — which AC-011 counts
+  robots exchanges toward — diverged across conformant implementations.
+  Pinned: [R-131]'s hop dispatch protocol governs (release-before-acquire;
+  waits hold no Host unit).
+- R-133's `redirect_chain` refusal enumeration omitted the [ERR-011]
+  refusals that have a usable target identity: a non-followable final 3xx
+  status with a parsable `Location`, and a `Location` resolving to an
+  unacceptable target (non-http(s) scheme, userinfo). Whether the
+  stopped-at target was recorded was unspecified — audit divergence of
+  exactly the class the loop-refusal precedent ([R-132], v1.13.0)
+  eliminated for loops. Pinned: recorded, as a refused hop target; a
+  `Location` missing or too broken to yield an identity leaves nothing to
+  record; the last-element sentence now also covers refusal-terminal
+  chains (the old "received a final response" phrasing presupposed a
+  followed target). AC-056(b) extended to verify the recording.
+
+### Versioning
+
+- KB version 1.21.0 → 1.22.0; touched documents (DOC-07, DOC-08, DOC-09,
+  DOC-17) bumped accordingly.
 
 ## 1.21.0 — 2026-08-25 (review pass v21: correctness, consistency, completeness)
 

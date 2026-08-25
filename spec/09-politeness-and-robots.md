@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Politeness and robots.txt
@@ -34,7 +34,11 @@ the host politeness window, advances `next_allowed_fetch_at` identically to
 a page dispatch [FR-012], and holds one per-Host and one global unit
 while in flight. Redirect responses for the robots request itself are
 followed per [DOC-09 §3] hop rules — SSRF [R-400], the [CFG-037] URL
-blocklist [R-131], politeness, and caps apply — but scope [R-030] and
+blocklist [R-131], politeness, caps, and [R-131]'s hop dispatch protocol
+(unit release-before-acquire: the responding Host's unit is released when
+its response is received and the next hop's unit acquired immediately
+before the send, so politeness and capacity waits hold no Host unit)
+apply — but scope [R-030] and
 robots gates are not applied recursively
 (there is no robots-for-robots); the verdict is taken from the final
 response. A robots fetch that terminates without a final response —

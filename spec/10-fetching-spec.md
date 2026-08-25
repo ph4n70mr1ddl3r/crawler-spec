@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.16.0
+version: 1.17.0
 ---
 
 # Fetching
@@ -90,7 +90,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   chain ⇒ stop, ERR-011 (the check fires at the first such repetition —
   A→B→A is caught when the second hop target `A` is seen, not only on a
   later B).
-- R-133: The chain's outcome URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1]. `redirect_chain` lists, in order, every hop target the chain acted on — each `Location` target it followed, and each it refused at a gate or limit (loop [R-132], redirect cap [R-130], scope [ERR-015], robots [ERR-017], blocklist [ERR-019], SSRF [ERR-004], robots deferral [ERR-010], rate-limit abort [ERR-018]) — and never contains the requested identity as such (the list holds hop targets only; a loop-refused hop target that happens to equal the original identity is still recorded — it is a refused hop target, not the requested URL [R-132]); on any chain that received a final response the followed final target is its last element. It is empty for a no-redirect fetch. `final_url_identity` is the URL of the last response received in the attempt: the identity itself for a no-redirect fetch, the redirecting hop's URL for a pre-send abort, and the final target's URL when a final response arrived.
+- R-133: The chain's outcome URL is recorded as final_url_identity; the original identity keeps its record, linked via `redirect_chain` (ordered list of identities), persisted as JSON on the attempt's `fetch_events` row [DOC-11 §1]. `redirect_chain` lists, in order, every hop target the chain acted on — each `Location` target it followed, and each it refused at a gate or limit (loop [R-132]; redirect-cap exhaustion, an unfollowable final 3xx status, or an unacceptable resolved target — non-http(s) scheme or userinfo [ERR-011] — each recorded when its parsable `Location` yields an identity; a `Location` missing or too broken to yield an identity leaves nothing to record; scope [ERR-015]; robots [ERR-017]; blocklist [ERR-019]; SSRF [ERR-004]; robots deferral [ERR-010]; rate-limit abort [ERR-018]) — and never contains the requested identity as such (the list holds hop targets only; a loop-refused hop target that happens to equal the original identity is still recorded — it is a refused hop target, not the requested URL [R-132]); on any chain that followed a final target, that target is its last element (a chain terminated at a refusal ends with the refused hop target). It is empty for a no-redirect fetch. `final_url_identity` is the URL of the last response received in the attempt: the identity itself for a no-redirect fetch, the redirecting hop's URL for a pre-send abort, and the final target's URL when a final response arrived.
 
 ## 4. Response classification
 
