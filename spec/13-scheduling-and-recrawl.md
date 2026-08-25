@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Scheduling and Recrawl
@@ -49,7 +49,10 @@ prefix of the URL identity; if several prefixes match, the largest single
 boost applies (matches are never summed); the boost term remains within 0–300.
 
 - R-200: Priority never affects politeness or caps; it only reorders due work.
-- R-201: Priority is recomputed on each ST-140→ST-100 recrawl transition.
+- R-201: Priority is recomputed on each ST-140→ST-100 transition (recrawl due
+  and rediscovery refresh [R-052]) and on the operator DEAD reset [DOC-13 §4] —
+  the same recomputation points [DOC-12 §1] assigns; it is never recomputed
+  mid-cycle.
 
 ## 3. Dispatch loop (normative pseudocode)
 

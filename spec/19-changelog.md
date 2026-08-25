@@ -1,10 +1,71 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Changelog
+
+## 1.16.0 — 2026-08-25 (review pass v16: correctness, consistency, completeness, unambiguity)
+
+### Correctness fixes
+
+- Stale `last_error_class` survived recovery: [R-062]/AC-061(d) require a
+  RETRYABLE redirect-chain upsert to set the target's `last_error_class`, but
+  no success path ever cleared it — [T-2] owned the column "on failures" only,
+  and [DOC-13 §3] writes it only on DEAD/PERMANENT. A record upserted into
+  ST-150 with the chain's class, then promoted ST-150→ST-100 and fetched
+  successfully by itself, carried that stale failure class through
+  ST-130/ST-140 indefinitely — contradicting the column's documented meaning
+  ("the outcome that entered ST-180") and reporting a failure that no longer
+  exists. [T-2] now owns `last_error_class` on both branches (PERMANENT sets,
+  successful outcomes clear, ordinary RETRYABLE outcomes leave unchanged);
+  the schema comment states both writers; R-062 notes the class's transience;
+  AC-061(d) extended to verify the clear-after-recovery.
+- R-201 was narrower than every other assignment of priority recomputation:
+  [DOC-12 §1], DOC-07's operator-reset edge label, FR-051, and [DOC-13 §4]
+  recompute on recrawl due, rediscovery refresh, and operator reset, while
+  the normative rule named only recrawl — an implementation treating R-201 as
+  the rule would skip recomputation on two legal paths (same defect class as
+  the v1.4.0 R-231 unification). R-201 now lists all three.
+- DOC-16's front-matter version was not bumped in the 1.15.0 pass although its
+  §5 was edited there ("touched documents … bumped accordingly"); repaired to
+  1.15.0.
+
+### Completeness additions
+
+- `urls_discovered_total` was undefined for URL Records created by redirect
+  final-target upserts: they are not [FR-003]/[FR-004] ingestions, so whether
+  they increment the counter was unspecified and counts could diverge across
+  conformant implementations (R-240's closed-enum discipline). Pinned:
+  upsert creations count as `ingested` [DOC-15 §1].
+- ERR-018's host-counter treatment was defined only implicitly: R-112
+  enumerates exactly which RETRYABLE classes increment
+  `consecutive_failures` (ERR-018 absent ⇒ no increment) and calls out
+  ERR-010 explicitly, but ERR-018 — also RETRYABLE — went unmentioned,
+  inviting a plausible mis-implementation that increments it. The exclusion
+  is now explicit, with the rationale (the wait reflects the target Host's
+  own Crawl-delay, and the last exchange ran against the redirecting Host).
+- R-141 still said "log anomaly metric" without naming it; the rule now names
+  `content_length_mismatch_total` [DOC-15 §1] (the metric table already
+  back-referenced R-141).
+
+### Consistency fixes
+
+- FR-030 glossed `robots_state` = INITIAL as "before any first fetch to that
+  Host", but a Host whose robots acquisition failed has had fetch activity
+  while legitimately remaining INITIAL — the operative criterion is the
+  authoritative verdict ([R-106]). Gloss aligned.
+- The `pages` primary-key comment justified same-run refetch upserts with an
+  "operator-triggered refresh" — no such action exists in the operator API
+  surface ([DOC-16 §5]: inject seeds, DEAD reset, drain). Replaced with the
+  defined cause: rediscovery refresh under [CFG-021]=true [FR-051].
+
+### Versioning
+
+- KB version 1.15.0 → 1.16.0; touched documents (DOC-04, DOC-07, DOC-08,
+  DOC-09, DOC-11, DOC-12, DOC-15, DOC-17) bumped accordingly; DOC-16 repaired
+  to 1.15.0 for the missed prior-pass bump.
 
 ## 1.15.0 — 2026-08-25 (review pass v15: correctness, consistency, completeness, unambiguity)
 

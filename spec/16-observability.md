@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.13.0
+version: 1.16.0
 ---
 
 # Observability
@@ -12,7 +12,7 @@ Counters:
 
 | Metric | Labels | Meaning |
 |---|---|---|
-| urls_discovered_total | outcome{ingested,duplicate,excluded,dropped} | [FR-003..FR-004]; `dropped` = no-record discards ([R-001]/[R-002] unacceptable URLs; OUT_OF_SCOPE with [CFG-038]=false) |
+| urls_discovered_total | outcome{ingested,duplicate,excluded,dropped} | [FR-003..FR-004]; `ingested` also counts URL Records created by redirect final-target upserts [R-062] (they are not [FR-003]/[FR-004] ingestions); `dropped` = no-record discards ([R-001]/[R-002] unacceptable URLs; OUT_OF_SCOPE with [CFG-038]=false) |
 | state_transitions_total | from,to | every legal transition pair [ST-*]; `from=creation` labels the record-creating transitions — filter outcomes and the redirect final-target upsert [R-062] ([DOC-07 §2]) |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
 | bytes_downloaded_total | content_type_class | post-decode payload sizes; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |

@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Politeness and robots.txt
@@ -193,7 +193,7 @@ and inflight < CFG-009, then set
 
 - R-110: Start-to-start spacing between two requests to one Host ≥ EffectiveDelay — guaranteed by construction above. The request for a dispatched URL MUST be sent immediately after [T-1] commits; the only permitted pre-send step is the [R-054] re-check (which, when it fires, sends nothing), so dispatch-to-send latency cannot erode the guarantee.
 - R-111: HTTP `Retry-After` on 429/503 responses overrides computed backoff when larger: `next_allowed_fetch_at = max(computed, now + Retry-After)`. `Retry-After` is parsed as delta-seconds or HTTP-date (RFC 9110); unparseable values are ignored (computed backoff applies).
-- R-112: `consecutive_failures(h)` is incremented exactly by retryable page-fetch failures completed against Host h — outcome RETRYABLE with error_class ∈ {ERR-001 (transient resolution failure; permanent NXDOMAIN excluded), ERR-002, ERR-003, ERR-005, ERR-006, ERR-012, ERR-013}. ERR-010 (deferral) and every PERMANENT outcome leave it unchanged; any SUCCESS/UNCHANGED page fetch resets it to 0 [R-231]. robots.txt exchanges never modify it (their failure semantics are the deferral streak, §2.3). For redirect chains crossing Hosts, all host-counter effects (`consecutive_failures`, `pages_crawled`) attribute to the Host of the final hop — the exchange that produced the outcome; the source Host's counters are unaffected ([T-2]).
+- R-112: `consecutive_failures(h)` is incremented exactly by retryable page-fetch failures completed against Host h — outcome RETRYABLE with error_class ∈ {ERR-001 (transient resolution failure; permanent NXDOMAIN excluded), ERR-002, ERR-003, ERR-005, ERR-006, ERR-012, ERR-013}. ERR-010 (deferral), ERR-018 (hop politeness abort — the wait reflects the target Host's own Crawl-delay, and the last exchange ran against the redirecting Host, whose behavior caused no failure; penalizing either Host's failure history would be wrong), and every PERMANENT outcome leave it unchanged; any SUCCESS/UNCHANGED page fetch resets it to 0 [R-231]. robots.txt exchanges never modify it (their failure semantics are the deferral streak, §2.3). For redirect chains crossing Hosts, all host-counter effects (`consecutive_failures`, `pages_crawled`) attribute to the Host of the final hop — the exchange that produced the outcome; the source Host's counters are unaffected ([T-2]).
 
 ## 5. Honesty
 

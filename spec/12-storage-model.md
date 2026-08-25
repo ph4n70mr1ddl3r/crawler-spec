@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Storage Model
@@ -25,7 +25,7 @@ urls (
   source_run_id     INT  NOT NULL,
   discovered_from   TEXT NULL,            -- parent url_identity
   attempts          INT  NOT NULL DEFAULT 0,
-  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4]; NULL after operator reset, for crash-exhausted records [R-060], and after a success upsert of a terminal record [R-062]
+  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4], or of a RETRYABLE outcome that landed ST-150 via a redirect-chain upsert onto a pre-existing record [R-062]; cleared by every subsequent successful completion [T-2]; NULL after operator reset and for crash-exhausted records [R-060]
   consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
   once_retried_classes TEXT NOT NULL DEFAULT '[]', -- JSON array: yes-once error classes [R-232] already retried in the current attempt cycle; cleared when attempts resets to 0
@@ -56,8 +56,8 @@ pages (
 )
 
 -- Within a single Run a URL is fetched at most once per recrawl cycle; if a
--- same-run refetch ever occurs (e.g., operator-triggered refresh), it UPSERTS
--- (replaces) the prior row for that (url_identity, run_id) key.
+-- same-run refetch ever occurs (e.g., a rediscovery refresh under [CFG-021]=true
+-- [FR-051]), it UPSERTS (replaces) the prior row for that (url_identity, run_id) key.
 
 page_artifacts (
   payload_sha256    TEXT NOT NULL,
@@ -128,8 +128,11 @@ tmp/                     staging dir; atomic rename into place [R-500]
 - T-2: Completion transaction = {urls.state update — together with the
   completion-time URL fields it owns: `last_fetch_mono` := attempt
   completion time, the recrawl `due_at_mono` and `consecutive_unchanged`
-  [DOC-12 §4], and, on failures, `last_error_class` and
-  `once_retried_classes` [DOC-13 §3], [R-232] — pages insert(s),
+  [DOC-12 §4], `last_error_class` on both branches — PERMANENT outcomes set
+  it, successful outcomes (SUCCESS|UNCHANGED) clear it (a stale class must
+  not outlive recovery: a record can carry one set by a RETRYABLE
+  redirect-chain upsert [R-062]), ordinary RETRYABLE outcomes leave it
+  unchanged [DOC-13 §3] — and, on failures, `once_retried_classes` [R-232] — pages insert(s),
   fetch_event insert, hosts.inflight−1 for the single Host unit the attempt
   still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.

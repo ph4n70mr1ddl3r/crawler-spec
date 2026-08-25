@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.14.0
+version: 1.16.0
 ---
 
 # Functional Requirements
@@ -47,7 +47,7 @@ ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The see
 
 ## Robots & politeness (C4)
 
-- FR-030: While a Host's `robots_state` = INITIAL (i.e., before any first fetch to that Host), the system MUST obtain an authoritative robots verdict via [DOC-08 §2] (acquisition is single-flight per Host and initiated lazily [R-105]); UNKNOWN ⇒ defer, never fetch.
+- FR-030: While a Host's `robots_state` = INITIAL (i.e., before any authoritative verdict exists for that Host [R-106]), the system MUST obtain an authoritative robots verdict via [DOC-08 §2] (acquisition is single-flight per Host and initiated lazily [R-105]); UNKNOWN ⇒ defer, never fetch.
 - FR-031: DISALLOW verdicts MUST move the URL Record to ST-190/`ROBOTS_DISALLOW` without fetching.
 - FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) — all terms unit-normalized to milliseconds per [DOC-08 §4].
 

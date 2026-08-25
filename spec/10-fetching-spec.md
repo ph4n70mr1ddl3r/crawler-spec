@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.15.0
+version: 1.16.0
 ---
 
 # Fetching
@@ -116,7 +116,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 ## 5. Payload handling
 
 - R-140: Decode Content-Encoding before hashing [FR-024]; unknown encodings ⇒ ERR-013 (retryable once, then permanent).
-- R-141: Content-Length vs actual bytes mismatch ⇒ trust actual bytes, log anomaly metric.
+- R-141: Content-Length vs actual bytes mismatch ⇒ trust actual bytes, count `content_length_mismatch_total` [DOC-15 §1].
 - R-142: Charset detection order: HTTP `charset` param → BOM → HTML meta charset in first 1024 bytes → default UTF-8 (strict errors ⇒ replacement char, never fatal).
 - R-143: Non-HTML types: sniff Content-Type only; payload stored iff
   [CFG-028]=true and the media type is in the fixed set {`image/*`,

@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.13.0
+version: 1.15.0
 ---
 
 # Security and Abuse Prevention

@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.15.0
+version: 1.16.0
 ---
 
 # URL Lifecycle State Machine
@@ -218,7 +218,11 @@ exactly once [R-051].
   ST-130/ST-180).
 
   Failure upserts set `last_error_class` to the outcome's class; success
-  upserts clear it (mirroring [DOC-13 §3]). A RETRYABLE-outcome upsert
+  upserts clear it (mirroring [DOC-13 §3]'s accounting, where only DEAD and
+  PERMANENT outcomes leave a durable class). A class set by a RETRYABLE
+  upsert is transient: the target's own next successful completion clears it
+  [T-2], so a record recovered by its own fetch never carries a stale failure
+  class. A RETRYABLE-outcome upsert
   lands in ST-150 — with `next_attempt_mono` mirroring the source's (one
   chain, one retry schedule: the source's next attempt re-runs the chain
   [R-131] and re-upserts) — only when the record's `attempts` <
