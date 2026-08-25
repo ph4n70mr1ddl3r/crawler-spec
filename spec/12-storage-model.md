@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.18.0
+version: 1.19.0
 ---
 
 # Storage Model
@@ -123,7 +123,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
 
 - R-500: Blob writes: write `tmp/<random>` → fsync → rename to final path. A blob file, once visible under its hash name, is immutable and complete.
 - R-501: Before inserting a `pages` row referencing a hash, the blob MUST already exist on disk [INV-2].
-- R-502: Orphan blobs (no referencing pages row) are garbage after retention sweep [§6]; deletion allowed only then.
+- R-502: Orphan blobs (no referencing pages row) are garbage after retention sweep [§6]; deletion allowed only then — and only while no fetch attempt is in flight (no URL Record in {ST-110, ST-120}): an in-flight attempt may be about to commit a pages row referencing an apparently-orphaned blob — a freshly staged write sitting between [R-500] and [T-2] ([T-3]'s crash window), or a 304 completion [R-144] re-affirming a hash whose last referencing row the same sweep just deleted. Deleting either way manufactures the dangling reference [INV-2] forbids. The condition is re-evaluated every sweep ([CFG-046]), so collection merely waits out the in-flight attempts (bounded by their timeouts); crash-orphaned blobs remain collectible at the first post-restart sweep, when nothing is in flight.
 
 ## 3. Transactions & consistency
 
@@ -140,7 +140,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
    that entered ST-180 is durable [DOC-13 §4]) — and, on failures,
    `once_retried_classes` [R-232] — pages insert(s),
   fetch_event insert, hosts.inflight−1 for the single Host unit the attempt
-  still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the final response [R-112] — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
+  still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the exchange that produced the outcome [R-112] — the final hop's Host for a chain, the requesting Host when no response arrived (timeouts) — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062].
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 
 ## 4. Interfaces for the Downstream Consumer
@@ -166,10 +166,16 @@ Design point: 10M URL records, 5M blobs, single host. All queries above must use
     references its `(payload_sha256, final_url_identity)` pair; a blob file
     MAY be deleted only when NO remaining `pages` row references its
     payload_sha256 (payloads are shared across URL identities via dedup
-    [AC-042] — age alone never justifies deletion);
+    [AC-042] — age alone never justifies deletion) and no fetch attempt is
+    in flight ([R-502]: an in-flight attempt may still commit a pages row
+    referencing the blob);
   - DEAD/EXCLUDED url records not re-discovered for [CFG-043] days —
     `last_seen_at` when set, else `updated_at` — deleted; [CFG-043]=0
-    disables this deletion — keep forever [DOC-14]. A deleted record
+    disables this deletion — keep forever [DOC-14]. Records with
+    `is_seed=true` are exempt: the Crawl Scope set is derived from all URL
+    Records carrying that flag [FR-006], so deleting one would silently
+    shrink the scope (runtime-injected seeds are not re-ingested at
+    startup). A deleted record
     MAY be re-created by later discovery; that bounded re-evaluation
     (≤ [CFG-020] attempts per [CFG-043]-day cycle) is not automated
     re-activation [DOC-13 §4].

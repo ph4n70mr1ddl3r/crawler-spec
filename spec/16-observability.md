@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.19.0
+version: 1.20.0
 ---
 
 # Observability
@@ -15,10 +15,10 @@ Counters:
 | urls_discovered_total | outcome{ingested,duplicate,excluded,dropped} | [FR-003..FR-004]; `ingested` also counts URL Records created by redirect final-target upserts [R-062] (they are not [FR-003]/[FR-004] ingestions); `duplicate` = ingestion events finding a pre-existing record — rediscoveries ([FR-051], [INV-5], including seed re-injection [FR-006]) and redirect final-target upserts onto pre-existing records [R-062] — so the four buckets partition every ingestion event exactly; `dropped` = no-record discards ([R-001]/[R-002] unacceptable URLs — runtime-seed rejects included [FR-006], which have no URL Identity to store but are counted here identically to discovery-time discards; OUT_OF_SCOPE with [CFG-038]=false) |
 | state_transitions_total | from,to | every legal transition pair [ST-*]; `from=creation` labels the record-creating transitions — filter outcomes and the redirect final-target upsert [R-062] ([DOC-07 §2]) |
 | fetch_attempts_total | outcome,error_class | FetchResult outcomes |
-| bytes_downloaded_total | content_type_class | post-decode bytes of every response body received, whatever its later disposition — bodies discarded by type ([ERR-008]) or size ([ERR-007]: the bytes received up to the abort) still measure ingress; a `304` body contributes nothing; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |
+| bytes_downloaded_total | content_type_class | post-decode bytes of every response body received, whatever its later disposition — robots.txt bodies included ([DOC-08 §2.2]: the same fetch machinery, classed by its Content-Type like any body); bodies discarded by type ([ERR-008]) or size ([ERR-007]: the bytes received up to the abort) still measure ingress; a `304` body contributes nothing; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |
 | content_length_mismatch_total | — | counted when received body size ≠ the `Content-Length` header value [R-141] |
 | robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
-| exclusions_total | reason | ST-190 records by reason code; the series is exposed regardless of [CFG-038], but OUT_OF_SCOPE drops under [CFG-038]=false create no ST-190 record and are counted only by `urls_discovered_total{dropped}` [FR-004] |
+| exclusions_total | reason | cumulative entries into ST-190, by reason code — creations ([DOC-07 §2]) and later transitions in alike; monotonic, not the live count (that is the `excluded_count` gauge); the series is exposed regardless of [CFG-038], but OUT_OF_SCOPE drops under [CFG-038]=false create no ST-190 record and are counted only by `urls_discovered_total{dropped}` [FR-004] |
 
 Gauges:
 

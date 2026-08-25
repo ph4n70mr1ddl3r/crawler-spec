@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.19.0
+version: 1.20.0
 ---
 
 # Acceptance Criteria
@@ -50,8 +50,8 @@ false. Politeness tests use virtual time where possible [DEC-012].
 ## State machine & durability
 
 - AC-030: kill -9 during ST-110 (dispatched, request-sent status unknown) or ST-120 leaves the record resumable; after restart it is reclassified per the crash rule [DOC-13 §5], [R-060]: attempts preserved, state ST-150 with backoff-scheduled retry (ST-180 when the budget was exhausted by the crash — from either state), no politeness violation (persisted next_allowed_fetch_at respected), and `inflight` rebuilt to 0.
-- AC-031: kill -9 after blob write but before T-2 commit leaves an orphan blob that the retention sweep removes; no pages row references a missing blob ever (invariant scan passes).
-- AC-032: Full restart with unchanged config produces zero duplicate ingestions [NFR-012].
+- AC-031: kill -9 after blob write but before T-2 commit leaves an orphan blob that the retention sweep removes; no pages row references a missing blob ever (invariant scan passes). While a fetch attempt is in flight (fixture-held response), a sweep falling due in that window performs no blob deletions even for unreferenced blobs — the attempt may still commit a pages row referencing its staged blob, or, via a 304 completion [R-144], re-affirm a hash whose last referencing row the sweep just deleted; after the attempt settles, a later sweep collects genuine orphans [R-502], [DOC-11 §6].
+- AC-032: Full restart with unchanged config produces no duplicate work [NFR-012]: no URL Record is re-created ({ingested} unchanged); config-seed re-ingestion follows rediscovery semantics [FR-051], [FR-006] — `last_seen_at` updates, and scheduling refreshes only if [CFG-021]=true — and counts solely toward urls_discovered_total{duplicate} [DOC-15 §1].
 - AC-033: Replay of a recorded fixture produces identical fetch decision sequences across three runs [NFR-006].
 
 ## Extraction & storage
@@ -59,7 +59,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-040: Known HTML fixture yields exact expected artifact JSON (title, canonical, headings, main_text, outlinks) byte-identically across runs; a variant fixture whose valid relative `<base href>` overrides the final URL resolves its outlink candidates against that base ([R-021], [FR-042]).
 - AC-041: Page with meta robots=nofollow yields zero ingested anchor candidates but stores the page.
 - AC-042: Byte-identical payload from two different URLs shares one blob file; both pages rows reference its hash. Two URLs on different Hosts returning byte-identical HTML containing relative links additionally hold distinct page_artifacts rows, keyed `(payload_sha256, final_url_identity)` — mirrors share bytes, never each other's resolved outlinks [DOC-11 §1].
-- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted. With [CFG-027]=0, [CFG-033]=0, or [CFG-043]=0, the corresponding sweep step deletes nothing (keep forever [DOC-11 §6]).
+- AC-043: Retention job deletes pages older than CFG-027 including blobs, never leaving dangling references mid-sweep; a blob/artifact row still referenced by any surviving pages row is retained even when individual referencing pages are deleted. With [CFG-027]=0, [CFG-033]=0, or [CFG-043]=0, the corresponding sweep step deletes nothing (keep forever [DOC-11 §6]). Seed records (`is_seed=true`) are never deleted by the DEAD/EXCLUDED step, however stale [FR-006], [DOC-11 §6].
 
 ## Operations
 

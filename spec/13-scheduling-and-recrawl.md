@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Scheduling and Recrawl
@@ -120,8 +120,18 @@ UNKNOWN timeouts).
   record stays ST-100 and is re-selected on the next wake [R-211]
   (unit-releasing events — fetch completion [T-2], robots-exchange
   completion — are wake sources), so [FR-011(b)] can never be overshot.
-  Gate (e) cannot be raced either: ingestion is serialized in C1 [FR-005],
-  and the [R-103] sweep is performed by the loop itself.
+  Gate (e) cannot be overshot either. Ingestion is serialized in C1 [FR-005],
+   and the [R-103] sweep is performed by the loop itself — but the load-bearing
+   fact is that a concurrent [T-2] completion never raises
+   successes(D) + inflight(D): a successful completion converts the record's
+   own inflight unit into a success (net 0), a failure completion lowers the
+   sum, and dispatches — the only other movers — are loop-serialized. The sum
+   can therefore rise between a candidate's evaluation and its [T-1] commit
+   only via [R-062] redirect-final-target upserts landing on the domain from
+   chains already in flight — exactly the excess [FR-005] sanctions ("a domain
+   can exceed the cap only by chains already in flight when it was reached").
+   No in-transaction re-verification of (e) is required, and adding one would
+   wrongly convert that sanctioned transient excess into ST-190 exclusions.
 
 ## 4. Freshness & recrawl
 

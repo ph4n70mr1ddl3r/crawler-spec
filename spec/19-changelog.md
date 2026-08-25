@@ -1,10 +1,65 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.19.0
+version: 1.20.0
 ---
 
 # Changelog
+
+## 1.20.0 — 2026-08-25 (review pass v20: correctness, consistency, completeness)
+
+### Correctness fixes
+
+- Retention could manufacture the exact dangling reference [INV-2] forbids:
+  the blob-deletion step fired whenever no `pages` row referenced a blob, but
+  an in-flight attempt may be about to commit one — a freshly staged write in
+  the [T-3] crash window, or a 304 completion [R-144] re-affirming a hash
+  whose last referencing row the same sweep had just deleted. Blob deletion
+  now additionally requires that no fetch attempt is in flight
+  ({ST-110, ST-120}), re-evaluated every sweep ([R-502], [DOC-11 §6]);
+  crash-orphaned blobs remain collectible at the first post-restart sweep.
+  AC-031 extended.
+
+### Consistency fixes
+
+- R-212 justified gate (e)'s race-freedom with mechanisms that do not bear
+  the weight (C1 ingestion serialization and the [R-103] sweep — neither
+  covers worker-side [T-2] completions). The load-bearing fact is now stated:
+  a concurrent completion never raises successes(D)+inflight(D) (a success
+  converts the record's own inflight unit into a success, net 0; a failure
+  lowers the sum), so only [R-062] target upserts can lift the sum mid-window,
+  and [FR-005] sanctions exactly that excess; an in-transaction re-check of
+  (e) would wrongly convert that sanctioned transient excess into ST-190
+  exclusions.
+- T-2 attributed host counters to "the Host of the final response" —
+  undefined for response-less outcomes such as timeouts; aligned with
+  [R-112]'s "the exchange that produced the outcome".
+- AC-032 demanded "zero duplicate ingestions", which the v1.19.0 metric pin
+  makes impossible: config-seed re-ingestion counts as
+  urls_discovered_total{duplicate} by definition [DOC-15 §1]. AC-032 now
+  states the [NFR-012] property directly — no re-created records, rediscovery
+  semantics only — and routes the counter expectation to the duplicate
+  bucket.
+
+### Completeness additions
+
+- bytes_downloaded_total's "every response body received" basis was unpinned
+  for robots.txt exchanges: bodies received through the same fetch machinery
+  but not page fetches, so implementations could diverge on counting them
+  (R-240's closed-enum discipline). Pinned: included, classed by their
+  Content-Type like any body [DOC-15 §1].
+- exclusions_total read as either a live stock ("ST-190 records") or a
+  monotonic counter; the gauge excluded_count already carries the live count.
+  Pinned: cumulative entries into ST-190, monotonic [DOC-15 §1].
+- The DEAD/EXCLUDED retention sweep could delete `is_seed=true` records,
+  silently shrinking the Crawl Scope set [FR-006] derives from that flag —
+  permanent for runtime-injected seeds, which no startup re-ingests. Seed
+  records are now exempt from the step ([DOC-11 §6]). AC-043 extended.
+
+### Versioning
+
+- KB version 1.19.0 → 1.20.0; touched documents (DOC-11, DOC-12, DOC-15,
+  DOC-17) bumped accordingly.
 
 ## 1.19.0 — 2026-08-25 (review pass v19: correctness, consistency, completeness)
 
