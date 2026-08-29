@@ -1,10 +1,36 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.22.0
+version: 1.23.0
 ---
 
 # Changelog
+
+## 1.23.0 — 2026-08-29 (review pass v23: completeness)
+
+### Completeness additions
+
+- Added AC-063 through AC-069 to close acceptance-criterion gaps for behaviors
+  that were fully specified but untested: header-size rejection (ERR-016,
+  [DOC-16 §3]); all four trap-filter reason codes (TRAP_PARAM, TRAP_PATH_BUDGET,
+  DEPTH_LIMIT, BLOCKLIST, [DOC-06 §5]); redirect-out-of-scope termination
+  (ERR-015, [R-030]); and SSRF-block redirect with host suspicious-flag
+  (ERR-004 + R-402). All four trap filters and ERR-016/ERR-015 had normative
+  rules and ST-190/Error classifications but no verifiable AC, so a conformant
+  implementation could pass all existing ACs while violating them.
+
+### Consistency additions
+
+- Documented the categorical AC numbering scheme in the README conventions
+  section (001–006 ingestion, 010–019 politeness/scheduling, 020–029
+  fetching/errors, 030–033 state machine, 040–043 extraction/storage,
+  050–059 operations, 060+ security/redirects) so the intentional gaps are
+  explicit rather than ambiguous.
+
+### Versioning
+
+- KB version 1.22.0 → 1.23.0; touched documents (DOC-17, DOC-18) bumped
+  accordingly.
 
 ## 1.22.0 — 2026-08-25 (review pass v22: consistency, completeness)
 
