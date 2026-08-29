@@ -29,7 +29,7 @@ version: 1.23.0
 
 ### Versioning
 
-- KB version 1.22.0 → 1.23.0; touched documents (DOC-17, DOC-18) bumped
+- KB version 1.22.0 → 1.23.0; touched documents (DOC-00, DOC-17, DOC-18) bumped
   accordingly.
 
 ## 1.22.0 — 2026-08-25 (review pass v22: consistency, completeness)
