@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.19.0
+version: 1.20.0
 ---
 
 # Storage Model

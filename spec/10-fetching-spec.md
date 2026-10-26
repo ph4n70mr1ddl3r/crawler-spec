@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.17.0
+version: 1.22.0
 ---
 
 # Fetching

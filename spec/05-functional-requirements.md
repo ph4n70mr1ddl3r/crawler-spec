@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.17.0
+version: 1.18.0
 ---
 
 # Functional Requirements

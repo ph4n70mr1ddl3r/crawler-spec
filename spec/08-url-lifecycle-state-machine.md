@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.19.0
+version: 1.22.0
 ---
 
 # URL Lifecycle State Machine

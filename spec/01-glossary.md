@@ -1,7 +1,7 @@
 ---
 id: DOC-00
 title: Glossary and Controlled Vocabulary
-version: 1.14.0
+version: 1.23.0
 ---
 
 # Glossary

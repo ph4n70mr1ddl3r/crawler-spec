@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.13.0
+version: 1.19.0
 ---
 
 # Architecture
