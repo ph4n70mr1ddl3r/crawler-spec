@@ -1,10 +1,20 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.23.0
+version: 1.24.0
 ---
 
 # Changelog
+
+## 1.24.0 — 2026-08-29 (housekeeping)
+
+### Housekeeping
+
+- Fixed the README `last-updated` date, which had gone stale (2026-08-25 → 2026-08-29) after the v1.23.0 release.
+
+### Versioning
+
+- KB version 1.23.0 → 1.24.0; touched documents (README, DOC-18) bumped accordingly.
 
 ## 1.23.0 — 2026-08-29 (review pass v23: completeness)
 
