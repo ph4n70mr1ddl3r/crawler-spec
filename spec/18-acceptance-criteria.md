@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.24.0
+version: 1.25.0
 ---
 
 # Acceptance Criteria
