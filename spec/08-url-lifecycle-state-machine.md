@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.22.0
+version: 1.23.0
 ---
 
 # URL Lifecycle State Machine
@@ -200,8 +200,8 @@ exactly once [R-051].
   the source's (with `final_url_identity` = the target identity [FR-044]) and
   the target's (with `final_url_identity` = itself); both records move to
   ST-130 and progress to ST-140 via their own extraction passes — identical
-  payload and resolution base ⇒ identical artifacts, upsert-idempotent
-  [R-157].
+  payload and resolution base ⇒ identical artifacts ([R-157]); the upsert is
+  idempotent by this rule: creation-time fields are never rewritten.
 
   If a URL Record for the target identity already exists, the creation-time
   fields — `depth`, `discovered_from`, `source_run_id`, `raw_first_seen`,

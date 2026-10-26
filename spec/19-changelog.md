@@ -1,10 +1,20 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.24.0
+version: 1.25.0
 ---
 
 # Changelog
+
+## 1.25.0 — 2026-10-26 (housekeeping)
+
+### Correctness fixes
+
+- Citation fixes: [FR-023] classified oversized payloads as PERMANENT/ERR-007 but pointed at [DOC-09 §6] (the FetchResult field contract); the class is defined in [DOC-13 §1], so the cite now points there. [AC-020] cited [DOC-09 §6] for redirect-cap ERR-011; that rule is [R-130] (§3), so the cite now points there. [R-062] attached [R-157] (extraction determinism) to "upsert-idempotent", which this rule itself defines; [R-157] now credits the identical-artifacts claim and idempotency is attributed to the rule.
+
+### Versioning
+
+- KB version 1.24.0 → 1.25.0; touched documents (README, DOC-04, DOC-07, DOC-17, DOC-18) bumped accordingly.
 
 ## 1.24.0 — 2026-08-29 (housekeeping)
 

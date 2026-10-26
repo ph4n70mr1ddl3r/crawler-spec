@@ -1,7 +1,7 @@
 ---
 id: DOC-04
 title: Functional Requirements
-version: 1.18.0
+version: 1.19.0
 ---
 
 # Functional Requirements
@@ -41,7 +41,7 @@ ST-190/`OUT_OF_SCOPE`. In both cases the running process MUST NOT abort. The see
 - FR-020: The system MUST send requests with header `User-Agent` equal exactly to [CFG-018], plus `Accept`, `Accept-Encoding: gzip, deflate, br`, and `From` when [CFG-019] set. No cookies, no referer spoofing, no fingerprint rotation [DEC-010].
 - FR-021: The system MUST follow HTTP 3xx redirects up to [CFG-017], applying SSRF checks and robots checks to every hop target [DOC-16 §2], [DOC-08 §3]. Redirect chains crossing hosts re-check each Host's gate.
 - FR-022: The system MUST enforce timeouts [CFG-012..CFG-015] plus the DNS timeout [CFG-036] independently and abort on violation, classifying per [DOC-13].
-- FR-023: The system MUST abort and discard a body exceeding [CFG-016], classifying the outcome PERMANENT with error_class ERR-007 [DOC-09 §6]; partial data MUST NOT be persisted.
+- FR-023: The system MUST abort and discard a body exceeding [CFG-016], classifying the outcome PERMANENT with error_class ERR-007 [DOC-13 §1]; partial data MUST NOT be persisted.
 - FR-024: The system MUST decode Content-Encoding (`gzip`, `deflate`, `br`) before hashing/storing the Payload.
 - FR-025: The system MUST record every attempt as a fetch_event with status, timings, error class, final URL, payload hash (on success) [DOC-11 §1].
 
