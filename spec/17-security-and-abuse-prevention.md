@@ -1,7 +1,7 @@
 ---
 id: DOC-16
 title: Security, Safety, and Abuse Prevention
-version: 1.21.0
+version: 1.26.0
 ---
 
 # Security and Abuse Prevention
@@ -31,7 +31,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
      uses a fixed total order — sorted ascending, IPv4 before IPv6, numeric
      order within each family — preserving replay determinism [NFR-006].
 - R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
-- R-402: Redirect to a blocked target terminates the chain with ERR-004; the referring URL is marked ST-180 with error_class ERR-004 and the referring URL's Host is flagged `suspicious=true` (operator-visible metric only).
+- R-402: A redirect hop target blocked by the egress policy terminates the chain with ERR-004. The source URL Record is marked ST-180 with error_class ERR-004; the Host of the redirecting hop that supplied the offending `Location` (the referring hop, which may be an intermediate hop) is flagged `suspicious=true` (operator-visible metric only). The blocked target is never fetched.
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
 - R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted)
   and R-401 (non-default ports permitted — the fixture server need not
@@ -56,7 +56,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
 | URLs per page | 1000 extracted + overflow flag | ingestion cap [DOC-10 §2 R-159]; recorded outlink list likewise capped [DOC-10 §3] |
 | path shapes per host | [CFG-030] | trap guard [DOC-06 §5] |
 | total records | [CFG-005] | [FR-005] |
-| metadata row size | artifacts JSON ≤ 2 MiB | tail-truncate per the fixed order in [DOC-10 §3] (headings → main_text → outlinks), flag `truncated` |
+| metadata row size | artifacts JSON ≤ 2 MiB | tail-truncate per the fixed order in [DOC-10 §3] (headings → main_text → outlinks → the remaining variable-length strings), flag `truncated` |
 
 - R-310: Decompression bomb defense: decoded size counts toward [CFG-016];
   decoding streams MUST abort as soon as the running byte count exceeds it.

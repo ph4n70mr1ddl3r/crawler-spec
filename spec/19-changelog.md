@@ -1,10 +1,102 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.25.0
+version: 1.26.0
 ---
 
 # Changelog
+
+## 1.26.0 — 2026-10-27 (review pass v26: correctness, completeness, consistency)
+
+### Correctness fixes
+
+- The blocklist glob language was undefined: [CFG-029] and [CFG-037] said
+  "glob patterns" but never defined metacharacters, anchoring, case
+  sensitivity, or escaping — two conformant implementations could disagree
+  on a security-relevant blocklist, and [CFG-037] is enforced on redirect
+  hops [R-131]. New [R-043] pins the language: whole-string, case-sensitive
+  match; `*`, `?`, and `\` escapes only; no character classes or implicit
+  wildcards; empty pattern matches only the empty string. [CFG-029]/[CFG-037]
+  cite it; AC-064/AC-067 exercise matching.
+- Runtime seeds on a new domain/Host were not always in scope: the Scope
+  predicate derives the seed set from existing `is_seed` records [FR-006],
+  but a runtime seed's own record is created only after the predicate passes
+  — under SEED_DOMAINS/SEED_HOSTS a well-formed new-domain seed would be
+  recorded OUT_OF_SCOPE and never fetched, contradicting "behaves identically
+  to a config seed". New [R-032] includes the seed itself in the set before
+  evaluation (PREFIX_LIST remains fixed by [CFG-039]/[V-4]); [FR-006] and
+  AC-058 aligned.
+- [R-062] said "both records move to ST-130" on a successful redirect chain,
+  contradicting its own rule that an independently in-flight target record
+  ({ST-110, ST-120}) is untouched; and for a failing chain it told the
+  in-flight target to record "its `pages` row", although failure completions
+  insert no page row. The success sentence now carries the target-in-flight
+  exception, and the exception is scoped to "on chain success" with state,
+  `attempts`, and `last_error_class` untouched. The same-state-landing list
+  also omitted ST-130→ST-130 (a pre-existing extraction-pending target).
+- [R-402] marked "the referring URL" ST-180 on an SSRF-blocked redirect. For
+  a block at hop *n* > 1 the referring URL is an intermediate hop with no URL
+  Record, while [DOC-09 §4] marks the source record. R-402 now names the
+  source URL Record for the state change and the Host of the redirecting hop
+  for the `suspicious` flag; AC-069 aligned.
+- [DOC-13 §3]'s ERR-018 floor was dimensionally wrong: it took
+  `max(delay, target_Host.next_allowed_fetch_at)`, mixing a duration with an
+  absolute monotonic instant (the same class as the v1.7.0 NFR-004 unit
+  error). The floor is now applied to `next_attempt_mono` as an absolute
+  instant; Retry-After remains a converted, never-clamped delay floor.
+- The extraction completion path had no storage transaction: [T-2] inserts
+  `pages` rows at fetch completion, before parsing, yet `pages.title`,
+  `noindex`, `parse_ok`, and `parse_reason` are extraction outputs and
+  nothing wrote them. New [T-4] commits the page-artifact upsert/materialized
+  metadata and ST-130→ST-140 transition atomically and idempotently; [T-2]
+  now states the extraction-owned columns may be left at defaults. AC-041
+  verifies title/noindex persistence.
+- The artifacts 2 MiB cap was unenforceable for large non-list fields:
+  truncation covered only headings/main_text/outlinks, so a huge
+  title/description/meta string could exceed the cap even after those were
+  emptied. The fixed truncation order now continues through the remaining
+  variable-length strings, and `word_count` is recomputed from the final
+  stored `main_text` so it never describes discarded text. AC-071 added.
+- `outlinks` was ambiguous about deduplication, ordering, and which
+  candidates it contains, although AC-040 demands byte-identical artifacts.
+  It is now the deduplicated ([R-154]), document-ordered set of
+  anchor-derived candidates including nofollow and later-filtered ones, with
+  anchor text per [R-156]; non-anchor sources are explicitly excluded.
+- [DOC-15 §1]'s `from=creation` description omitted creation→ST-100, the
+  most common record-creating transition, although [DOC-07 §2] lists three
+  creation arrows. All three are now enumerated, and AC-052 checks the label.
+- [DOC-09 R-145] left timings undefined for a chain aborted before its next
+  hop was sent; the phase timers are now the last exchange actually
+  performed, with `total` spanning the attempt to that point.
+
+### Completeness additions
+
+- Redirect-hop robots re-check: the hop gate was evaluated before the
+  politeness/capacity wait, and step 4 sent without re-reading the verdict, so
+  a robots change during a (possibly [CFG-035]-long) wait could still send.
+  Step 4 now re-reads the verdict immediately before send — the hop analogue
+  of [R-054] — aborting DISALLOW as ERR-017 and UNKNOWN as ERR-010. New
+  AC-070.
+- [V-7]: [CFG-044] (`robots_defer_backoff_start_s`) could exceed [CFG-040]
+  (`robots_defer_max_s`), making the "initial backoff capped by the maximum"
+  rule ill-defined. Startup now requires `CFG-044 ≤ CFG-040`; AC-060 covers
+  it.
+- AC-056(b) now covers the userinfo case that [R-130] already classifies.
+
+### Consistency fixes
+
+- AC-012's "Allow longer-match wins on tie" was garbled; it now states the
+  actual [R-101] rule (longest value wins; Allow wins an exact-length tie).
+- README's AC categorical scheme claimed 060+ was "security/redirects", but
+  AC-060–AC-071 also cover configuration validation, resource caps, trap
+  filters, and extraction caps; the scheme now says "cross-cutting
+  conformance".
+
+### Versioning
+
+- KB version 1.25.0 → 1.26.0; touched documents (README, DOC-04, DOC-06,
+  DOC-07, DOC-09, DOC-10, DOC-11, DOC-13, DOC-14, DOC-15, DOC-16, DOC-17,
+  DOC-18) bumped accordingly.
 
 ## 1.25.0 — 2026-10-26 (housekeeping)
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.25.0
+version: 1.26.0
 ---
 
 # URL Lifecycle State Machine
@@ -91,8 +91,8 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 the outcome states above). Never from
                                 {ST-110, ST-120} — an independent fetch in
                                 flight is untouched by the upsert. A same-state
-                                landing (ST-150→ST-150, ST-180→ST-180,
-                                ST-190→ST-190) is not a transition: no
+                                landing (ST-130→ST-130, ST-150→ST-150,
+                                ST-180→ST-180) is not a transition: no
                                 metric is emitted for it.
 ```
 
@@ -199,9 +199,12 @@ exactly once [R-051].
   On chain success, [T-2] commits two `pages` rows in the same transaction:
   the source's (with `final_url_identity` = the target identity [FR-044]) and
   the target's (with `final_url_identity` = itself); both records move to
-  ST-130 and progress to ST-140 via their own extraction passes — identical
-  payload and resolution base ⇒ identical artifacts ([R-157]); the upsert is
-  idempotent by this rule: creation-time fields are never rewritten.
+  ST-130 and progress to ST-140 via their own extraction passes — except a
+  target record independently in {ST-110, ST-120}, whose state and
+  `attempts` are preserved as stated below and whose own completion governs
+  it. Identical payload and resolution base ⇒ identical artifacts ([R-157]);
+  the upsert is idempotent by this rule: creation-time fields are never
+  rewritten.
 
   If a URL Record for the target identity already exists, the creation-time
   fields — `depth`, `discovered_from`, `source_run_id`, `raw_first_seen`,
@@ -217,8 +220,9 @@ exactly once [R-051].
   [DOC-13 §4] nor a rediscovery under [FR-051]. A record in {ST-110, ST-120} — an independent fetch in
   flight — MUST NOT have its state or `attempts` modified (overwriting it
   would corrupt its unit accounting [R-051]): the chain records `last_seen_at`
-  and its `pages` row only, and the concurrent attempt's own [T-2] governs
-  the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
+  and, on chain success, its `pages` row only; its state, `attempts`, and
+  `last_error_class` are left untouched, and the concurrent attempt's own
+  [T-2] governs the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
   takes the fetch-outcome state as above. An upsert that moves a record out
   of ST-190 clears `exclude_reason` (the exclusion no longer applies — the
   column is defined only for ST-190 [DOC-11 §1]); a landing outside ST-150

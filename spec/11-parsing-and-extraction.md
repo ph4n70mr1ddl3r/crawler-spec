@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.21.0
+version: 1.26.0
 ---
 
 # Parsing and Extraction
@@ -61,18 +61,22 @@ blob [FR-043] but hold distinct artifacts when their resolved outlinks differ:
 | headings | ordered list of `{level, text}` for h1–h3 (capped at 1000 entries; overflow sets `truncated`) |
 | main_text | text content of `<body>` after removing script/style/nav/footer/aside/template/noscript, whitespace-normalized, capped at 1 MiB characters |
 | word_count | count of whitespace-separated tokens in `main_text` |
-| outlinks | list of `{url_identity, anchor_text, nofollow}` (capped 1000/page; overflow flagged) |
+| outlinks | ordered list of `{url_identity, anchor_text, nofollow}` for anchor-derived candidates surviving resolution, normalization, and within-page deduplication ([R-154]), in document order — including `nofollow` candidates and candidates later excluded by scope/trap filters or ingestion [R-155] (capped 1000/page; overflow sets `truncated`). `anchor_text` is the [R-156] value, empty for candidates without anchor text |
 | truncated | `true` iff any per-page cap (extracted-candidate overflow [R-159], headings, outlinks, main_text, artifacts JSON size [DOC-16 §3]) was applied |
 
-`outlinks` records all extracted anchor candidates — including `nofollow`
-ones, flagged — regardless of ingestion [R-155]; a page-level `nofollow` page
-[FR-045] stores its full flagged outlink list while ingesting none.
+`outlinks` records anchor-derived candidates regardless of ingestion [R-155];
+a page-level `nofollow` page [FR-045] stores its full flagged outlink list
+while ingesting none. Non-anchor discovery sources ([§2] area, images,
+iframes, link, meta refresh) are not part of `outlinks`.
 
 Serialization cap: when the serialized artifacts JSON would exceed the
 2 MiB row cap [DOC-16 §3], fields are tail-truncated in a fixed order —
 `headings` first, then `main_text`, then `outlinks` (each dropping from its
-end) — until the document fits, and `truncated=true`. The order and the
-tail-truncation are normative so that [R-157]'s byte-identical guarantee
+end), then the remaining variable-length strings: `description`, `title`,
+`meta_refresh.target`, `canonical_url`, `meta_robots`, `lang` — until the
+document fits, and `truncated=true`. `word_count` is then recomputed from the
+final stored `main_text`, so it always describes that string. The order and
+the tail-truncation are normative so that [R-157]'s byte-identical guarantee
 extends to capped pages.
 
 - R-157: Extraction is deterministic: same input bytes and same resolution base (final URL) ⇒ byte-identical artifact JSON (stable key ordering).
@@ -84,4 +88,6 @@ Parse failures (should be rare given error recovery) mark the page
 `parse_ok=false` with reason string (error class ERR-009 plus detail;
 recorded on the `pages` row only — never a FetchResult error_class, since
 parsing is post-fetch); payload is retained; state still advances
-ST-130→ST-140 (extraction "complete" includes failed-parse recording).
+ST-130→ST-140 (extraction "complete" includes failed-parse recording). The
+page metadata writes and the ST-130→ST-140 transition commit in the
+extraction-completion transaction [T-4] [DOC-11 §3].

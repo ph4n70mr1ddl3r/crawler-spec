@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.17.0
+version: 1.26.0
 ---
 
 # Configuration
@@ -30,7 +30,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-009 | per_host_concurrency | int | 2 | 1–16 |
 | CFG-010 | global_concurrency | int | 64 | 1–1024 |
 | CFG-011 | dynamic_backoff_enabled | bool | true | |
-| CFG-040 | robots_defer_max_s | int | 86400 (24 h) | 60–604800; cap for robots-deferral exponential backoff [DOC-08 §2], and the continuous-deferral duration after which gated URLs go ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103] |
+| CFG-040 | robots_defer_max_s | int | 86400 (24 h) | 60–604800; cap for robots-deferral exponential backoff [DOC-08 §2], and the continuous-deferral duration after which gated URLs go ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103]; [V-7] requires [CFG-044] ≤ this value |
 | CFG-044 | robots_defer_backoff_start_s | int | 60 | 1–3600; initial robots-deferral backoff [DOC-08 §2] (the ×2 doubling factor is fixed) |
 
 ## Fetching
@@ -71,7 +71,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 |----|------|------|---------|-------|
 | CFG-027 | retention_days | int | 90 | ≥0; 0 = keep forever |
 | CFG-028 | store_non_html | bool | true | allowed types [R-143] |
-| CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names (names extracted per [DOC-06 §5] filter 2) |
+| CFG-029 | url_param_blocklist | list | `["sid","sessionid","phpsessid","jsessionid"]` | glob patterns on param names, matched per [R-043] (names extracted per [DOC-06 §5] filter 2) |
 | CFG-030 | max_similar_paths_per_host | int | 500 | >0; trap guard [DOC-06 §5] — at most [CFG-030] URLs per Host may share a path shape |
 | CFG-031 | manual_boosts | list | `[]` | `{prefix, boost}` pairs, boost 0–300; a prefix matches as a case-sensitive string prefix of the URL identity; multiple matches ⇒ largest single boost [DOC-12 §2] |
 | CFG-043 | url_record_retention_days | int | 180 | ≥0; 0 = keep forever; DEAD/EXCLUDED record retention basis [DOC-11 §6] |
@@ -85,7 +85,7 @@ Every parameter is referenced elsewhere only by its CFG id.
 | CFG-034 | health_listen_addr | string | null | optional HTTP endpoint for metrics/health [DOC-15]; also exposes operator actions [DOC-16 §5] |
 | CFG-045 | run_summary_every | int | 1000 | ≥1; completions between `run_summary` events [DOC-15 §4] |
 | CFG-046 | retention_sweep_interval_s | int | 3600 | 60–86400; retention job cadence [DOC-11 §6] |
-| CFG-037 | url_blocklist | list | `[]` | glob patterns matched against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
+| CFG-037 | url_blocklist | list | `[]` | glob patterns matched per [R-043] against normalized URLs → ST-190/`BLOCKLIST` [DOC-06 §5] |
 | CFG-038 | record_out_of_scope | bool | true | record ST-190 rows for out-of-scope URLs instead of dropping silently [FR-004] (renamed from `log_exclusions`: it governs audit rows, not logging — the exclusions_total series [DOC-15 §1] is exposed regardless of this setting, and drops are counted in `urls_discovered_total{dropped}`) |
 
 ## Security
@@ -103,3 +103,4 @@ Every parameter is referenced elsewhere only by its CFG id.
 - V-4: If scope_mode=PREFIX_LIST, every seed MUST match ≥1 entry of [CFG-039]; violation aborts startup [DEC-011] (a seed that is out of scope would otherwise silently crawl nothing).
 - V-5: [CFG-018] MUST match the UA Token pattern `name/version (+url)` [R-120], and [CFG-019], when set, MUST be a valid email address; violation ⇒ abort per [V-1].
 - V-6: [CFG-003] MUST be a non-empty subset of {http, https} (an empty set would make every URL unacceptable and the crawl a no-op); violation ⇒ abort per [V-1].
+- V-7: [CFG-044] MUST be ≤ [CFG-040] (the initial robots-deferral backoff must not exceed its cap); violation ⇒ abort per [V-1].

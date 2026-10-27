@@ -1,8 +1,8 @@
 ---
 kb: web-crawler-spec
-version: 1.25.0
+version: 1.26.0
 status: APPROVED-DRAFT
-last-updated: 2026-10-26
+last-updated: 2026-10-27
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.
 ---
 
@@ -46,7 +46,9 @@ expressed as a numbered, testable requirement or rule.
 - **Requirement IDs**: `FR-nnn` functional, `NFR-nnn` non-functional,
   `AC-nnn` acceptance criterion (categorical: 001–006 ingestion, 010–019
   politeness/scheduling, 020–029 fetching/errors, 030–033 state machine,
-  040–043 extraction/storage, 050–059 operations, 060+ security/redirects),
+  040–043 extraction/storage, 050–059 operations, 060+ cross-cutting
+  conformance — configuration, resource caps, trap filters, redirects,
+  and security),
   `CFG-nnn` configuration parameter, `ERR-nnn` error class, `ST-nnn` state,
   `DEC-nnn` decision, `R-nnn` normative rule.
 - **Auxiliary ID families** (each owned by the document that defines it):

@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.9.0
+version: 1.26.0
 ---
 
 # URL Model and Normalization
@@ -59,6 +59,7 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 
 - R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome PERMANENT and error_class ERR-015; no fetch of the target occurs.
 - R-031: The Scope predicate is evaluated exactly once per new identity, at ingestion; the verdict is reflected in the record's state (ST-190/`OUT_OF_SCOPE` vs. queued) and is never re-evaluated for that identity. Redirect targets are evaluated per hop [R-030].
+- R-032: A seed is evaluated against a scope set that already contains the seed itself. In SEED_DOMAINS, the seed's Registrable Domain is added to the seed Registrable Domains set before the predicate runs; in SEED_HOSTS, its Host is added to the seed Hosts set. Consequently a seed is always IN_SCOPE in those modes, whether supplied at startup [CFG-001] or injected at runtime [FR-006], and a seed can introduce a new domain or Host. PREFIX_LIST is fixed by [CFG-039]: a seed that matches no entry is OUT_OF_SCOPE and is rejected/recorded per [V-4] and [FR-006].
 
 ## 5. Trap mitigation (pre-scheduling filters)
 
@@ -72,6 +73,16 @@ Applied to IN_SCOPE URLs in order; first match wins:
 3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of existing URL Records on that Host sharing the shape — each identity counted once, any state [R-042]; the candidate itself is not yet a record, since filters run before insertion [R-040] — is ≥ [CFG-030] → ST-190/`TRAP_PATH_BUDGET` (at most [CFG-030] URLs may share one shape per Host).
 4. **Depth**: depth > [CFG-004] → ST-190/`DEPTH_LIMIT`. Seeds have depth 0.
 
+- R-043: The glob language used by [CFG-037] (URL blocklist) and
+  [CFG-029] (parameter blocklist) is defined as follows. A pattern is matched
+  against the whole target string — the URL Identity for [CFG-037], the
+  extracted parameter name for [CFG-029] — with both ends implicitly anchored,
+  case-sensitively. `*` matches any sequence of characters, including the
+  empty sequence; `?` matches exactly one character; `\` escapes the next
+  character (`\*` and `\?` match literals; a trailing `\` matches a literal
+  backslash). No other character is special: there are no character classes,
+  alternation, or implicit wildcards. An empty pattern matches only the empty
+  string.
 - R-040: Filters MUST run before Frontier insertion so traps never consume fetch capacity.
 - R-041: Excluded URLs keep records (state ST-190) so re-discovery is O(1) and
   auditable — except OUT_OF_SCOPE URLs when [CFG-038]=false, which are dropped

@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.22.0
+version: 1.26.0
 ---
 
 # Fetching
@@ -80,11 +80,17 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
      holders are in-flight requests that complete within their timeouts,
      and the waiting task holds no Host unit, so the wait is bounded and
      cannot cycle.
-  4. Immediately before the hop request is sent, one unit is acquired on
-     the target Host and the window is advanced identically to [FR-012]
+  4. Immediately before the hop request is sent, the target Host's robots
+     verdict is re-read — the hop's equivalent of the [R-054] send-time
+     re-check, covering verdict changes during the waits of step 3. A change
+     to DISALLOW terminates the chain PERMANENT/ERR-017; a change to UNKNOWN
+     (Host deferred) aborts it RETRYABLE/ERR-010. No request is sent in
+     either case. Otherwise one unit is acquired on the target Host and the
+     window is advanced identically to [FR-012]
      (`next_allowed_fetch_at = max(next_allowed_fetch_at, now) +
-     EffectiveDelay`); while the request is in flight the task holds that
-     one unit and no other Host unit [R-051].
+     EffectiveDelay`), atomically with the capacity check; while the request
+     is in flight the task holds that one unit and no other Host unit
+     [R-051].
 - R-132: Redirect loop detection: a hop target whose identity equals the
   original identity or repeats any earlier hop target's identity within the
   chain ⇒ stop, ERR-011 (the check fires at the first such repetition —
@@ -166,4 +172,7 @@ Scheduler consumes outcomes per [DOC-13].
 - R-145: For redirect chains, `timings_ms.total` spans the entire chain
   (including per-hop politeness waits); `dns`/`connect`/`tls`/`ttfb` refer to
   the final hop's connection; `payload_sha256`/`payload_size`/`content_type`
-  describe the final response.
+  describe the final response. A chain aborted before sending its next hop
+  request reports the phase timers of the last exchange actually performed
+  (the requested URL when the first hop is refused, otherwise the redirecting
+  hop), with `total` spanning the attempt to that point.
