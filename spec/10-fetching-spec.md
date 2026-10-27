@@ -1,7 +1,7 @@
 ---
 id: DOC-09
 title: Fetching Specification (HTTP Behavior)
-version: 1.26.0
+version: 1.27.0
 ---
 
 # Fetching
@@ -103,6 +103,7 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 | Status | Class | Action |
 |---|---|---|
 | 1xx (interim) | — (never an outcome) | interim responses are consumed by the transport (RFC 9110 §15.2); the attempt continues and the [CFG-014] header timer keeps running until the final status line's header block arrives — a stream yielding no final status before the timer aborts ERR-012 [§2] |
+| Header block > 64 KiB | permanent | reject beyond the fixed 64 KiB cap, ST-180, ERR-016; no payload is persisted [DOC-16 §3] |
 | 200–299 | success | store payload [FR-043] → ST-130 |
 | 304 | success-unchanged | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144] |
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |

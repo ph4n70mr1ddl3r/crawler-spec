@@ -1,10 +1,20 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.26.0
+version: 1.27.0
 ---
 
 # Changelog
+
+## 1.27.0 — 2026-10-27 (review pass v27: completeness)
+
+### Completeness additions
+
+- DOC-09 §4's response-classification table had no row for the 64 KiB header-size cap: error class ERR-016 `HEADER_TOO_LARGE` was declared in [DOC-16 §3], defined in [DOC-13 §1], and cited by [AC-063] as enforced in [DOC-09 §4], but no enforcement row existed there. Added the row so the cap's disposition (outcome PERMANENT, error_class ERR-016, state ST-180, no payload persisted) is specified exactly where the acceptance criterion points.
+
+### Versioning
+
+- KB version 1.26.0 → 1.27.0; touched documents (DOC-09, DOC-18) bumped accordingly.
 
 ## 1.26.0 — 2026-10-27 (review pass v26: correctness, completeness, consistency)
 
