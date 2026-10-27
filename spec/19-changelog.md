@@ -1,10 +1,25 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.28.0
+version: 1.29.0
 ---
 
 # Changelog
+
+## 1.29.0 — 2026-10-27 (review pass v29: consistency)
+
+### Consistency fixes
+
+- [DOC-09 §4] the ERR-018 (hop politeness wait > [CFG-035]) row did not state
+  the worker-release guarantee that [AC-055] requires ("no fetch worker is held
+  for an over-threshold wait"), unlike the header-size row fixed in v1.28.0.
+  Added the guarantee to the row so the cap's disposition matches the
+  acceptance criterion.
+
+### Versioning
+
+- KB version 1.28.0 → 1.29.0; touched documents (DOC-09, README, DOC-18)
+  bumped accordingly.
 
 ## 1.28.0 — 2026-10-27 (review pass v28: consistency)
 
