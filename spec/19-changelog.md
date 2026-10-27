@@ -1,10 +1,33 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.27.0
+version: 1.28.0
 ---
 
 # Changelog
+
+## 1.28.0 — 2026-10-27 (review pass v28: consistency)
+
+### Consistency fixes
+
+- [DEC-007] said an unreachable/broken robots.txt should "temporarily treat the
+  entire Host as disallowed", but [DOC-08 §2.3] specifies the Host becomes
+  DEFERRED (fail closed — no page fetches) and retried with backoff, not a
+  DISALLOW verdict. Reworded DEC-007 to "deferred (fail closed — no page
+  fetches)" so the decision matches the enforced behavior.
+- [AC-064] called the `sid` glob "unanchored", contradicting [R-043] (patterns
+  are implicitly anchored at both ends). Reworded to "(implicitly anchored,
+  whole-string)".
+- [README] KB version was stale at 1.26.0 while the changelog stood at 1.27.0;
+  aligned to the current KB version.
+- [DOC-09 §4] header-size row now states that no fetch worker is held on
+  rejection, matching [AC-063].
+
+### Versioning
+
+- KB version 1.27.0 → 1.28.0; touched documents (README, DOC-02, DOC-17,
+  DOC-09, DOC-18) bumped accordingly.
+
 
 ## 1.27.0 — 2026-10-27 (review pass v27: completeness)
 
@@ -106,7 +129,7 @@ version: 1.27.0
 
 - KB version 1.25.0 → 1.26.0; touched documents (README, DOC-04, DOC-06,
   DOC-07, DOC-09, DOC-10, DOC-11, DOC-13, DOC-14, DOC-15, DOC-16, DOC-17,
-  DOC-18) bumped accordingly.
+  DOC-09, DOC-18) bumped accordingly.
 
 ## 1.25.0 — 2026-10-26 (housekeeping)
 
