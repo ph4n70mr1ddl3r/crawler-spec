@@ -1,10 +1,52 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.31.0
+version: 1.32.0
 ---
 
 # Changelog
+
+## 1.32.0 — 2026-10-29 (review pass v32: consistency, completeness)
+
+### Completeness additions
+
+- The [R-062] upsert edge in [DOC-07 §2] named only three same-state
+  landings (ST-130→ST-130, ST-150→ST-150, ST-180→ST-180), but its source
+  set includes ST-190 and "fetch-outcome state replaces the record's
+  current state" admits ST-190→ST-190 — e.g. a chain whose failure class
+  matches the target's ST-190 reason. The same-state list now names all
+  four, with [T-2]'s field effects applying regardless, and AC-061(e)
+  aligned.
+- [DOC-07 §4] (R-062) now states that a same-state ST-190 landing
+  preserves `exclude_reason` (the reason is final [R-031], [R-041]) and
+  that ST-190 carries no backoff timer to clear, so the landing affects
+  only `last_seen_at` plus the failure bookkeeping [T-2] sets.
+- [INV-5] gained a cross-reference note that [R-062] upserts onto
+  pre-existing records are not rediscoveries: they update `last_seen_at`
+  and, on chain success, commit the target's `pages` row only, and never
+  change state, `attempts`, or scheduling of a record in {ST-110, ST-120}
+  ([DOC-03] Data flow invariants).
+
+### Consistency fixes
+
+- [FR-050]'s "unless freshness headers dictate otherwise per [DOC-12 §4]"
+  was a pointer to a section that never invokes freshness headers (only
+  the 304 multiplier and [R-221] no-store); the clause now names both
+  header-driven behaviors explicitly so the FR is self-contained.
+- [R-051]'s unit-release list ended at "including the robots paths"
+  without noting that [R-062] same-state upsert landings carry no units
+  and release nothing; the note is now in the rule.
+- [DOC-08 §4] R-101: the "no other character is special" clause now says
+  no *other position* of `$` is special, removing the self-contradiction
+  with the terminal-`$` anchor it had just defined.
+- [DOC-03] Deployment model's graceful-shutdown sentence now cites
+  [AC-050], pinning the exit-code-0 guarantee to its acceptance
+  criterion.
+
+### Versioning
+
+- KB version 1.31.0 → 1.32.0; touched documents (DOC-03, DOC-04, DOC-07,
+  DOC-08, DOC-17, DOC-18, README) bumped accordingly.
 
 ## 1.31.0 — 2026-10-28 (review pass v31: completeness, consistency)
 

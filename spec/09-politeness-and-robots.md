@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.22.0
+version: 1.32.0
 ---
 
 # Politeness and robots.txt
@@ -105,10 +105,11 @@ Cache stores: verdict function inputs + crawl_delay (seconds, from the applicabl
   string (so `Disallow: /*?` can match query-bearing URLs). Exactly two
   special characters are recognized in rule values: `*` (matches any
   sequence of characters, including the empty sequence) and a terminal `$`
-  (anchors the end of the match target); no other character is special.
-  Precedence between a matching `Allow` and a matching `Disallow` is by
-  longest rule value in characters (wildcards counting as one); tie ⇒
-  `Allow`. An empty `Disallow` value ⇒ ALLOW everything.
+  (anchors the end of the match target; no other `$` position is special);
+  no other character is special. Precedence between a matching `Allow` and
+  a matching `Disallow` is by longest rule value in characters (wildcards
+  counting as one); tie ⇒ `Allow`. An empty `Disallow` value ⇒ ALLOW
+  everything.
 - R-102: `Crawl-delay` is honored exactly as received — no clamping, including values > 60 s; a missing `Crawl-delay` ⇒ use [CFG-007]. If the applicable group contains multiple `Crawl-delay` lines, the first one applies (error-tolerant parsing ignores the rest).
 - R-103: If a Host remains continuously in the UNKNOWN/deferred state for ≥
   [CFG-040] — measured from `robots_deferred_since_mono` [DOC-11 §1] — every

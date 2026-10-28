@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.31.0
+version: 1.32.0
 ---
 
 # URL Lifecycle State Machine
@@ -96,10 +96,15 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 same rule that creates new records directly in
                                 the outcome states above). Never from
                                 {ST-110, ST-120} — an independent fetch in
-                                flight is untouched by the upsert. A same-state
-                                landing (ST-130→ST-130, ST-150→ST-150,
-                                ST-180→ST-180) is not a transition: no
-                                metric is emitted for it.
+                                flight is untouched by the upsert. Same-state
+                                landings — a fetch outcome equal to the record's
+                                current state (ST-130→ST-130, ST-150→ST-150,
+                                ST-180→ST-180, ST-190→ST-190: the target of a
+                                chain whose outcome class the target already
+                                carries [R-062], e.g. a ST-190/`ROBOTS_DISALLOW`
+                                record on a Host whose robots verdict is still
+                                DISALLOW) — are not transitions: no metric is
+                                emitted, and [T-2]'s field effects still apply.
 ```
 
 No other transitions exist. Any observed other transition is a defect.
@@ -125,7 +130,9 @@ exactly once [R-051].
   while waiting (politeness or capacity waits therefore cannot deadlock
   [G-4]). All units the record still holds are released exactly once, on
   the first transition out of {ST-110, ST-120} (to ST-100, ST-130, ST-150,
-  ST-180, or ST-190 — including the robots paths [FR-031], [R-054]).
+  ST-180, or ST-190 — including the robots paths [FR-031], [R-054] — and
+  same-state upsert landings on pre-existing records [R-062] carry no units
+  and release nothing).
   Exclusions that fire on an ST-100 candidate before [T-1] — the
   dispatch-time cap gate [FR-011(e)], selection-time robots exclusions
   ([FR-031] at gate time, [R-103]) — release nothing: the record holds no
@@ -223,21 +230,25 @@ exactly once [R-051].
   those this rule and [T-2] name (state, `last_seen_at`,
   `last_error_class`, the `exclude_reason`/`next_attempt_mono` clearing,
   `once_retried_classes`, and the completion-time fields [T-2] owns).
-  The upsert's state effect depends on that record's state. Terminal records (ST-180, ST-190)
-  are overwritten with the fetch outcome: this records a completed,
-  gate-verified fetch (scope, robots, SSRF, and blocklist were re-checked per
-  hop [R-131]) and is neither the forbidden automated re-activation of
-  [DOC-13 §4] nor a rediscovery under [FR-051]. A record in {ST-110, ST-120} — an independent fetch in
-  flight — MUST NOT have its state or `attempts` modified (overwriting it
-  would corrupt its unit accounting [R-051]): the chain records `last_seen_at`
+  The upsert's state effect depends on that record's state. Terminal
+  records (ST-180, ST-190) are overwritten with the fetch outcome: this
+  records a completed, gate-verified fetch (scope, robots, SSRF, and
+  blocklist were re-checked per hop [R-131]) and is neither the forbidden
+  automated re-activation of [DOC-13 §4] nor a rediscovery under
+  [FR-051]. A record in {ST-110, ST-120} — an independent fetch in flight
+  — MUST NOT have its state or `attempts` modified (overwriting it would
+  corrupt its unit accounting [R-051]): the chain records `last_seen_at`
   and, on chain success, its `pages` row only; its state, `attempts`, and
   `last_error_class` are left untouched, and the concurrent attempt's own
-  [T-2] governs the record. Any other pre-existing record (ST-100, ST-130, ST-140, ST-150)
-  takes the fetch-outcome state as above. An upsert that moves a record out
-  of ST-190 clears `exclude_reason` (the exclusion no longer applies — the
-  column is defined only for ST-190 [DOC-11 §1]); a landing outside ST-150
-  clears `next_attempt_mono` (a stale backoff timer must not survive into
-  ST-130/ST-180).
+  [T-2] governs the record. Any other pre-existing record (ST-100, ST-130,
+  ST-140, ST-150) takes the fetch-outcome state as above. An upsert that
+  moves a record out of ST-190 clears `exclude_reason` (the exclusion no
+  longer applies — the column is defined only for ST-190 [DOC-11 §1]); a
+  landing outside ST-150 clears `next_attempt_mono` (a stale backoff timer
+  must not survive into ST-130/ST-180; ST-190, whose reason code is final
+  [R-031], [R-041], carries no backoff timer to clear, so a same-state
+  ST-190 landing affects only `last_seen_at`, and the failure bookkeeping
+  [T-2] still sets `last_error_class` to the outcome's class).
 
   Failure upserts set `last_error_class` to the outcome's class; success
   upserts clear it (mirroring [DOC-13 §3]'s accounting, where only DEAD and
