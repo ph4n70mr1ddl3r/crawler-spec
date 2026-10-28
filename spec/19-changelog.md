@@ -1,10 +1,28 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.29.0
+version: 1.30.0
 ---
 
 # Changelog
+
+## 1.30.0 — 2026-10-28 (review pass v30: consistency, housekeeping)
+
+### Consistency fixes
+
+- [DOC-18 §1.26.0] the versioning line listed DOC-09 twice in the
+  touched-documents parenthetical (a copy artifact from the two separate
+  DOC-09 edits in that pass); the duplicate entry was removed.
+
+### Housekeeping
+
+- [README] `last-updated` was stale at 2026-10-27; aligned to the release
+  date.
+
+### Versioning
+
+- KB version 1.29.0 → 1.30.0; touched documents (README, DOC-18) bumped
+  accordingly.
 
 ## 1.29.0 — 2026-10-27 (review pass v29: consistency)
 
@@ -144,7 +162,7 @@ version: 1.29.0
 
 - KB version 1.25.0 → 1.26.0; touched documents (README, DOC-04, DOC-06,
   DOC-07, DOC-09, DOC-10, DOC-11, DOC-13, DOC-14, DOC-15, DOC-16, DOC-17,
-  DOC-09, DOC-18) bumped accordingly.
+  DOC-18) bumped accordingly.
 
 ## 1.25.0 — 2026-10-26 (housekeeping)
 
