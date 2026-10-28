@@ -1,7 +1,7 @@
 ---
 id: DOC-17
 title: Acceptance Criteria
-version: 1.28.0
+version: 1.31.0
 ---
 
 # Acceptance Criteria
@@ -83,6 +83,7 @@ false. Politeness tests use virtual time where possible [DEC-012].
 - AC-067: A discovered URL matching any [CFG-037] glob pattern is recorded ST-190/`BLOCKLIST` and never fetched [DOC-06 §5 filter 1]; matching is against the whole normalized URL, case-sensitively, with `*`/`?`/`\` per [R-043] (e.g. `https://example.com/private/*` matches its subpaths, while a bare `example.com` matches no URL). A redirect hop target matching the blocklist terminates the chain PERMANENT/ERR-019, source → ST-180, target never fetched, hop recorded in `redirect_chain` [R-131].
 - AC-068: A redirect chain whose hop target leaves scope (URL's Registrable Domain not in the seed set) terminates that hop with outcome=PERMANENT and error_class=ERR-015; the source URL → ST-180, the out-of-scope target is never fetched, and the refused hop appears in the source's `redirect_chain` [R-030], [DOC-09 §4].
 - AC-069: A redirect hop target that fails SSRF checks ([R-400]) terminates the chain with outcome=PERMANENT and error_class=ERR-004; the source URL Record → ST-180, the target is never fetched, and the Host of the redirecting hop that supplied the `Location` (the referring hop) is flagged `suspicious=true` [R-402]. The `suspicious_hosts` gauge reflects the count [DOC-15 §1].
-
 - AC-070: A redirect hop whose target robots verdict changes from ALLOW to DISALLOW while the task waits for the target Host's politeness/capacity window is refused at the pre-send re-check: outcome=PERMANENT, error_class=ERR-017, source → ST-180, no request sent to the target, hop recorded in `redirect_chain` [R-131]. A change to UNKNOWN (target Host deferred) instead aborts RETRYABLE/ERR-010 with the source → ST-150. No request is sent in either case.
 - AC-071: An HTML fixture whose title/description/meta text is large enough to push the artifacts JSON over 2 MiB still commits an artifacts row ≤ 2 MiB with `truncated=true`, truncating in the fixed [DOC-10 §3] order (headings, main_text, outlinks, then the remaining variable-length strings); `word_count` matches the *stored* main_text after truncation [DOC-16 §3].
+- AC-072: A successful 2xx response carrying `Cache-Control: no-store` is stored and extracted normally (payload in Content Store, artifacts committed in [T-4]) but is never scheduled for recrawl: [T-2] leaves `urls.due_at_mono` NULL, the ST-140→ST-100 due-time promotion [DOC-12 §1] is suppressed, and the record remains ST-140 (terminal for its fetch cycle [DOC-07 §2]) until a rediscovery refresh ([CFG-021]=true [FR-051]) or an operator reset re-admits it [R-221]; by contrast a plain 2xx (or a 304) success installs a recrawl due time and the record returns to ST-100 when due [FR-050].
+- AC-073: A URL Record deleted by the DEAD/EXCLUDED retention step [DOC-11 §6] is never re-scheduled for recrawl — its `due_at_mono` is deleted with the record, so no ST-140→ST-100 promotion can fire for it [R-222]; recrawl resumes only if a later rediscovery re-creates the record.

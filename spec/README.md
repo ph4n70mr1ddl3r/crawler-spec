@@ -1,6 +1,6 @@
 ---
 kb: web-crawler-spec
-version: 1.30.0
+version: 1.31.0
 status: APPROVED-DRAFT
 last-updated: 2026-10-28
 purpose: Complete, implementation-ready specification of a web crawler. No code. For human review and AI-assisted implementation.

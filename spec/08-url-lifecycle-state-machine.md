@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.26.0
+version: 1.31.0
 ---
 
 # URL Lifecycle State Machine
@@ -76,7 +76,13 @@ ST-150 ─► ST-180                attempts = [CFG-020]
 ST-150 ─► ST-190                host robots-unknown timeout [R-103]
 ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
-                                [FR-051] (attempts reset to 0)
+                                 [FR-051] (attempts reset to 0); the
+                                 recrawl-due path is suppressed for
+                                 one-shot records ([R-221] no-store,
+                                 [CFG-025]=0) — the edge still fires for a
+                                 rediscovery refresh ([CFG-021]=true),
+                                 independently of recrawl eligibility
+                                 [R-221], [R-222], [AC-072]
 ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 (audited; attempts := 0, due_at_mono := now,
                                 last error class and any stale
@@ -127,7 +133,11 @@ exactly once [R-051].
   [R-212], [INV-3]).
 - R-052: ST-140→ST-100 transitions (recrawl due [FR-050] and rediscovery
   refresh [FR-051]) reset `attempts=0` and set `due_at_mono` per their
-  trigger; priority is recomputed per [DOC-12 §2] (R-201).
+  trigger (recrawl due sets it to the recrawl time; a rediscovery refresh
+  under [CFG-021]=true sets it to now); priority is recomputed per
+  [DOC-12 §2] (R-201). A rediscovery refresh is still an edge for one-shot
+  records ([CFG-025]=0, [R-221] no-store) — only the recrawl-due path is
+  suppressed for them [DOC-12 §4], [AC-072].
 - R-053: `attempts` is incremented exactly once per fetch attempt, inside the
   dispatch transaction [FR-012], [T-1]; it is therefore already counted when a
   crash mid-fetch is classified as retryable [DOC-13 §5]. Exception: the

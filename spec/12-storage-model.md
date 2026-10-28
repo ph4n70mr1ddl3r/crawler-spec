@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.26.0
+version: 1.31.0
 ---
 
 # Storage Model
@@ -29,7 +29,7 @@ urls (
   consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
   once_retried_classes TEXT NOT NULL DEFAULT '[]', -- JSON array: yes-once error classes [R-232] already retried in the current attempt cycle; cleared when attempts resets to 0
-  due_at_mono       INT NULL,             -- scheduler key component
+  due_at_mono       INT NULL,             -- scheduler key component; NULL for one-shot records ([CFG-025]=0, [R-221] no-store) that have no recrawl due time
   last_fetch_mono   INT NULL,             -- completion time of the most recent fetch attempt (set in [T-2])
   last_seen_at      TEXT NULL,            -- most recent rediscovery [FR-051], [INV-5]
   created_at        TEXT NOT NULL,
@@ -131,7 +131,8 @@ tmp/                     staging dir; atomic rename into place [R-500]
 - T-2: Completion transaction = {urls.state update — together with the
   completion-time URL fields it owns: `last_fetch_mono` := attempt
   completion time, the recrawl `due_at_mono` and `consecutive_unchanged`
-  [DOC-12 §4], `last_error_class` on both branches — PERMANENT outcomes set
+  [DOC-12 §4] (a successful completion carrying `Cache-Control: no-store`
+  leaves `due_at_mono` NULL — one-shot, no recrawl scheduled [R-221]), `last_error_class` on both branches — PERMANENT outcomes set
   it, successful outcomes (SUCCESS|UNCHANGED) clear it (a stale class must
   not outlive recovery: a record can carry one set by a RETRYABLE
    redirect-chain upsert [R-062]), ordinary RETRYABLE outcomes leave it

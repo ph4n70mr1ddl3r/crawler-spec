@@ -1,10 +1,53 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.30.0
+version: 1.31.0
 ---
 
 # Changelog
+
+## 1.31.0 — 2026-10-28 (review pass v31: completeness, consistency)
+
+### Completeness additions
+
+- [R-221] (one-shot `no-store` responses) and [R-222] (retention-deleted
+  records are never re-scheduled for recrawl) had no acceptance criterion,
+  and R-221's one-shot behavior was not pinned to the state machine — the
+  ST-140→ST-100 edge in [DOC-07 §2] read as firing for every recrawl-due
+  record, which is false for a one-shot record that never installs a
+  `due_at_mono`. New AC-072 (no-store: stored/extracted normally, `due_at_mono`
+  left NULL, ST-140→ST-100 due-time promotion suppressed, rediscovery refresh
+  and operator reset still apply) and AC-073 (retention-deleted URL Record:
+  no recrawl re-scheduling, rediscovery may re-create it).
+- The ST-140→ST-100 edge in [DOC-07 §2] now names the one-shot carve-out
+  ([R-221], [CFG-025]=0) explicitly, matching [DOC-12 §4]. The matching
+  due-time promotion in [DOC-12 §1] states the same suppression and the
+  rediscovery-refresh exception, keeping the loop model and the state
+  machine in agreement.
+- [R-052] clarified that a rediscovery refresh remains an edge even for
+  one-shot records — only the recrawl-due path is suppressed [DOC-12 §4].
+- [DOC-12 §4] R-221 now states the mechanical basis: T-2 leaves
+  `due_at_mono` NULL for a no-store success; R-222 now states that a
+  retention sweep deleting a URL Record removes its `due_at_mono` with it.
+- [DOC-11 §1] `urls.due_at_mono` schema comment and the [T-2] transaction
+  now note the [R-221] NULL-due-time case so the column's semantics are
+  complete in both places that write it.
+
+### Consistency fixes
+
+- [DOC-11 §1] the `urls` schema block had inconsistent indentation introduced
+  by a prior edit (two rows four-space indented, the closing paren
+  misaligned); normalized to the block's three-space style.
+- [DOC-00] the Crawl Session term cited [DOC-03] bare; the Run lifecycle it
+  anchors is defined in the unnumbered "Deployment model" section, so the
+  reference now names the section [DOC-03 Deployment model] (the
+  section-qualified form already used by [DOC-11 §1]).
+
+### Versioning
+
+- KB version 1.30.0 → 1.31.0; touched documents (DOC-07, DOC-11, DOC-12,
+  DOC-17, DOC-18, README) bumped accordingly. DOC-00 carries a
+  citation-only fix and keeps its last behavioral version.
 
 ## 1.30.0 — 2026-10-28 (review pass v30: consistency, housekeeping)
 

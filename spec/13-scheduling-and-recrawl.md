@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.20.0
+version: 1.31.0
 ---
 
 # Scheduling and Recrawl
@@ -27,7 +27,11 @@ part of the loop, not fetch dispatches):
   survive outside ST-150 [DOC-13 §4], [R-062]; with the [R-103] sweep
   clearing likewise, `next_attempt_mono` is non-NULL only in ST-150);
 - ST-140 → ST-100 when `now ≥ due_at_mono` (the recrawl due time computed
-  at fetch completion [§4]) [FR-050].
+  at fetch completion [§4]) [FR-050] — suppressed for one-shot records
+  ([CFG-025]=0, [R-221] no-store): no recrawl due time is installed, so
+  the promotion has no trigger; a rediscovery refresh ([CFG-021]=true
+  [FR-051]) still promotes such a record, independently of recrawl
+  eligibility [R-221], [AC-072].
 
 Both promotions are wake sources for the loop [R-211]; a promoted record is
 dispatchable in the same iteration. The retry promotion (ST-150 → ST-100)
@@ -160,8 +164,14 @@ due_at_mono     = fetch_complete_mono + interval
 - R-220: Recrawl respects caps [FR-005] and robots at dispatch time [DOC-08 §3].
 - R-221: `Cache-Control: no-store` responses are not refetched automatically
   (treated as one-shot). In v1 this affects recrawl eligibility only: the
-  payload is fetched, stored [FR-043], and extracted normally.
-- R-222: Recrawl of a page whose URL Record was deleted by retention does not happen (records are the source of truth).
+  payload is fetched, stored [FR-043], and extracted normally. Mechanically:
+  a T-2 completion that stores a no-store success sets `due_at_mono` = NULL
+  (no recrawl due time is installed), suppressing the ST-140→ST-100 due-time
+  promotion [DOC-12 §1] — the record stays ST-140 (terminal for its fetch
+  cycle [DOC-07 §2]) until a rediscovery refresh [FR-051] (when [CFG-021]=true)
+  or an operator reset re-admits it; the no-store header does not gate
+  rediscovery, only the recrawl schedule.
+- R-222: Recrawl of a page whose URL Record was deleted by retention does not happen (records are the source of truth): a retention sweep [DOC-11 §6] that deletes a URL Record removes its `due_at_mono` with it, so no ST-140→ST-100 promotion can fire for a non-existent record — recrawl resumes only if a later rediscovery re-creates the record.
 
 ## 5. Backoff interplay
 
