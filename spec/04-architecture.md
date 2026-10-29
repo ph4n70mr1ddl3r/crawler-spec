@@ -1,7 +1,7 @@
 ---
 id: DOC-03
 title: System Architecture
-version: 1.32.0
+version: 1.33.0
 ---
 
 # Architecture
@@ -115,7 +115,12 @@ version: 1.32.0
 - INV-5: Discovery of a URL already present as a URL Record never duplicates
   it; it updates `last_seen_at` ([FR-051] mandates the update in every
   rediscovery branch) and refreshes scheduling only if configured
-  [CFG-021].
+  [CFG-021]. A redirect final-target upsert [R-062] onto a pre-existing
+  record is not a rediscovery: it updates `last_seen_at`, and its state and
+  scheduling effects are exactly those [R-062] names. For a record in
+  {ST-110, ST-120} it changes neither state, `attempts`, nor scheduling
+  (on chain success the transaction still commits the target's `pages`
+  row).
 
 ## Deployment model
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-06
 title: URL Model, Normalization, Identity, Filtering
-version: 1.26.0
+version: 1.33.0
 ---
 
 # URL Model and Normalization
@@ -44,7 +44,7 @@ The output string is the **URL Identity** (primary key, DEC-004).
 ## 3. Cross-host resolution
 
 - R-020: Links found in a page MUST be resolved against the **final URL** of that page's fetch chain (after redirects), not the originally requested identity.
-- R-021: `<base href>` in HTML overrides the final URL as resolution base when present and valid.
+- R-021: `<base href>` in HTML overrides the final URL as resolution base when present and valid. A relative `href` is first resolved against the final URL per RFC 3986 §5; the result is valid only if it is an acceptable absolute http(s) URL ([R-001], [R-002]). An invalid `<base href>` is ignored, so the final URL remains the resolution base.
 
 ## 4. Scope predicate
 

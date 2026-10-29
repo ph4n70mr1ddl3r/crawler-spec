@@ -1,7 +1,7 @@
 ---
 id: DOC-11
 title: Storage Model
-version: 1.31.0
+version: 1.33.0
 ---
 
 # Storage Model
@@ -131,8 +131,9 @@ tmp/                     staging dir; atomic rename into place [R-500]
 - T-2: Completion transaction = {urls.state update — together with the
   completion-time URL fields it owns: `last_fetch_mono` := attempt
   completion time, the recrawl `due_at_mono` and `consecutive_unchanged`
-  [DOC-12 §4] (a successful completion carrying `Cache-Control: no-store`
-  leaves `due_at_mono` NULL — one-shot, no recrawl scheduled [R-221]), `last_error_class` on both branches — PERMANENT outcomes set
+  [DOC-12 §4] (a successful completion leaves `due_at_mono` NULL when it
+  carries `Cache-Control: no-store` [R-221] or when [CFG-025]=0 — one-shot,
+  no recrawl scheduled), `last_error_class` on both branches — PERMANENT outcomes set
   it, successful outcomes (SUCCESS|UNCHANGED) clear it (a stale class must
   not outlive recovery: a record can carry one set by a RETRYABLE
    redirect-chain upsert [R-062]), ordinary RETRYABLE outcomes leave it
@@ -144,6 +145,7 @@ tmp/                     staging dir; atomic rename into place [R-500]
   still holds, hosts counters} — single commit. Under [R-051]/[R-131] unit accounting an attempt holds at most one Host unit at any time; at completion it is the unit of the Host of the attempt's most recent request — the source Host when the chain never left it, otherwise the final hop's Host (intermediate Hosts' units were released when their responses arrived). A chain aborted before sending its next hop request — hop-gate refusal ([ERR-004]/[ERR-015]/[ERR-017]/[ERR-019]), loop or redirect-cap exhaustion ([ERR-011]), target-Host robots deferral ([ERR-010]), or an over-threshold politeness wait ([ERR-018]) — holds NO Host unit at completion: the responding Host's unit was already released when its response arrived, and the hop gate checks run after that release and before any wait [R-131]; T-2 decrements none (decrementing "the Host whose response carried the unfollowable redirect" would double-release a unit already released). Host counters (`pages_crawled`, `consecutive_failures`) attribute to the Host of the exchange that produced the outcome [R-112] — the final hop's Host for a chain, the requesting Host when no response arrived (timeouts) — the same Host whose unit is decremented. The `pages` insert(s) apply to SUCCESS/UNCHANGED outcomes only; failure completions commit the same set minus the `pages` insert(s). A redirect-chain success commits two `pages` rows in this one transaction — the source's (`final_url_identity` = target identity) and the final target's [R-062]. The insert may leave the extraction-owned columns (`title`, `noindex`, `parse_ok`, `parse_reason`) at their defaults; [T-4] fills them.
 - T-3: Blob write happens BEFORE T-2 commits [R-501]; a crash between them leaves an orphan blob, cleaned by §6.
 - T-4: Extraction-completion transaction (ST-130→ST-140) = {for a parseable HTML/XHTML page, `page_artifacts` upsert for the page's `(payload_sha256, final_url_identity)` [DOC-10 §3], `pages.title` := the final artifact title, `pages.noindex` := (`noindex` was present in the parsed meta directives, independent of any artifact-JSON truncation), `pages.parse_ok`/`pages.parse_reason` := the parse result; for other content types, no page_artifacts write; `urls.state` → ST-140} — single commit. A parse failure commits `parse_ok=false` with the ERR-009 detail and writes no artifacts [DOC-10 §4]. T-4 is idempotent: re-running extraction on resume overwrites the same rows deterministically [R-061], [R-157]; discovered URL ingestions are separate transactions [C1].
+- T-5: Send-time robots abort transaction [R-054] = {urls.state → ST-190 with `exclude_reason` := `ROBOTS_DISALLOW` (DISALLOW branch), or urls.state → ST-100 with `due_at_mono` := now (UNKNOWN compensation); `urls.attempts−1` (undoing [T-1]'s increment [R-053]); `hosts.inflight−1` for the source Host} — single commit; no `fetch_event` and no `pages` row. The dispatch's in-memory global unit is released atomically with the commit [R-212]. The source Host is the Host of the URL's identity (a send-time abort happens before any hop). The [T-1] politeness advance is retained [R-054].
 
 ## 4. Interfaces for the Downstream Consumer
 

@@ -1,7 +1,7 @@
 ---
 id: DOC-07
 title: URL Lifecycle State Machine
-version: 1.32.0
+version: 1.33.0
 ---
 
 # URL Lifecycle State Machine
@@ -48,8 +48,8 @@ ST-100 ─► ST-190                robots DISALLOW at gate time [FR-031],
                                 (`CAP_REACHED`), or robots-unknown
                                 threshold [R-103] (`ROBOTS_UNKNOWN_TIMEOUT`)
 ST-110 ─► ST-120                robots ALLOW confirmed, request sent
-ST-110 ─► ST-190                robots DISALLOW at send-time re-check [R-054]
-ST-110 ─► ST-100                send-time robots UNKNOWN (deferral) compensation [R-054]
+ST-110 ─► ST-190                robots DISALLOW at send-time re-check [R-054], [T-5]
+ST-110 ─► ST-100                send-time robots UNKNOWN (deferral) compensation [R-054], [T-5]
 ST-120 ─► ST-130                success — 2xx with payload stored [FR-043],
                                 or 304 UNCHANGED reusing the existing payload
                                 [R-121], [R-144]
@@ -99,12 +99,15 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 flight is untouched by the upsert. Same-state
                                 landings — a fetch outcome equal to the record's
                                 current state (ST-130→ST-130, ST-150→ST-150,
-                                ST-180→ST-180, ST-190→ST-190: the target of a
-                                chain whose outcome class the target already
-                                carries [R-062], e.g. a ST-190/`ROBOTS_DISALLOW`
-                                record on a Host whose robots verdict is still
-                                DISALLOW) — are not transitions: no metric is
-                                emitted, and [T-2]'s field effects still apply.
+                                ST-180→ST-180) — are not transitions: no metric
+                                is emitted, and the URL-record completion fields
+                                of [T-2] still apply (the transaction's host-side
+                                effects belong to the source attempt only). No
+                                upsert lands in ST-190: the fetch-outcome states
+                                are exactly ST-130, ST-150, and ST-180, so an
+                                existing ST-190 record is always overwritten
+                                (ST-190→ST-130/ST-150/ST-180) and its
+                                `exclude_reason` cleared [R-062].
 ```
 
 No other transitions exist. Any observed other transition is a defect.
@@ -152,9 +155,9 @@ exactly once [R-051].
   request was sent, so no attempt occurred.
 - R-054: Send-time robots re-check [DOC-08 §3]: if the applicable robots
   verdict for a dispatched URL changed after [T-1] and before the request is
-  sent, the dispatch is aborted — no request is sent, hence no fetch_event
-  [FR-025] and no attempt ([R-053]; the [T-1] increment is rolled back in
-  both cases below):
+  sent, the dispatch is aborted in a single [T-5] commit — no request is
+  sent, hence no fetch_event [FR-025] and no attempt ([R-053]; the [T-1]
+  increment is rolled back in both cases below):
   - changed to DISALLOW ⇒ the record moves ST-110→ST-190/`ROBOTS_DISALLOW`
     with unit release [R-051];
   - changed to UNKNOWN (Host deferred) ⇒ the dispatch is compensated: the
@@ -208,7 +211,11 @@ exactly once [R-051].
   (each hop rule's "target never fetched"). The upsert never modifies
   the target's `attempts` (the attempt is accounted on the source record
   [T-1]). Intermediate hops are persisted on
-  the source's `redirect_chain` [R-133] and receive no URL Records. The
+  the source's `redirect_chain` [R-133] and receive no URL Records. A
+  newly created target record takes `source_run_id` = the Run performing
+  the chain, `raw_first_seen` = the final `Location` value after RFC 3986
+  §5 resolution against the redirecting hop (the raw absolute form that
+  yielded the identity), and `is_seed` = false. The
   final target is exempt from the trap filters ([DOC-06 §5] items 2–4) at
   this creation point (it was already fetched); scope, robots, SSRF, and
   the URL blocklist were verified per hop [R-030], [R-131].
@@ -245,10 +252,13 @@ exactly once [R-051].
   moves a record out of ST-190 clears `exclude_reason` (the exclusion no
   longer applies — the column is defined only for ST-190 [DOC-11 §1]); a
   landing outside ST-150 clears `next_attempt_mono` (a stale backoff timer
-  must not survive into ST-130/ST-180; ST-190, whose reason code is final
-  [R-031], [R-041], carries no backoff timer to clear, so a same-state
-  ST-190 landing affects only `last_seen_at`, and the failure bookkeeping
-  [T-2] still sets `last_error_class` to the outcome's class).
+  must not survive into ST-130/ST-180). No upsert lands in ST-190: the
+  fetch-outcome states are exactly ST-130, ST-150, and ST-180, so every
+  existing ST-190 record is overwritten and never receives a same-state
+  landing (`exclude_reason` therefore always clears). Same-state landings
+  (ST-130→ST-130, ST-150→ST-150, ST-180→ST-180) apply [T-2]'s URL-record
+  completion fields, but no host-side effects — the transaction's host
+  accounting belongs to the source attempt.
 
   Failure upserts set `last_error_class` to the outcome's class; success
   upserts clear it (mirroring [DOC-13 §3]'s accounting, where only DEAD and

@@ -1,7 +1,7 @@
 ---
 id: DOC-12
 title: Scheduling, Priority, and Recrawl
-version: 1.31.0
+version: 1.33.0
 ---
 
 # Scheduling and Recrawl
@@ -169,8 +169,9 @@ due_at_mono     = fetch_complete_mono + interval
   (no recrawl due time is installed), suppressing the ST-140→ST-100 due-time
   promotion [DOC-12 §1] — the record stays ST-140 (terminal for its fetch
   cycle [DOC-07 §2]) until a rediscovery refresh [FR-051] (when [CFG-021]=true)
-  or an operator reset re-admits it; the no-store header does not gate
-  rediscovery, only the recrawl schedule.
+  re-admits it; the no-store header does not gate rediscovery, only the
+  recrawl schedule. (The operator DEAD reset [DOC-13 §4] applies only to
+  ST-180 records, not to an ST-140 one-shot.)
 - R-222: Recrawl of a page whose URL Record was deleted by retention does not happen (records are the source of truth): a retention sweep [DOC-11 §6] that deletes a URL Record removes its `due_at_mono` with it, so no ST-140→ST-100 promotion can fire for a non-existent record — recrawl resumes only if a later rediscovery re-creates the record.
 
 ## 5. Backoff interplay

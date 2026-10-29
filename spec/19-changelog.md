@@ -1,10 +1,73 @@
 ---
 id: DOC-18
 title: Changelog
-version: 1.32.0
+version: 1.33.0
 ---
 
 # Changelog
+
+## 1.33.0 — 2026-10-29 (review pass v33: correctness, completeness, consistency)
+
+### Correctness fixes
+
+- [R-062] cannot produce an ST-190 landing: its fetch-outcome states are
+  exactly ST-130, ST-150, and ST-180. The ST-190→ST-190 same-state landing
+  re-added in v1.32 was therefore unreachable (a chain whose final target is
+  robots-DISALLOWed aborts at the hop with ERR-017 and never reaches the
+  upsert). The same-state list is back to ST-130→ST-130, ST-150→ST-150, and
+  ST-180→ST-180; an existing ST-190 record is always overwritten
+  (ST-190→ST-130/ST-150/ST-180) and its `exclude_reason` cleared.
+  [DOC-07 §2], [DOC-07 §4], and AC-061(e) are aligned.
+- The DOC-07 §2 same-state note now says only [T-2]'s URL-record completion
+  fields apply to the target; the transaction's host-side effects
+  (`hosts.inflight−1`, host counters) belong to the source attempt, so an
+  upsert target is never double-decremented.
+- [FR-050] said the 304-unchanged multiplier "shortens" the recrawl
+  interval; [DOC-12 §4] doubles it (up to 4×). The clause now says the
+  multiplier lengthens the interval and delays the next recrawl.
+- [R-221] and [AC-072] offered an "operator reset" as a way to re-admit a
+  no-store ST-140 record, but the operator reset is DEAD-only (ST-180→ST-100
+  [DOC-13 §4]); it cannot leave ST-140. Both now name only the rediscovery
+  refresh ([CFG-021]=true [FR-051]) and state the reset's scope explicitly.
+- [R-141] now compares `Content-Length` against the body bytes received on
+  the wire *before* Content-Encoding decode; the decoded Payload size is
+  what `payload_size`/`payload_sha256` describe [FR-024]. Previously
+  "actual bytes" was ambiguous and could flag every compressed response.
+- [R-021] now defines `<base href>` validity: a relative `href` is resolved
+  against the final URL, the result must be an acceptable absolute http(s)
+  URL ([R-001], [R-002]), and an invalid base is ignored.
+- [DEC-004] said every redirect target creates a URL Record; [R-062]
+  creates one only for the final target, while intermediate hops live in
+  `redirect_chain` [R-133]. The decision now matches the rule.
+
+### Completeness additions
+
+- New [T-5] send-time robots abort transaction: the state change
+  (ST-190/`ROBOTS_DISALLOW` or the ST-100 compensation with
+  `due_at_mono` := now), the [T-1] `attempts` rollback, and the source
+  Host's `inflight` decrement commit atomically, with no `fetch_event` and
+  no `pages` row. [R-054], [AC-016], the DOC-07 send-time transitions, and
+  the glossary's global-unit interval now cite it.
+- [INV-5] now carries the [R-062] note v1.32's changelog described but did
+  not actually add: an upsert onto a pre-existing record is not a
+  rediscovery; it updates `last_seen_at`, and its state/scheduling effects
+  are exactly R-062's; a record in {ST-110, ST-120} keeps its state,
+  `attempts`, and scheduling (on chain success the target's `pages` row
+  still commits).
+- [R-062] now states the creation values of the non-nullable target fields
+  it left implicit: `source_run_id` = the Run performing the chain,
+  `raw_first_seen` = the final `Location` value after RFC 3986 §5
+  resolution, and `is_seed` = false.
+- [T-2] now states that [CFG-025]=0 also leaves `due_at_mono` NULL,
+  matching the [DOC-11 §1] schema comment for one-shot records.
+- [AC-029] no longer calls a non-HTML type "allowed" when [CFG-028]=false
+  (the effective allowed list is empty [R-143]).
+
+### Versioning
+
+- KB version 1.32.0 → 1.33.0; touched documents (DOC-00, DOC-02, DOC-03,
+  DOC-04, DOC-06, DOC-07, DOC-09, DOC-11, DOC-12, DOC-17, DOC-18, README)
+  bumped accordingly.
 
 ## 1.32.0 — 2026-10-29 (review pass v32: consistency, completeness)
 
