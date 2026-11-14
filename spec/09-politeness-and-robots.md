@@ -1,7 +1,7 @@
 ---
 id: DOC-08
 title: Politeness, robots.txt, and Rate Limiting
-version: 1.32.0
+version: 1.33.0
 ---
 
 # Politeness and robots.txt

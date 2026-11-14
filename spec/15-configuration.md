@@ -1,7 +1,7 @@
 ---
 id: DOC-14
 title: Configuration Reference
-version: 1.26.0
+version: 1.33.0
 ---
 
 # Configuration

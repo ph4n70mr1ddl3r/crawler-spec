@@ -1,7 +1,7 @@
 ---
 id: DOC-10
 title: Parsing and Extraction
-version: 1.26.0
+version: 1.33.0
 ---
 
 # Parsing and Extraction

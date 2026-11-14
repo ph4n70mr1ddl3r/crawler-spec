@@ -1,7 +1,7 @@
 ---
 id: DOC-01
 title: Scope, Goals, Non-Goals
-version: 1.0.0
+version: 1.33.0
 ---
 
 # Scope and Goals

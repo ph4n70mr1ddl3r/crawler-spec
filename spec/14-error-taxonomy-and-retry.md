@@ -1,7 +1,7 @@
 ---
 id: DOC-13
 title: Error Taxonomy and Retry Policy
-version: 1.26.0
+version: 1.33.0
 ---
 
 # Errors and Retry

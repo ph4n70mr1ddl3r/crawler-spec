@@ -1,7 +1,7 @@
 ---
 id: DOC-15
 title: Observability
-version: 1.26.0
+version: 1.33.0
 ---
 
 # Observability
