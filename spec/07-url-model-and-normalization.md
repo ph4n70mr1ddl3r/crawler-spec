@@ -58,7 +58,7 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 | OUT_OF_SCOPE | otherwise |
 
 - R-030: Redirect targets are subject to the identical predicate. A redirect leaving scope terminates the chain at that hop with outcome PERMANENT and error_class ERR-015; no fetch of the target occurs.
-- R-031: The Scope predicate is evaluated exactly once per new identity, at ingestion; the verdict is reflected in the record's state (ST-190/`OUT_OF_SCOPE` vs. queued) and is never re-evaluated for that identity. Redirect targets are evaluated per hop [R-030].
+- R-031: The Scope predicate is evaluated exactly once per new identity, at ingestion; the verdict is reflected in the record's state (ST-190/`OUT_OF_SCOPE` vs. queued) and is never re-evaluated for that **same raw URL identity**. Redirect targets are evaluated per hop [R-030] as new identities (each hop's `Location` resolution yields a new URL identity to which the predicate is applied independently). Consequently, a URL already recorded with a scope verdict retains that verdict; only newly-discovered or redirect-hop-target identities are subject to fresh scope evaluation.
 - R-032: A seed is evaluated against a scope set that already contains the seed itself. In SEED_DOMAINS, the seed's Registrable Domain is added to the seed Registrable Domains set before the predicate runs; in SEED_HOSTS, its Host is added to the seed Hosts set. Consequently a seed is always IN_SCOPE in those modes, whether supplied at startup [CFG-001] or injected at runtime [FR-006], and a seed can introduce a new domain or Host. PREFIX_LIST is fixed by [CFG-039]: a seed that matches no entry is OUT_OF_SCOPE and is rejected/recorded per [V-4] and [FR-006].
 
 **Scope is evaluated before trap filters:** URLs failing the scope predicate ([DOC-06 §4]) are handled per [FR-004] and are not subject to trap filter (R-040) evaluation. Only IN_SCOPE URLs have trap filters applied per section 5.
@@ -85,7 +85,7 @@ Applied to IN_SCOPE URLs in order; first match wins:
   backslash). No other character is special: there are no character classes,
   alternation, or implicit wildcards. An empty pattern matches only the empty
   string.
-- R-040: Filters MUST run before Frontier insertion so traps never consume fetch capacity.
+- R-040: Filters MUST run before Frontier insertion so that trap categories (blocklist, param blocklist, path budget, depth limit) never consume fetch capacity for excluded URLs. URLs failing the scope predicate ([DOC-06 §4]) are handled per [FR-004] and are not subject to trap filter evaluation — only IN_SCOPE URLs proceed to trap filter assessment per section 5. OUT_OF_SCOPE URLs when [CFG-038]=false are dropped with no record; when [CFG-038]=true they receive an ST-190 record with the appropriate reason code.
 - R-041: Excluded URLs keep records (state ST-190) so re-discovery is O(1) and
   auditable — except OUT_OF_SCOPE URLs when [CFG-038]=false, which are dropped
   with no record per [FR-004].
