@@ -146,7 +146,13 @@ exactly once [R-051].
   ([FR-031] at gate time, [R-103]) — release nothing: the record holds no
   units before [T-1] (decrementing there would corrupt the counters
   [R-212], [INV-3]).
-- R-052: ST-140→ST-100 transitions (recrawl due [FR-050] and rediscovery
+- R-052: Rediscovery of a terminal-success URL (ST-140) sets `last_seen_at`;
+  if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now,
+  attempts := 0, priority recomputed per [R-052], [R-201]). Rediscovery of a
+  record in any non-terminal-success state updates `last_seen_at` only and MUST
+  NOT change its state: DEAD and EXCLUDED records are never re-activated
+  automatically [DOC-13 §4], and scope/trap verdicts are final [R-031], [R-041].
+  The redirect final-target completion upsert [R-062] is not a rediscovery: [FR-050] and rediscovery
   refresh [FR-051]) reset `attempts=0` and set `due_at_mono` per their
   trigger (recrawl due sets it to the recrawl time; a rediscovery refresh
   under [CFG-021]=true sets it to now); priority is recomputed per

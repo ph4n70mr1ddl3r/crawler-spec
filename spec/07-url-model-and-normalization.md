@@ -61,6 +61,8 @@ Evaluated after normalization, before enqueueing. Exactly one of:
 - R-031: The Scope predicate is evaluated exactly once per new identity, at ingestion; the verdict is reflected in the record's state (ST-190/`OUT_OF_SCOPE` vs. queued) and is never re-evaluated for that identity. Redirect targets are evaluated per hop [R-030].
 - R-032: A seed is evaluated against a scope set that already contains the seed itself. In SEED_DOMAINS, the seed's Registrable Domain is added to the seed Registrable Domains set before the predicate runs; in SEED_HOSTS, its Host is added to the seed Hosts set. Consequently a seed is always IN_SCOPE in those modes, whether supplied at startup [CFG-001] or injected at runtime [FR-006], and a seed can introduce a new domain or Host. PREFIX_LIST is fixed by [CFG-039]: a seed that matches no entry is OUT_OF_SCOPE and is rejected/recorded per [V-4] and [FR-006].
 
+**Scope is evaluated before trap filters:** URLs failing the scope predicate ([DOC-06 §4]) are handled per [FR-004] and are not subject to trap filter (R-040) evaluation. Only IN_SCOPE URLs have trap filters applied per section 5.
+
 ## 5. Trap mitigation (pre-scheduling filters)
 
 Applied to IN_SCOPE URLs in order; first match wins:
