@@ -89,25 +89,30 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                 next_attempt_mono cleared, priority
                                 recomputed per [DOC-12 §2])
 {ST-100, ST-130, ST-140, ST-150,
- ST-180, ST-190} ─► ST-130/ST-150/ST-180
-                                redirect final-target upsert onto a
-                                pre-existing record [R-062]: the fetch-outcome
-                                state replaces the record's current state (the
-                                same rule that creates new records directly in
-                                the outcome states above). Never from
-                                {ST-110, ST-120} — an independent fetch in
-                                flight is untouched by the upsert. Same-state
-                                landings — a fetch outcome equal to the record's
-                                current state (ST-130→ST-130, ST-150→ST-150,
-                                ST-180→ST-180) — are not transitions: no metric
-                                is emitted, and the URL-record completion fields
-                                of [T-2] still apply (the transaction's host-side
-                                effects belong to the source attempt only). No
-                                upsert lands in ST-190: the fetch-outcome states
-                                are exactly ST-130, ST-150, and ST-180, so an
-                                existing ST-190 record is always overwritten
-                                (ST-190→ST-130/ST-150/ST-180) and its
-                                `exclude_reason` cleared [R-062].
+  ST-180, ST-190} ─► ST-130/ST-150/ST-180
+                                 redirect final-target upsert onto a
+                                 pre-existing record [R-062]: the fetch-outcome
+                                 state replaces the record's current state (the
+                                 same rule that creates new records directly in
+                                 the outcome states above). Never from
+                                 {ST-110, ST-120} — an independent fetch in
+                                 flight is untouched by the upsert. Same-state
+                                 landings — a fetch outcome equal to the record's
+                                 current state (ST-130→ST-130, ST-150→ST-150,
+                                 ST-180→ST-180) — are not transitions: no metric
+                                 is emitted, and the URL-record completion fields
+                                 of [T-2] still apply (the transaction's host-side
+                                 effects belong to the source attempt only). No
+                                 upsert lands in ST-190: the fetch-outcome states
+                                 are exactly ST-130, ST-150, and ST-180, so an
+                                 existing ST-190 record is always overwritten
+                                 (ST-190→ST-130/ST-150/ST-180) and its
+                                 `exclude_reason` cleared [R-062]. The upsi rt's
+                                 field effects are: `last_seen_at` updated, and
+                                 on state changes outside ST-150, `next_attempt_mono`
+                                 cleared; on state changes outside ST-180,
+                                 `last_error_class` cleared; `once_retried_classes`
+                                 evaluated per [R-232].
 ```
 
 No other transitions exist. Any observed other transition is a defect.

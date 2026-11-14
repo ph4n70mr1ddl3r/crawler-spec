@@ -31,7 +31,7 @@ Precedence: this document overrides all others [R-000]. All guards fail closed.
      uses a fixed total order — sorted ascending, IPv4 before IPv6, numeric
      order within each family — preserving replay determinism [NFR-006].
 - R-401: Ports restricted to the scheme defaults (80 for `http`, 443 for `https`); any other port ⇒ ERR-004.
-- R-402: A redirect hop target blocked by the egress policy terminates the chain with ERR-004. The source URL Record is marked ST-180 with error_class ERR-004; the Host of the redirecting hop that supplied the offending `Location` (the referring hop, which may be an intermediate hop) is flagged `suspicious=true` (operator-visible metric only). The blocked target is never fetched.
+- R-402: A redirect hop target blocked by the egress policy terminates the chain with ERR-004. The source URL Record is marked ST-180 with error_class ERR-004; the Host of the redirecting hop that supplied the offending `Location` (the referring hop, which may be an intermediate hop) is flagged `suspicious=true` (operator-visible metric only). The blocked target is never fetched. When a chain has multiple hops and the egress block occurs at hop N, the `suspicious` flag is set on the Host of hop N's `Location` provider — not on earlier hops whose responses were already received and whose units were released per [R-051]/[R-131].
 - R-403: Non-resolving hostnames ⇒ ERR-001 permanent if NXDOMAIN.
 - R-405: [CFG-042]=true relaxes R-400.2 (loopback/private ranges permitted)
   and R-401 (non-default ports permitted — the fixture server need not
