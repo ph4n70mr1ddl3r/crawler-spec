@@ -68,13 +68,17 @@ boost applies (matches are never summed); the boost term remains within 0–300.
 ```
 loop:
   wait until ∃ candidate c ∈ frontier where due(c) and gates [FR-011] a–d pass
-      // a–c are per-Host gates; (d) is per-URL; (e) is not a wait condition — see below
+      // a–c are per-Host gates; (d) is the robots gate; during the scan,
+      // candidates whose robots verdict is DISALLOW are immediately moved
+      // to ST-190/`ROBOTS_DISALLOW` [FR-031] and excluded from this wait,
+      // so only candidates with ALLOW robots verdict are considered;
+      // (e) is not a wait condition — see below
   pick c = highest-priority gate-passing candidate (ties: lexicographically smallest identity)
   if gate [FR-011](e) fails for c:              // registrable-domain cap [FR-005]
       move c → ST-190/CAP_REACHED               // exclusion, not deferral
       continue                                  // re-select without waiting;
-                                                // terminates — ST-190 is terminal, so
-                                                // each exclusion shrinks the candidate set
+                                                 // terminates — ST-190 is terminal, so
+                                                 // each exclusion shrinks the candidate set
   execute dispatch transaction [T-1]
   hand to fetcher worker pool
 ```

@@ -100,6 +100,8 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
 
 ## 4. Response classification
 
+The rows below are evaluated top-down; the first matching row applies.
+
 | Status | Class | Action |
 |---|---|---|
 | 1xx (interim) | — (never an outcome) | interim responses are consumed by the transport (RFC 9110 §15.2); the attempt continues and the [CFG-014] header timer keeps running until the final status line's header block arrives — a stream yielding no final status before the timer aborts ERR-012 [§2] |
