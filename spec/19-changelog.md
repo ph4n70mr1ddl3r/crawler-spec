@@ -39,6 +39,13 @@ version: 1.33.0
 - [DEC-004] said every redirect target creates a URL Record; [R-062]
   creates one only for the final target, while intermediate hops live in
   `redirect_chain` [R-133]. The decision now matches the rule.
+- NFR-004 jitter assumption fix: the specification previously claimed
+  "jitter only shrinks intervals" while the 304 multiplier (≤4×) only grows
+  them, so the bound holds for every URL. Jitter (CFG-026, up to 0.9) can both
+  shrink and grow intervals by a factor of (1−[CFG-026]); the divisor
+  (1−[CFG-026]) in the retention formula provides a conservative worst-case
+  bound ensuring the at-most claim holds for every URL. Corresponding test
+  AC-074 added to [DOC-17] verifying this correction.
 
 ### Completeness additions
 
