@@ -63,6 +63,7 @@ version: 1.33.0
 - [AC-029] no longer calls a non-HTML type "allowed" when [CFG-028]=false
   (the effective allowed list is empty [R-143]).
 
+- [FR-005] clarified the enqueue-time global cap [CFG-005] excludes redirect final-target upserts [R-062] bounded by in-flight chains, and the per-domain cap [CFG-006] excludes ST-100 records (only counts successes+inflight in {ST-130,ST-140,ST-110,ST-120}); dispatch-time gate [FR-011(e)] is authoritative, with ST-100‑queued URLs bypassing the enqueue-time per-domain check but remaining subject to dispatch-time enforcement per AC-007/AC-008. ST-190 audit records remain excluded from the [CFG-005] budget. Redirect final-target upserts count toward the target domain's per-domain cap upon successful chain completion.
 ### Versioning
 
 - KB version 1.32.0 → 1.33.0; touched documents (DOC-00, DOC-02, DOC-03,
