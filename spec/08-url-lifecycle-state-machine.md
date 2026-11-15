@@ -8,28 +8,23 @@ version: 1.33.0
 
 ## 1. States
 
-| ID | Name | Terminal? | Meaning |
-|----|------|-----------|---------|
-| ST-100 | QUEUED | no | Passed filters; awaiting scheduling. |
-| ST-110 | SCHEDULED | no | Dispatched; holding its global unit and at most one Host unit [R-051]. |
-| ST-120 | FETCHING | no | HTTP request in flight. |
-| ST-130 | FETCHED | no | Payload stored; extraction pending. |
-| ST-140 | DONE | yes | Parsed, extracted, artifacts stored. |
-| ST-150 | RETRY_WAIT | no | Retryable failure; backoff timer running. |
-| ST-180 | DEAD | yes | Retries exhausted or permanent error. |
-| ST-190 | EXCLUDED | yes | Never crawled; reason code required. |
+| ID | Name | Meaning |
+|----|------|---------|
+| ST-100 | QUEUED | Passed filters; awaiting scheduling. |
+| ST-110 | SCHEDULED | Dispatched; holding its global unit and at most one Host unit [R-051]. |
+| ST-120 | FETCHING | HTTP request in flight. |
+| ST-130 | FETCHED | Payload stored; extraction pending. |
+| ST-140 | DONE | Parsed, extracted, artifacts stored. Fetch cycle complete; may re-enter ST-100 via recrawl [FR-050] or rediscovery refresh [FR-051], or be overwritten by [R-062] upsert. |
+| ST-150 | RETRY_WAIT | Retryable failure; backoff timer running. |
+| ST-180 | DEAD | Retries exhausted or permanent error. |
+| ST-190 | EXCLUDED | Never crawled; reason code required. |
 
 Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIMEOUT`,
 `TRAP_PARAM`, `TRAP_PATH_BUDGET`, `DEPTH_LIMIT`, `CAP_REACHED`, `BLOCKLIST`.
 
-*Terminal* in the table above means the record's current fetch cycle is
-complete and has no failure-path exit. ST-140 is terminal with respect to its
-fetch cycle: it leaves ST-140 only via the two ST-100 re-entry paths —
-recrawl [FR-050] and rediscovery refresh [FR-051] (the records [FR-051]
-calls "terminal-success") — or via the [R-062] upsert, which moves it
-directly to a new fetch-outcome state (ST-130/ST-150/ST-180) without passing
-through ST-100. Where a rule means {ST-180, ST-190} by `terminal`
-(e.g. [R-062]), it names the states explicitly.
+*State-dependent rules reference specific states by ID. Notably:
+- R-050: Only ST-100 records are visible to the Scheduler.
+- R-051: ST-110/ST-120 records own one global unit each, held from [T-1] until the first transition out of {ST-110, ST-120}, plus at most one per-Host unit...
 
 ## 2. Transitions
 

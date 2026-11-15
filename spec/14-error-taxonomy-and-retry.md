@@ -51,9 +51,11 @@ on RETRYABLE outcome:
     if Retry-After present: delay = max(delay, Retry-After as a delta)  // never clamped;
                                                  // harmonized with the host-level rule [R-111]
     state → ST-150, next_attempt_mono = now + delay
-    if outcome is ERR-018:                      // hop-abort floor is an absolute
-        next_attempt_mono = max(next_attempt_mono, target_host.next_allowed_fetch_at)
-                                                 // monotonic instant, not a delay [R-131]
+if outcome is ERR-018:                      // hop-abort: the target Host's
+    next_attempt_mono = max(next_attempt_mono, target_host.next_allowed_fetch_at)
+                                                  // monotonic instant floor; the
+                                                  // politeness window opening acts as
+                                                  // an absolute floor on the next attempt
 on PERMANENT outcome:               → ST-180 immediately
                                      (`urls.last_error_class` recorded)
 ```

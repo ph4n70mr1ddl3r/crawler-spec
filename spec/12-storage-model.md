@@ -25,7 +25,7 @@ urls (
   source_run_id     INT  NOT NULL,
   discovered_from   TEXT NULL,            -- parent url_identity
   attempts          INT  NOT NULL DEFAULT 0,
-  last_error_class  TEXT NULL,            -- error class of the outcome that entered ST-180 [DOC-13 §4], or of a RETRYABLE outcome that landed ST-150 via a redirect-chain upsert onto a pre-existing record [R-062]; cleared by every subsequent successful completion [T-2]; NULL after operator reset and for crash-exhausted records [R-060]
+last_error_class TEXT NULL,            -- error class to record on ST-180 per [DOC-13 §3]; cleared on successful completion [T-2] and operator reset [DOC-13 §4]
   consecutive_unchanged INT NOT NULL DEFAULT 0,  -- consecutive 304s; recrawl-interval doubling [DOC-12 §4]
   next_attempt_mono INT NULL,             -- for ST-150 backoff
   once_retried_classes TEXT NOT NULL DEFAULT '[]', -- JSON array: yes-once error classes [R-232] already retried in the current attempt cycle; cleared when attempts resets to 0
