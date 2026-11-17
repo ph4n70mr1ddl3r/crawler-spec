@@ -72,6 +72,7 @@ version: 1.33.0
 
 - [FR-005] clarified the enqueue-time global cap [CFG-005] excludes redirect final-target upserts [R-062] bounded by in-flight chains, and the per-domain cap [CFG-006] excludes ST-100 records (only counts successes+inflight in {ST-130,ST-140,ST-110,ST-120}); dispatch-time gate [FR-011(e)] is authoritative, with ST-100‑queued URLs bypassing the enqueue-time per-domain check but remaining subject to dispatch-time enforcement per AC-007/AC-008. ST-190 audit records remain excluded from the [CFG-005] budget. Redirect final-target upserts count toward the target domain's per-domain cap upon successful chain completion.
 - [FR-005] dispatch-time gate text clarified: removed redundant "Note" stating candidate resides in ST-100 at dispatch time, replaced with clean statement that the gate is authoritative across all states, per AC-007/AC-008/AC-077. ST-100‑queued and ST-150‑gated URLs bypass the enqueue-time per-domain check but remain subject to dispatch-time enforcement. ST-190 audit records remain excluded from the [CFG-005] budget.
+- [FR-005] dispatch-time gate explicitly invokes the FR-005(1)(B) per-domain budget condition, ensuring the gate's authoritative scope across ST-100/ST-150 states is grounded in the same evaluation as the enqueue-time check, maintaining consistent behavior between both exclusion points.
 ### Versioning
 
 - KB version 1.32.0 → 1.33.0; touched documents (DOC-00, DOC-02, DOC-03,
