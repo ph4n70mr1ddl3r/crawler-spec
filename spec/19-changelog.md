@@ -6,6 +6,28 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: R-052 ST-140→ST-100 reset)
+
+### Correctness fixes
+
+- [R-052] was garbled by an earlier review edit that inserted the note "the
+  redirect final-target completion upsert [R-062] is not a rediscovery":
+  the insertion consumed the original rule subject "ST-140→ST-100
+  transitions (recrawl due [FR-050] and rediscovery refresh [FR-051])",
+  leaving the fragment "[R-062] is not a rediscovery: [FR-050] and
+  rediscovery refresh [FR-051]) reset `attempts=0` ...". Read literally,
+  this credits the [R-062] upsert with the `attempts` reset and `due_at_mono`
+  install that belong only to actual ST-140→ST-100 transitions, directly
+  contradicting [R-062] ("the upsert never modifies the target's
+  `attempts`"), [R-231], and [R-232] (the once-retried list clears exactly
+  when `attempts` resets to 0). It also carried a stray `)` and a
+  self-citation to [R-052] from the [FR-051] wording. The rule now restores
+  the "ST-140→ST-100 transitions" subject, states explicitly that the
+  [R-062] upsert never resets `attempts`, and drops the self-reference.
+  New [AC-083] exercises an upsert onto a pre-existing ST-140 record and
+  asserts `attempts`, priority, and `once_retried_classes` are preserved,
+  contrasting with the genuine recrawl/rediscovery promotions.
+
 ## Unreleased — 2026-11-18 (bug hunt: gate-time robots unit release)
 
 ### Correctness fixes
