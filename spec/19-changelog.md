@@ -6,6 +6,34 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
+
+### Correctness fixes
+
+- The [DOC-11 §1] `urls.last_error_class` schema comment described the column
+  as "error class to record on ST-180 per [DOC-13 §3]", implying a non-NULL
+  class only ever accompanies a DEAD record. That is false under the spec's
+  own completion rules: [T-2] and [R-062] require a failure upsert to SET the
+  target's class to the outcome's class even when it lands in ST-150 (a
+  RETRYABLE chain outcome), where the class stays transient until the
+  target's own next successful completion clears it [AC-061(d)], [AC-084];
+  ordinary RETRYABLE completions leave it unchanged, and an operator DEAD
+  reset clears it [DOC-13 §4]. Following the comment literally would omit or
+  clear the class on a RETRYABLE→ST-150 upsert landing — the exact defect the
+  v1.16.0 changelog records as fixed ("Stale `last_error_class` survived
+  recovery"), and the behavior [AC-084] fails. Git history pins the
+  regression: commit `5ac463b` (2026-11-15, "Review fixes: ... DOC-11:
+  Simplified last_error_class column comment") replaced the accurate comment
+  — which named the RETRYABLE/ST-150 upsert case, the success clear, and the
+  operator-reset/crash NULL cases — with the ST-180-only summary, and also
+  dropped the line's leading indentation. The same commit is the source of
+  the NFR-015 and ERR-018 regressions fixed immediately above. The comment
+  now restores the outcome-based rule and its citations. New [AC-089] pins
+  the observable behavior: a RETRYABLE ERR-002 upsert onto an ST-140 target
+  leaves a non-NULL class in ST-150 until the target's own success clears it,
+  so a literal implementation of the former comment fails [AC-084] and
+  [R-062].
+
 ## Unreleased — 2026-11-18 (bug hunt: NFR-015 starvation bound ignores global-unit pool)
 
 ### Correctness fixes
