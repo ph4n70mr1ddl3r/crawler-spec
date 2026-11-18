@@ -102,11 +102,13 @@ ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
                                  are exactly ST-130, ST-150, and ST-180, so an
                                  existing ST-190 record is always overwritten
                                  (ST-190→ST-130/ST-150/ST-180) and its
-                                 `exclude_reason` cleared [R-062]. The upsi rt's
-                                 field effects are: `last_seen_at` updated, and
-                                 on state changes outside ST-150, `next_attempt_mono`
-                                 cleared; on state changes outside ST-180,
-                                 `last_error_class` cleared; `once_retried_classes`
+                                 `exclude_reason` cleared [R-062]. The upsert's
+                                 field effects are: `last_seen_at` updated;
+                                 on landings outside ST-150,
+                                 `next_attempt_mono` cleared; `last_error_class`
+                                 set to the outcome's class on failure upserts
+                                 and cleared on success upserts [§4], [T-2],
+                                 [AC-061(d)]; `once_retried_classes`
                                  evaluated per [R-232].
 ```
 

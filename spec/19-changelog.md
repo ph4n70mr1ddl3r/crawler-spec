@@ -6,6 +6,25 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: R-062 upsert `last_error_class`)
+
+### Correctness fixes
+
+- The field-effects summary appended to the [DOC-07 §2] upsert transition
+  diagram claimed that on "state changes outside ST-180" the upsert
+  "clears `last_error_class`". A RETRYABLE redirect-chain upsert lands in
+  ST-150 — outside ST-180 — yet [R-062] §4 explicitly says failure upserts
+  SET `last_error_class` to the outcome's class (success upserts clear it),
+  corroborated by [T-2] and [AC-061(d)], both of which rely on a transient
+  class surviving a RETRYABLE upsert until the target's own next success
+  clears it. The summary therefore prescribed the opposite of the normative
+  rule for the common RETRYABLE→ST-150 case. The summary now states the
+  outcome-based rule, aligns the `next_attempt_mono` clause with §4's
+  "landing outside ST-150" wording, and repairs the "upsi rt's" typo from
+  the bad edit that introduced the clause. New [AC-084] asserts a
+  RETRYABLE upsert leaves a non-NULL class until the target's own success
+  clears it, so a literal implementation of the former summary fails.
+
 ## Unreleased — 2026-11-18 (bug hunt: R-052 ST-140→ST-100 reset)
 
 ### Correctness fixes
