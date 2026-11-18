@@ -22,7 +22,7 @@ Counters:
 | bytes_downloaded_total | content_type_class | post-decode bytes of every response body received, whatever its later disposition — robots.txt bodies included ([DOC-08 §2.2]: the same fetch machinery, classed by its Content-Type like any body); bodies discarded by type ([ERR-008]) or size ([ERR-007]: the bytes received up to the abort) still measure ingress; a `304` body contributes nothing; class ∈ {html, xml, image, pdf, text, other} (html = text/html + xhtml; xml = application/xml + text/xml + rss + atom) |
 | content_length_mismatch_total | — | counted when received body size ≠ the `Content-Length` header value [R-141] |
 | robots_queries_total | verdict{allow,disallow,unknown} | [DOC-08]; matches the C4 verdict enum |
-| exclusions_total | reason | cumulative entries into ST-190, by reason code — creations ([DOC-07 §2]) and later transitions in alike; monotonic, not the live count (that is the `excluded_count` gauge); the series is exposed regardless of [CFG-038], but OUT_OF_SCOPE drops under [CFG-038]=false create no ST-190 record and are counted only by `urls_discovered_total{dropped}` [FR-004] |
+| exclusions_total | reason | cumulative entries into ST-190, by reason code — creations ([DOC-07 §2]) and later transitions in alike; monotonic, not the live count (that is the `excluded_count` gauge); the series is exposed regardless of [CFG-038]; reason codes map directly to the `excluded` bucket in `urls_discovered_total{excluded}` — entries for OUT_OF_SCOPE under [CFG-038]=false create no ST-190 record and are counted only by `urls_discovered_total{dropped}` [FR-004] |
 
 Gauges:
 

@@ -47,6 +47,21 @@ version: 1.33.0
   every ingestion event exactly, each event increments exactly one bucket,
   and no event increments more than one bucket or zero buckets.
 
+ ## Unreleased — 2026-11-18 (bug hunt: exclusions_total metric mapping)
+
+### Correctness fixes
+
+- The [DOC-15 §1] `exclusions_total` metric was ambiguous in its relationship
+  to the `urls_discovered_total{excluded}` bucket and the `OUT_OF_SCOPE` handling
+  under [CFG-038]. A literal implementation could miscount reason codes or
+  double-count entries across the two metrics, violating [R-240]'s closed-enum
+  discipline. New [AC-092] pins the exact mapping: reason codes in
+  `exclusions_total` correspond directly to `urls_discovered_total{excluded}`
+  bucket entries; `OUT_OF_SCOPE` drops under [CFG-038]=false create no ST-190
+  record and are excluded from `exclusions_total`, being counted only by
+  `urls_discovered_total{dropped}` [FR-004]. This prevents the class of
+  divergences seen in v1.18.0–v1.19.0 where counter semantics were unspecified.
+
  ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
 
 ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
