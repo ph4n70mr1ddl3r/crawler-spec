@@ -6,6 +6,27 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: global cap scope)
+
+### Correctness fixes
+
+- [FR-005(1)(A)] had scoped the enqueue-time global cap [CFG-005] to "domain D
+  (the candidate's Registrable Domain)", making a config named `max_urls_total`
+  and tabled as a "total records" resource cap [DOC-16 §3] behave as a second
+  per-domain cap. A conformant implementation following that wording could hold
+  [CFG-005] non-EXCLUDED records on *each* domain, leaving the crawl-wide total
+  unbounded, and it contradicted NFR-004 ([CFG-005] distinct payloads per
+  generation), [AC-006] (counts all non-EXCLUDED records), and the changelog's
+  note that [CFG-005], unlike [CFG-006], has no dispatch-time gate. The clause
+  now states that [CFG-005] counts non-EXCLUDED records across the whole crawl,
+  with only the [R-062] upsert exemption retained. New [AC-081] exercises a
+  multi-domain fixture to detect a per-domain mis-implementation, and the
+  "other domains" clauses in [AC-034] and [AC-080] (which described the
+  per-domain cap, not the global one) were reconciled with system-wide
+  enforcement.
+- Removed stray `+` diff markers accidentally committed onto the start of
+  [AC-077], [AC-079], and [AC-080], which broke their markdown list items.
+
 ## 1.33.0 — 2026-10-29 (review pass v33: correctness, completeness, consistency)
 
 ### Correctness fixes
