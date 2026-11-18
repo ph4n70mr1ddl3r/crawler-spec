@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: ERR-018 backoff floor on ST-180)
+
+### Correctness fixes
+
+- The [DOC-13 §3] retry-decision pseudocode applied the ERR-018 hop-abort
+  floor (`next_attempt_mono = max(next_attempt_mono,
+  target_host.next_allowed_fetch_at)`) as a top-level `if outcome is
+  ERR-018:` statement, evaluated after the `if attempts ≥ CFG-020` budget
+  test. An ERR-018 abort is RETRYABLE, so when the budget is already
+  exhausted the record is sent to ST-180 (DEAD) at line 45 and the
+  unconditional floor then wrote a non-NULL `next_attempt_mono` onto that
+  DEAD record. This contradicts the field-hygiene invariant — "a backoff
+  timer must not survive outside ST-150" and `next_attempt_mono` "is
+  non-NULL only in ST-150" — asserted by [DOC-13 §4], [R-062], [DOC-07 §2],
+  [DOC-12 §1] and the [DOC-11 §1] schema comment ("for ST-150 backoff"), and
+  with the ST-150-only scope of the floor described in [R-131] and [AC-055]
+  (which explicitly contemplates ERR-018 reaching ST-180 when the window
+  never opens within the retry budget). Git history confirms the regression:
+  commit `5ac463b` ("DOC-13: Clarified ERR-018 hop-abort floor description")
+  dedented the block out of the `else:` branch that previously confined it
+  to the ST-150 landing. The floor is now re-indented into that `else:`
+  branch with an explicit "ST-150 landing only — never on a budget-exhausted
+  ST-180 landing" note, so it applies only where a backoff timer exists. New
+  [AC-085] asserts a budget-exhausted ERR-018 abort reaches ST-180 with a
+  NULL `next_attempt_mono` while a within-budget abort still floors it on
+  ST-150, so a literal implementation of the former top-level clause fails.
+
 ## Unreleased — 2026-11-18 (bug hunt: R-062 upsert `last_error_class`)
 
 ### Correctness fixes
