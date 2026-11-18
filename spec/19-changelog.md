@@ -6,6 +6,28 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: gate-time robots unit release)
+
+### Correctness fixes
+
+- [R-051] listed "the robots paths [FR-031], [R-054]" among the transitions
+  out of {ST-110, ST-120} that release held Host/global units, but [FR-031]
+  is the selection-time robots DISALLOW exclusion, which fires on an ST-100
+  candidate before [T-1] and therefore holds no units. The same rule's
+  no-unit clause already named [FR-031] as releasing nothing, so R-051 was
+  self-contradictory; a conformant implementation following the release list
+  would decrement counters it never incremented, corrupting [INV-3] and
+  [FR-011(b)]. The unit-release list now names only the send-time re-check
+  path [R-054], and the DOC-07 note on the robots paths was reconciled.
+- [AC-009] described the selection-time robots-DISALLOW exclusion as firing
+  "with units released per [R-051]" — the exact inverse of R-051's no-unit
+  clause — and cited "AC-011's cap gate" although AC-011 is the concurrency
+  invariant and the cap gate is [FR-011(e)] (AC-007/AC-008). AC-009 now
+  states that the gate-time exclusion holds and releases no units, keeps the
+  termination argument against the correct cap gate, and distinguishes the
+  send-time [R-054] path. New [AC-082] asserts no counter change on the
+  gate-time path and exactly one release on the send-time path.
+
 ## Unreleased — 2026-11-18 (bug hunt: global cap scope)
 
 ### Correctness fixes

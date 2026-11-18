@@ -117,8 +117,9 @@ during dispatch selection, while the record is ST-100 (ST-100→ST-190). The
 ST-110 paths cover verdicts that change after the dispatch transaction [T-1]
 but before the request is sent (e.g. a robots cache refresh between commit
 and send): DISALLOW ⇒ ST-110→ST-190; UNKNOWN (Host deferred) ⇒ compensated
-back to ST-100 [R-054]. In every case the held units are released
-exactly once [R-051].
+back to ST-100 [R-054]. In every one of these ST-110 cases the held units
+are released exactly once [R-051]; the gate-time ST-100→ST-190 exclusion
+holds no units and releases none [R-051].
 
 ## 3. State-dependent rules
 
@@ -133,9 +134,10 @@ exactly once [R-051].
   while waiting (politeness or capacity waits therefore cannot deadlock
   [G-4]). All units the record still holds are released exactly once, on
   the first transition out of {ST-110, ST-120} (to ST-100, ST-130, ST-150,
-  ST-180, or ST-190 — including the robots paths [FR-031], [R-054] — and
-  same-state upsert landings on pre-existing records [R-062] carry no units
-  and release nothing).
+  ST-180, or ST-190 — including the send-time robots re-check path [R-054];
+  the gate-time robots exclusion [FR-031] fires on an ST-100 candidate and is
+  covered by the no-unit clause below — and same-state upsert landings on
+  pre-existing records [R-062] carry no units and release nothing).
   Exclusions that fire on an ST-100 candidate before [T-1] — the
   dispatch-time cap gate [FR-011(e)], selection-time robots exclusions
   ([FR-031] at gate time, [R-103]) — release nothing: the record holds no
