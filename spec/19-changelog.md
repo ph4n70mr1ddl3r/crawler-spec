@@ -6,6 +6,38 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: urls_discovered_total bucket pins lost in simplification)
+
+### Correctness fixes
+
+- The [DOC-15 §1] `urls_discovered_total` definition lost four load-bearing
+  pins when commit `5ac463b` (2026-11-15, "Review fixes: ... Broke down
+  `urls_discovered_total` into four concise buckets") replaced the detailed
+  bucket semantics with a short bullet list. The deleted text was not
+  redundant: each clause had been added by an earlier bug hunt precisely
+  because its absence let counters diverge across conformant implementations
+  under R-240's closed-enum discipline — `ingested` also counts URL Records
+  created by redirect final-target upserts [R-062] (v1.16.0), runtime-seed
+  rejects violating [FR-002] count as `dropped` even though they have no URL
+  Identity (v1.18.0), seed re-injection [FR-006] and [R-062] upserts onto
+  pre-existing records count as `duplicate` so the four buckets partition
+  every ingestion event exactly (v1.19.0), and `excluded` means an audit
+  ST-190 record with a reason code, not a silent drop (`deeb358`,
+  2026-11-13). After the simplification the `dropped` bullet read only
+  "no-record discards (unacceptable URLs per [R-001]/[R-002] …)" — those
+  rules are *discovery-time* discards, so a literal implementation would not
+  count an FR-006 runtime API reject — and the `duplicate` bullet read only
+  "rediscoveries and upserts onto pre-existing records", omitting seed
+  re-injection and the explicit exact-partition guarantee; the "partitions
+  every ingestion event exactly" clause dropped from the column header and
+  the "not silently dropped" qualifier vanished from `excluded`. This reopens
+  the very divergences those changelog entries say were fixed. The full
+  bucket semantics and citations are restored. New [AC-090] pins the two most
+  fragile cases: a runtime-seed [FR-002] reject increments `dropped` despite
+  recording nothing, and a seed re-injection onto an existing identity
+  increments `duplicate`, so a literal implementation of the former bullets
+  fails and AC-052's exact-partition assertion is again testable.
+
 ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
 
 ### Correctness fixes
