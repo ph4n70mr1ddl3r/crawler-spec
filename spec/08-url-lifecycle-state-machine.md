@@ -293,9 +293,11 @@ holds no units and releases none [R-051].
   Yes-once classes ([R-232]) are accounted on the target exactly as on the
   source — one chain, one schedule: a RETRYABLE outcome whose class is
   ERR-003 or ERR-013 is evaluated against the target's own
-  `once_retried_classes`; when the class is not yet listed there it is
-  appended (mirroring the source's bookkeeping), and when it is already
-  listed the outcome is PERMANENT for the target (ST-180,
-  `last_error_class` := that class), independently of where the source
-  record lands. Success upserts leave the list to the normal clearing rule
+  `once_retried_classes`; the once-retried-classes check takes precedence:
+  if the class is already listed the outcome is PERMANENT (ST-180,
+  `last_error_class` := that class), independently of the retry budget
+  [CFG-020]; if the class is not yet listed it is appended (mirroring the
+  source's bookkeeping), and the normal [DOC-13 §3] retry procedure applies
+  (budget check: if `attempts` < [CFG-020] → ST-150 with backoff, else
+  ST-180). Success upserts leave the list to the normal clearing rule
   ([R-232]: cleared when `attempts` resets to 0).

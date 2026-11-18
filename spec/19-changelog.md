@@ -62,7 +62,13 @@ version: 1.33.0
   `urls_discovered_total{dropped}` [FR-004]. This prevents the class of
   divergences seen in v1.18.0–v1.19.0 where counter semantics were unspecified.
 
- ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
+## Unreleased — 2026-11-18 (bug hunt: once_retried_classes evaluation precedence and AC-093 test)
+
+### Correctness fixes
+
+- New [AC-093] pins the exact interaction between the once-retried-classes check and the retry budget during redirect final-target upserts: if the class is already listed in `once_retried_classes`, the outcome is PERMANENT (ST-180) regardless of [CFG-020]; if the class is not yet listed, it is appended per [R-232] and the normal budget check applies (ST-150 when `attempts` < [CFG-020], ST-180 otherwise). This evaluation order — once-retried-classes check first, budget check second — is now explicitly stated in [R-062] and prevents divergent implementations where RETRYABLE outcomes are landed in ST-150 even when the class is already listed, which would contradict [R-232] and violate [R-062]'s accounting; new [AC-093] tests this behavior and ensures [AC-052]'s four-bucket partition exactness is preserved.
+
+  ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
 
 ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
 
