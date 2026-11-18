@@ -72,7 +72,7 @@ Applied to IN_SCOPE URLs in order; first match wins:
    matching [CFG-029] patterns → ST-190/`TRAP_PARAM`. Parameter names are
    extracted by splitting the query string on `&`; a name is the substring
    before the first `=` of a token, or the whole token when it contains no `=`.
-3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of existing URL Records on that Host sharing the shape — each identity counted once, any state [R-042]; the candidate itself is not yet a record, since filters run before insertion [R-040] — is ≥ [CFG-030] → ST-190/`TRAP_PATH_BUDGET` (at most [CFG-030] URLs may share one shape per Host).
+3. **Path budget**: per Host + path shape (each maximal digit run in the normalized path replaced by a single `N`; query string excluded), if the number of existing URL Records on that Host sharing the shape — each identity counted once, any state [R-042]; the candidate itself is not yet a record, since filters run before insertion [R-040] — is ≥ [CFG-030] → ST-190/`TRAP_PATH_BUDGET` (at most [CFG-030] non-excluded URLs may be admitted per shape per Host; the excluded ST-190/`TRAP_PATH_BUDGET` records themselves carry that shape and, as records on the Host in any state, also count toward the shape counter [R-042], so the total number of URL Records sharing a shape is unbounded — only admissions are capped, unlike the global cap [CFG-005] where ST-190 audit records are not counted [FR-005]).
 4. **Depth**: depth > [CFG-004] → ST-190/`DEPTH_LIMIT`. Seeds have depth 0.
 
 - R-043: The glob language used by [CFG-037] (URL blocklist) and

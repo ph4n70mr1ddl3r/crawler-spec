@@ -6,6 +6,38 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: path-shape trap cap counted records)
+
+### Correctness fixes
+
+- [DOC-06 §5] filter 3 and [DOC-14 CFG-030] both summarized the path-shape
+  guard as "at most [CFG-030] URLs may share one shape per Host." That bound
+  is false under the spec's own counting rule: once [CFG-030] records share a
+  shape, every further candidate with that shape is *excluded* to
+  ST-190/`TRAP_PATH_BUDGET`, and [R-041] requires excluded URLs to keep their
+  ST-190 records while [R-042] requires every record on the Host — "including
+  excluded ones" — to contribute its shape. The number of URL Records sharing
+  the shape therefore grows past [CFG-030] without bound (501, 502, … at the
+  default) even though no more than [CFG-030] are ever admitted. Git history
+  pins the regression: commit `b4b0a1b` (v1.6.0) fixed the off-by-one
+  comparison (`>` → `≥` on existing records) and introduced both "at most
+  [CFG-030] URLs" summaries in the same change, without reconciling them with
+  [R-042]'s "including excluded ones" rule, which had existed since `fe5351c`
+  (v1.4.0); the v1.6.0 changelog repeats the same erroneous conclusion
+  ("so at most [CFG-030] URLs share a shape"). Under [R-000] the summaries
+  are level-(4) prose while [R-041]/[R-042] are level-(3) rules, and their
+  "any state / including excluded ones" wording is also the more specific
+  statement, so the summaries were the erroneous text. Both are now qualified
+  to "at most [CFG-030] non-excluded URLs may be admitted per shape," with an
+  explicit note that the ST-190 records themselves carry and count toward the
+  shape so only admissions are bounded — deliberately unlike the global cap
+  [CFG-005], whose ST-190 audit records are not counted [FR-005(1)(A)]. New
+  [AC-087] asserts that with [CFG-030]=3 the 4th–6th candidates become
+  ST-190/`TRAP_PATH_BUDGET` records that still share and count toward the
+  shape (six records on one shape), so a literal implementation of the former
+  "at most [CFG-030] URLs may share one shape" clause that suppresses those
+  records or drops them from the counter fails.
+
 ## Unreleased — 2026-11-18 (bug hunt: NFR-004 one-shot fetch bound)
 
 ### Correctness fixes
