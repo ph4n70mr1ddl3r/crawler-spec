@@ -38,6 +38,17 @@ version: 1.33.0
   increments `duplicate`, so a literal implementation of the former bullets
   fails and AC-052's exact-partition assertion is again testable.
 
+- New [AC-091] verifies the four-bucket partition is exact and that
+  `excluded` and `dropped` are disjoint: `excluded` captures URLs producing
+  an ST-190 audit record with a reason code, while `dropped` captures URLs
+  producing no-record discards (unacceptable URLs per [R-001]/[R-002],
+  runtime-seed rejects per [FR-006], OUT_OF_SCOPE with [CFG-038]=false,
+  per-page candidate-cap overflow per [R-159]); the four buckets partition
+  every ingestion event exactly, each event increments exactly one bucket,
+  and no event increments more than one bucket or zero buckets.
+
+ ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
+
 ## Unreleased — 2026-11-18 (bug hunt: last_error_class schema comment ST-180-only)
 
 ### Correctness fixes
