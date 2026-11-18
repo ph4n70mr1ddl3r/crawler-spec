@@ -6,6 +6,39 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: NFR-015 starvation bound ignores global-unit pool)
+
+### Correctness fixes
+
+- [DOC-05 NFR-015] promised "every due URL whose gates pass is dispatched
+  within one scheduling-loop iteration of becoming due [R-210]" — an absolute
+  one-iteration guarantee. [DOC-12 R-210] is explicitly narrower: dispatch is
+  guaranteed within one loop iteration "provided the global-unit pool is not
+  full," and [R-212] states that a dispatch finding the pool full at [T-1]
+  commit time commits nothing, leaving the record in ST-100 until a unit-release
+  wake. A due, all-gates-passing URL at a moment when [CFG-010] is saturated is
+  therefore *not* dispatched in that iteration, so NFR-015's literal claim is
+  false — and following it would over-commit the global pool in breach of
+  [FR-011(b)], [AC-011] and [INV-3]. Git history pins the regression: commit
+  `5ac463b` (2026-11-15, "Review fixes: ... starvation freedom ...") amended
+  R-210 from "it MUST be dispatched within one loop iteration; gates are the
+  ONLY reason to wait" to the qualified form with the global-pool proviso and
+  the [R-212] parenthetical, but left NFR-015 (introduced in `c5b8626`, v1.8.0)
+  untouched. Under [R-000] both are level-(3) statements, but [DOC-12] is a
+  topic document and [DOC-05] a general one, so R-210/R-212 govern and NFR-015
+  was the erroneous text. NFR-015 now carries the same "provided the
+  global-unit pool is not full" proviso, cites [R-212], and states that a
+  [FR-011(b)] deferral keeps the record in ST-100 until the next wake rather
+  than exempting it from [CFG-010]. The same commit also left R-210's
+  "gates are the ONLY reason to wait" absolute unqualified beside its own
+  global-pool exception and a stray closing bracket (`)]`); R-210 is now
+  scoped with "subject to that proviso" and the stray bracket removed. New
+  [AC-088] pins the observable behavior: with [CFG-010]=1 and two due,
+  gate-passing URLs on different Hosts, one dispatch commits in the first
+  iteration and the second stays ST-100 until the completion wake releases the
+  unit, so a literal implementation of the former unconditional NFR-015 that
+  dispatches both fails [FR-011(b)]/[AC-011].
+
 ## Unreleased — 2026-11-18 (bug hunt: path-shape trap cap counted records)
 
 ### Correctness fixes

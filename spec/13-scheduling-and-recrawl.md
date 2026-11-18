@@ -97,10 +97,10 @@ UNKNOWN timeouts).
 
 - R-210: Starvation freedom [NFR-015]: if a candidate is due and its gates pass,
   it MUST be dispatched within one loop iteration **provided the global-unit pool
-  is not full**; gates are the ONLY reason to wait. (If the global pool is full
-  at commit time, the record stays ST-100 and is re-selected on the next wake
-  [R-212], but the starvation guarantee applies between candidate evaluation and
-  [T-1] commit when the pool has available units.)]
+  is not full**; subject to that proviso, gates are the ONLY reason a due candidate
+  is deferred. (If the global pool is full at commit time, the record stays ST-100
+  and is re-selected on the next wake [R-212], but the starvation guarantee applies
+  between candidate evaluation and [T-1] commit when the pool has available units.)
 - R-211: The loop MUST NOT busy-poll; it sleeps until the earliest of
   (next `due_at_mono` over ST-100, next `next_attempt_mono` over ST-150,
   next recrawl `due_at_mono` over ST-140 [FR-050], next politeness expiry,

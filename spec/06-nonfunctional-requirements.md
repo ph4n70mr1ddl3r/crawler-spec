@@ -28,5 +28,5 @@ Targets are for reference hardware: 4 vCPU, 8 GiB RAM, SSD, 100 Mbps.
 | NFR-012 | Idempotency | Re-running ingestion of the same seed set produces no duplicate work. |
 | NFR-013 | Security posture | All SSRF/trap guards fail closed: unknown ⇒ block [DOC-16]. |
 | NFR-014 | Compliance | robots.txt handling conforms to RFC 9309 semantics for the groups matching UA Token. |
-| NFR-015 | Resource fairness | Per-host load is inherently capped by [CFG-009]; globally, scheduling MUST be fair across Hosts — no starvation: every due URL whose gates pass is dispatched within one scheduling-loop iteration of becoming due [R-210]. |
+| NFR-015 | Resource fairness | Per-host load is inherently capped by [CFG-009]; globally, scheduling MUST be fair across Hosts — no starvation: every due URL whose gates pass is dispatched within one scheduling-loop iteration of becoming due, **provided the global-unit pool is not full** [R-210], [R-212]. A due candidate deferred because the [CFG-010] global unit is held by another fetch stays ST-100 and is re-selected on the next wake when that unit is released [R-212], [R-211]; fairness bounds the wait only while a global unit is available and never exempts a dispatch from [FR-011(b)] [AC-011]. |
 | NFR-016 | Log hygiene | Logs MUST NOT contain full payload bodies; URLs MAY be logged; credentials (userinfo in URL) MUST be redacted. |
