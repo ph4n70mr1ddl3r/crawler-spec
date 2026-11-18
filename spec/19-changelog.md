@@ -6,6 +6,39 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-18 (bug hunt: NFR-004 one-shot fetch bound)
+
+### Correctness fixes
+
+- The [DOC-05 §NFR-004] `CFG-025=0` case asserted "each URL is fetched at
+  most once — a single generation per URL." Read literally, this forbids a
+  second fetch of a URL identity under *any* configuration, but the spec
+  mandates exactly such a second fetch when `[CFG-021]=true`: [FR-051] moves a
+  rediscovered terminal-success (ST-140) record back to ST-100, [R-052]
+  explicitly states that this rediscovery-refresh edge "is still an edge for
+  one-shot records (`[CFG-025]=0`, `[R-221]` no-store) — only the recrawl-due
+  path is suppressed," [DOC-12 §1] repeats that the refresh "still promotes
+  such a record, independently of recrawl eligibility," [DOC-11 §1] describes
+  the resulting same-run second fetch ("a same-run refetch ever occurs (e.g.,
+  a rediscovery refresh under `[CFG-021]=true` [FR-051]) ... UPSERTS (replaces)
+  the prior row"), and [AC-072] makes the same ST-140 re-admission the terminal
+  fate of a one-shot record. Under [R-000] a numbered NFR is level (3), but
+  within that level a topic document overrides a general one: [DOC-07]/[DOC-11]/
+  [DOC-12] therefore govern over the general [DOC-05], so NFR-004's absolute
+  claim is the erroneous statement. Git history confirms the regression:
+  commit `2ea28a5` ("Spec review v1.21.0 ... restructure NFR-004's disjoint
+  generation-bound cases") introduced the unqualified "at most once" wording
+  while splitting the cases, whereas [DOC-11 §1] had carried the correct
+  qualified form — "fetched at most once **per recrawl cycle**" — since commit
+  `3ac6169` (v1.1.0). The clause is now qualified to "at most once per fetch
+  cycle — a single generation per cycle, not per URL identity," naming the
+  rediscovery refresh, the operator DEAD reset, and the same-attempt [R-144]
+  refetch as permitted re-fetches and reaffirming the one-blob-per-body
+  [DEC-005] bound. New [AC-086] asserts that a `[CFG-025]=0`, `[CFG-021]=true`
+  rediscovery performs the second fetch (upserting the same-run `pages` row)
+  while a never-rediscovered one-shot record stays terminal, so a literal
+  implementation of the former "at most once" clause fails.
+
 ## Unreleased — 2026-11-18 (bug hunt: ERR-018 backoff floor on ST-180)
 
 ### Correctness fixes
