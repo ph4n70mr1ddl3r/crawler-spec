@@ -6,6 +6,31 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: ERR-018 class summaries still mandated unconditional ST-150 and a DEAD-record backoff floor, and AC-102 test)
+
+### Correctness fixes
+
+- The earlier bug hunt that fixed the `ERR-018` hop-abort floor (changelog
+  entry "ERR-018 backoff floor on ST-180") re-indented the `[DOC-13 §3]`
+  pseudocode so the `max(next_attempt_mono,
+  target_host.next_allowed_fetch_at)` floor applies only inside the `else:`
+  (ST-150) branch, and added `[AC-085]` to assert a budget-exhausted
+  `ERR-018` abort reaches ST-180 with a NULL `next_attempt_mono`. That fix
+  never touched the two class-definition summaries: the `[DOC-13 §1]`
+  taxonomy row still read "chain aborts, source → ST-150, target window
+  opening is an unclamped floor on `next_attempt_mono`", and the `[DOC-09
+  §4]` classification row still read "source → ST-150, window opening floors
+  `next_attempt_mono`". Both therefore described `ERR-018` as an
+  unconditional ST-150 landing with an unconditional floor, contradicting
+  `[DOC-13 §3]`, `[AC-085]`, and the "non-NULL only in ST-150" field-hygiene
+  invariant `[DOC-13 §4]`, `[R-062]`, `[DOC-12 §1]`, `[DOC-11 §1]`: with
+  `[CFG-020]=1` an implementation following either summary would write a
+  backoff timer onto a DEAD ST-180 record. Both rows are now qualified so the
+  floor applies only when `attempts < [CFG-020]` and a budget-exhausted abort
+  lands in ST-180 with `next_attempt_mono=NULL`, and new `[AC-102]` pins the
+  agreement of the two summaries with the `[DOC-13 §3]` procedure in both the
+  within-budget and budget-exhausted cases.
+
 ## Unreleased — 2026-11-19 (bug hunt: ERR-014 defined as 4xx-only but mandated for the double-304 outcome, and AC-101 test)
 
 ### Correctness fixes

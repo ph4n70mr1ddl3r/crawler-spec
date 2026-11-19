@@ -118,7 +118,7 @@ The rows below are evaluated top-down; the first matching row applies.
 | 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
 | 3xx hop target matches the [CFG-037] blocklist | permanent | chain terminates at that hop; source → ST-180, ERR-019 [R-131] |
 | 3xx hop target fails SSRF/egress policy | permanent | chain terminates at that hop; source → ST-180, ERR-004, referring Host flagged `suspicious=true`; target never fetched [R-400], [R-402] |
-| 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150, window opening floors `next_attempt_mono`; no fetch worker is held for the over-threshold wait [AC-055] |
+| 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150 with `next_attempt_mono` floored at the target Host's window opening when `attempts < CFG-020`, or ST-180 with `next_attempt_mono=NULL` when the retry budget is exhausted (the floor never lands on a DEAD record) [DOC-13 §3], [AC-085]; no fetch worker is held for the over-threshold wait [AC-055] |
 | 3xx without parsable `Location` | permanent | ST-180, ERR-011 (missing, unparsable, or non-http(s) target [R-130]) |
 | 3xx outside the followable set (e.g. 300) | permanent | ST-180, ERR-011, with or without a `Location` [R-130]; a `304` is not this case — the success-unchanged row above applies |
 

@@ -27,7 +27,7 @@ version: 1.33.0
 | ERR-015 | REDIRECT_OUT_OF_SCOPE | no | redirect target failed the Scope predicate [R-030]; source URL → ST-180, target never fetched |
 | ERR-016 | HEADER_TOO_LARGE | no | response header block exceeds 64 KiB [DOC-16 §3] |
 | ERR-017 | REDIRECT_ROBOTS_DISALLOWED | no | redirect hop target failed the target Host's robots gate [R-131]; source URL → ST-180, target never fetched |
-| ERR-018 | HOP_RATE_LIMITED | yes | redirect hop whose target Host politeness window would delay the send beyond [CFG-035] (e.g. adversarial Crawl-delay); chain aborts, source → ST-150, target window opening is an unclamped floor on next_attempt_mono [R-131] |
+| ERR-018 | HOP_RATE_LIMITED | yes | redirect hop whose target Host politeness window would delay the send beyond [CFG-035] (e.g. adversarial Crawl-delay); chain aborts [R-131]; source → ST-150 with `next_attempt_mono` floored at the target Host's window opening **only when `attempts < CFG-020`** — a budget-exhausted abort lands in ST-180 with `next_attempt_mono=NULL`, since the floor never applies to a DEAD record [§3], [AC-085] |
 | ERR-019 | REDIRECT_BLOCKLISTED | no | redirect hop target matches the [CFG-037] URL blocklist; chain terminates at that hop, source → ST-180, target never fetched, hop recorded in `redirect_chain` [R-131] — the blocklist is not bypassable by redirects |
 
 ## 2. Retry state
