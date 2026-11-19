@@ -6,6 +6,48 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: robots exclusions mislabeled as ingestion/creation events in metrics and AC-098 test)
+
+### Correctness fixes
+
+- Commit `138d934` (the `state_transitions_total`/`AC-052` clarification) and
+  the earlier `exclusions_total` mapping fix added `robots DISALLOW` to the
+  `creation→ST-190` filter-outcome list and to the `urls_discovered_total{excluded}`
+  ingestion-event list in [DOC-15 §1], mirrored in [AC-052] and [AC-090].
+  Both placements are false under [DOC-07 §2]: a robots verdict is never
+  evaluated during ingestion — the gate runs during dispatch selection, where a
+  DISALLOW moves an ST-100 record to ST-190/`ROBOTS_DISALLOW` [FR-031], and a
+  verdict change after [T-1] takes the ST-110→ST-190 send-time path [R-054];
+  a continuously deferred Host sweeps gated ST-100/ST-150 records to
+  ST-190/`ROBOTS_UNKNOWN_TIMEOUT` [R-103]. None of these is a record creation
+  or an ingestion event, so labelling the first `from=creation` emits a
+  transition label the state machine does not define and counting it in
+  `urls_discovered_total{excluded}` breaks that metric's exact four-bucket
+  partition of ingestion events [AC-052], [AC-091]. The same overstatement made
+  [AC-092] claim a one-to-one mapping between `exclusions_total` reason codes
+  and `urls_discovered_total{excluded}` assignments: `exclusions_total` counts
+  all ST-190 entries, creations and later transitions alike, so the
+  transition-only reasons (`ROBOTS_DISALLOW` at the gate,
+  `ROBOTS_UNKNOWN_TIMEOUT` via the sweep, dispatch-time `CAP_REACHED`) have no
+  `excluded` counterpart. [DOC-15 §1] now confines `creation→ST-190` to the
+  genuine ingestion filter outcomes, drops gate-time robots DISALLOW from the
+  `excluded` bucket, and states that `exclusions_total` and
+  `urls_discovered_total{excluded}` are related but not one-to-one; [AC-052],
+  [AC-090] and [AC-092] are corrected to match. New [AC-098] pins the real
+  labels (`ST-100→ST-190`, `ST-110→ST-190`, `ST-100/ST-150→ST-190`), that these
+  events move no `urls_discovered_total` bucket, and that a literal
+  implementation of the former enumeration fails both the transition-label
+  check and the partition check.
+
+### Completeness fixes
+
+- Commit `5f707c1` announced "New [AC-091]" but appended its text to [AC-090]
+  rather than defining a standalone `- AC-091:` criterion, leaving [AC-091]
+  cited by [AC-052], [AC-090], [AC-092], [AC-094] and this new [AC-098] with no
+  definition to resolve to. The exact-partition assertion is restored as a real
+  [AC-091] criterion (with the gate-time robots exclusion carved out per
+  [AC-098]), and [AC-090] now points to it instead of duplicating its body.
+
 ## Unreleased — 2026-11-19 (bug hunt: RFC 5952 leading-zero suppression missing from IPv6 normalization step 3 and AC-097 test)
 
 ### Correctness fixes
