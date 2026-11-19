@@ -6,6 +6,25 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: ingested/duplicate is_seed contradiction and AC-094 test)
+
+### Correctness fixes
+
+- The [DOC-15 §1] `ingested` bucket definition contained a residual clause that
+  listed "an existing record's `is_seed` flag updated idempotently" as an
+  `ingested` event. That operation is exactly seed re-injection [FR-006] /
+  config-seed re-ingestion [NFR-012], which the `duplicate` bucket of the same
+  table, [AC-032], [AC-058] and [AC-090] all classify as `duplicate` — [AC-090]
+  says "not `ingested`". The clause also contradicted `ingested`'s own
+  "excluding events that result in a `duplicate` … bucket assignment" qualifier,
+  so a literal implementation would double-count or mis-bucket seed re-ingestion
+  and break [AC-052]/[AC-091]'s exact four-bucket partition. The clause is
+  removed and `ingested` now explicitly states that an idempotent `is_seed`
+  update on a pre-existing record is `duplicate`, not `ingested`. New [AC-094]
+  pins this: re-ingestion onto an existing identity increments `duplicate`
+  exactly once, while creation of a new record (including an [R-062] upsert that
+  creates its target) remains `ingested`.
+
 ## Unreleased — 2026-11-18 (bug hunt: urls_discovered_total bucket pins lost in simplification)
 
 ### Correctness fixes
