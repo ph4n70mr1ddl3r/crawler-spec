@@ -33,7 +33,9 @@ version: 1.33.0
   success-unchanged. New [AC-104] pins both the ordinary UNCHANGED/304 case
   and the double-304 PERMANENT case, including the host-counter side effect.
 
-## Unreleased — 2026-11-19 (bug hunt: R-131 step-3 ERR-018 hop-abort narration still mandated unconditional ST-150 and a DEAD-record backoff floor, and AC-103 test)
+- [AC-105] The `state_transitions_total` metric correctly distinguishes creation events from state-transition events involving ST-190 records: it emits `{from=creation,to=ST-190}` exclusively for ingestion-time ST-190 creation (scope/trap/blocklist filter failure [FR-004] or enqueue-time cap reached [FR-005]), and emits `{from=ST-100,to=ST-190}`, `{from=ST-110,to=ST-190}`, or `{from=ST-150,to=ST-190}` for later ST-190 state transitions (robots re-check [R-054], robots-unknown timeout sweep [R-103], dispatch-time domain-cap gate [FR-011(e)]). It emits no `{from=creation,to=ST-190}` for ST-190 record overwrites via [R-062] upserts (those overwrite existing records and are not record-creating transitions). An implementation that emits `{from=creation,to=ST-190}` for later transitions or upsert overwrites, or that fails to distinguish creation from transition, violates [AC-052] and [AC-098].
+
+## Unreleased — 2026-11-19 (bug hunt: R-121 said all 304 responses count as success, contradicting the R-144 double-304 PERMANENT/ERR-014 outcome, and AC-104 test)
 
 ### Correctness fixes
 
