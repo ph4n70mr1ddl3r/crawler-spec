@@ -6,6 +6,32 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: AC-008 said the dispatch-time domain-cap gate does not trigger on the first five dispatch attempts, and AC-100 test)
+
+### Correctness fixes
+
+- [AC-008] asserted, for a domain with 5 ST-100 records and [CFG-006]=2, that
+  "the dispatch-time gate [FR-011(e)] check does NOT trigger on the first 5
+  dispatch attempts (since ST-100 is excluded from the per-domain check and the
+  domain has no records in {ST-130,ST-140,ST-110,ST-120})". That rationale is
+  only true *before* the first dispatch: [T-1] immediately moves the dispatched
+  record to ST-110, so `inflight(D)` becomes 1, and [T-2] completion moves it to
+  ST-140, so `successes(D)` becomes 1. After two successful dispatches
+  `successes(D)+inflight(D)=2 ≥ [CFG-006]`, so the third dispatch attempt MUST
+  be excluded [FR-005(2)], [FR-011(e)] — exactly as [AC-007] and [AC-078] (the
+  latter an identical fixture) assert. The clause therefore made [AC-008]
+  self-contradictory: its own next sentence says a subsequent dispatch after
+  two successes is excluded, i.e. the third attempt, which is within the first
+  five it had just declared exempt. It also contradicted [AC-006]'s bound of
+  exactly two successes per Registrable Domain. Commit `bb896122` had already
+  fixed the older "6th dispatch attempt" wording but left this clause intact,
+  so a literal implementation of the criterion would dispatch attempts 3–5,
+  overshoot the per-domain budget, and fail the very ACs pinning it. [AC-008]
+  now states the live accounting and the first-two/ third-attempt split
+  explicitly, and new [AC-100] pins the step-by-step sum, the ST-100→ST-190 /
+  `CAP_REACHED` landing of the third attempt, and the failure mode of the
+  former clause.
+
 ## Unreleased — 2026-11-19 (bug hunt: R-021 resolves relative page links against the final URL instead of a valid `<base href>`, and AC-099 test)
 
 ### Correctness fixes
