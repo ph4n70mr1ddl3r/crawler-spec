@@ -42,6 +42,12 @@ attempts allowed.
 
 ```
 on RETRYABLE outcome:
+  if outcome class ∈ {ERR-003, ERR-013}:   // "yes (once)" classes [R-232] —
+                                          // evaluated FIRST, before the budget check
+      if class ∈ urls.once_retried_classes: // already retried once this attempt cycle
+          → ST-180 (DEAD) — outcome is PERMANENT, error_class := class
+      else:
+          append class to urls.once_retried_classes  // persisted by [T-2]; fall through
   if attempts ≥ CFG-020:            → ST-180 (DEAD), error_class recorded
   else:
     delay = CFG-022 × CFG-023^(attempts−1)
@@ -62,6 +68,15 @@ on PERMANENT outcome:               → ST-180 immediately
                                      (`urls.last_error_class` recorded)
 ```
 
+The yes-once-classes gate [R-232] is evaluated before the [CFG-020] budget
+check, identically to the redirect final-target upsert path [R-062], [AC-093]:
+a repeat ERR-003/ERR-013 is PERMANENT/ST-180 even when `attempts` < [CFG-020],
+and a first occurrence appends the class and then falls through to the ordinary
+budget/backoff path. The append and the class written on the DEAD landing are
+persisted by [T-2]; the list is cleared exactly when `attempts` resets to 0
+[R-232]. This procedure governs every ordinary retry landing (FR-052); the
+upsert path applies the same precedence via [R-062].
+
 - R-230: Backoff is per-URL; host-level dynamic backoff ([DOC-08 §4]) applies
   additionally and independently at scheduling time.
 - R-232: Classes marked "yes (once)" (ERR-003, ERR-013) are retryable at
@@ -69,10 +84,13 @@ on PERMANENT outcome:               → ST-180 immediately
   its class is already listed in `urls.once_retried_classes` [DOC-11 §1], the
   outcome is PERMANENT (ST-180, `last_error_class` := that class); otherwise
   the class is appended to the list and the normal §3 retry procedure
-  applies. The general budget [CFG-020] still applies independently. The
-  list is cleared exactly when `attempts` is reset to 0 (ST-140→ST-100
-  [R-052]; operator reset §4), so the rule needs no fetch_events history and
-  cannot be affected by [CFG-033] retention.
+  applies. This check is the first gate of the §3 procedure, evaluated before
+  the [CFG-020] budget check on both ordinary retry landings [§3] and
+  redirect final-target upserts [R-062], [AC-093]; the general budget still
+  applies independently once the class check passes. The list is cleared
+  exactly when `attempts` is reset to 0 (ST-140→ST-100 [R-052]; operator
+  reset §4), so the rule needs no fetch_events history and cannot be affected
+  by [CFG-033] retention.
 - R-231: Any successful page fetch resets host `consecutive_failures` to 0; the full increment/reset semantics are defined by [R-112] (robots.txt exchanges never modify it). The URL `attempts` counter resets to 0 only when the record leaves ST-140 for ST-100 (recrawl [R-052] or rediscovery refresh [FR-051]) or is operator-reset to ST-100 from ST-180 [DOC-13 §4]; it is never reset by a retry-path success.
 
 ## 4. Dead-letter semantics

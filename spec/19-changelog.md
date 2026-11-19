@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: R-232 once-retried gate missing from normative §3 retry procedure and AC-095 test)
+
+### Correctness fixes
+
+- The [DOC-13 §3] "Retry decision procedure (normative)" — the procedure that
+  [FR-052] and every ordinary retry landing point to — had no check of
+  `urls.once_retried_classes`. Its `on RETRYABLE outcome` block went straight
+  to the [CFG-020] budget test and, when budget remained, landed the record in
+  ST-150 with backoff. That is wrong for the "yes (once)" classes [ERR-003],
+  [ERR-013]: [R-232] makes a repeat occurrence PERMANENT (ST-180,
+  `last_error_class` := that class) regardless of remaining budget, and
+  [AC-024] pins "two ERR-003 outcomes … reaches DEAD at the second
+  occurrence". A literal implementation of the normative pseudocode would
+  therefore retry a second ERR-003/ERR-013 in ST-150 instead of dead-lettering
+  it, violating [R-232] and failing [AC-024]. The gap also left the ordinary
+  fetch path inconsistent with the redirect final-target upsert path, where
+  [AC-093] had just pinned the identical once-retried-classes-before-budget
+  precedence in [R-062]. §3 now opens its RETRYABLE branch with the [R-232]
+  gate — already-listed class ⇒ PERMANENT/ST-180 with the class recorded;
+  otherwise append the class and fall through to the normal budget/backoff
+  path — with a note that the gate precedes the budget check on both paths;
+  [R-232] now states the same precedence and its application to both landings.
+  New [AC-095] pins the ordinary (non-upsert) behavior: first ERR-003 appends
+  the class and lands ST-150, second ERR-003 with budget remaining is
+  PERMANENT/ST-180, a plain class retries normally, and a successes-driven
+  `attempts` reset clears the list so one retry is available again.
+
 ## Unreleased — 2026-11-19 (bug hunt: ingested/duplicate is_seed contradiction and AC-094 test)
 
 ### Correctness fixes
