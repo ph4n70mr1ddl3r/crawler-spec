@@ -6,6 +6,31 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: IPv6 RFC 5952 canonicalization missing from normative normalization §2 and AC-096 test)
+
+### Correctness fixes
+
+- The [DOC-06 §2] "Normalization algorithm (normative)" — the exhaustive
+  procedure [AC-001]'s normalization vector and every URL-Identity computation
+  follow — lowercased the hostname (step 3) but never canonicalized IPv6
+  literals, even though [R-003] requires IPv6 literals to be canonicalized to
+  their RFC 5952 compressed form so that equivalent spellings share one URL
+  Identity. RFC 3986 parsing alone does not compress IPv6 addresses, so a
+  literal implementation of §2 produced two distinct identities for
+  `[2001:0db8:0000:0000:0000:0000:0000:0001]` and `[2001:db8::1]`: two URL
+  Records instead of one, two `host_key`/Registrable-Domain values, and a
+  split [CFG-006] per-domain cap that could admit two separate batches of
+  successes. [AC-057]'s existing example (`[2001:0DB8::1]` vs
+  `[2001:db8::1]`) varied only hex-letter case, which step 3's lowercasing
+  already handles, so it could not catch the gap. Step 3 now performs RFC 5952
+  compressed-lowercase canonicalization (leftmost-longest zero-run compression,
+  no `::` for a single field, brackets retained) before the identity and Host
+  key are formed, with a note that RFC 3986 parsing alone is insufficient;
+  [R-003] now cross-references §2 step 3 and lists the expanded form. New
+  [AC-096] pins an expanded mixed-case literal and its compressed form to one
+  identity/record/Host/domain key, and records why [AC-057]'s case-only
+  example is insufficient.
+
 ## Unreleased — 2026-11-19 (bug hunt: R-232 once-retried gate missing from normative §3 retry procedure and AC-095 test)
 
 ### Correctness fixes
