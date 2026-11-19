@@ -23,7 +23,7 @@ version: 1.33.0
 | ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | also covers 3xx responses with a missing or unparsable `Location`, and hop targets that are not acceptable absolute http(s) URLs after RFC 3986 §5 resolution (e.g. `ftp:`, `data:`, userinfo) [R-130], [DOC-09 §4] |
 | ERR-012 | TIMEOUT_HEADERS / TIMEOUT_TOTAL | yes | |
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |
-| ERR-014 | HTTP_4XX_PERMANENT | no | non-retryable client errors (401/403/404/410/418/451/other 4xx); the specific status is recorded in fetch_events.http_status [DOC-09 §4] |
+| ERR-014 | HTTP_PERMANENT | no | non-retryable permanent HTTP responses: 4xx client errors (401/403/404/410/418/451/other 4xx) and the double-304 case where an unconditional refetch of a 304 with no usable stored payload also returns 304 [R-144]; the specific status (including 304) is recorded in fetch_events.http_status [DOC-09 §4] |
 | ERR-015 | REDIRECT_OUT_OF_SCOPE | no | redirect target failed the Scope predicate [R-030]; source URL → ST-180, target never fetched |
 | ERR-016 | HEADER_TOO_LARGE | no | response header block exceeds 64 KiB [DOC-16 §3] |
 | ERR-017 | REDIRECT_ROBOTS_DISALLOWED | no | redirect hop target failed the target Host's robots gate [R-131]; source URL → ST-180, target never fetched |

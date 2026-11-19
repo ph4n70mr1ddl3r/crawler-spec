@@ -6,6 +6,27 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: ERR-014 defined as 4xx-only but mandated for the double-304 outcome, and AC-101 test)
+
+### Correctness fixes
+
+- [DOC-13 §1] defined `ERR-014` as `HTTP_4XX_PERMANENT`, 'non-retryable
+  client errors (401/403/404/410/418/451/other 4xx)'. But [R-144] — added
+  later — mandates `ERR-014` for a different case: when a 304 with no usable
+  stored payload is refetched unconditionally and that refetch also returns
+  304, the outcome is PERMANENT with `error_class=ERR-014`. A 304 is a 3xx,
+  and the [DOC-09 §4] classification table explicitly says 'a 304 is not
+  this case' for the permanent-3xx row, routing it to the success-unchanged
+  row instead. So the only normative definition of `ERR-014` excluded the
+  one 3xx outcome for which it is the required class: an implementation
+  following the taxonomy would refuse to record `ERR-014` for the
+  double-304 and fail [AC-059]. `ERR-014` is now named `HTTP_PERMANENT` and
+  defined status-neutrally to cover both 4xx client errors and the [R-144]
+  double-304 case, with the status (including 304) recorded in
+  `fetch_events.http_status`; the [DOC-09 §4] 304 row now states the
+  PERMANENT/`ERR-014` landing explicitly, and new [AC-101] pins the outcome
+  and the broadened taxonomy definition.
+
 ## Unreleased — 2026-11-19 (bug hunt: AC-008 said the dispatch-time domain-cap gate does not trigger on the first five dispatch attempts, and AC-100 test)
 
 ### Correctness fixes
