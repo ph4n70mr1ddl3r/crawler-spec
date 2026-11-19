@@ -41,8 +41,9 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
   PERMANENT and error_class ERR-011 (unacceptable target). A `3xx` status
   outside the followable set (e.g. `300`) likewise terminates the attempt
   PERMANENT/ERR-011, with or without a `Location` — no follow is defined
-  for it (a `304` is not such a case: it is classified earlier, as
-  success-unchanged [§4], [R-144]).
+  for it (a `304` is not such a case: it is classified earlier by the
+  304 row of [§4] and by [R-144] — success-unchanged when a usable stored
+  payload exists, PERMANENT/ERR-014 on the [R-144] double-304 cache-miss).
 - R-131: Each hop: resolve DNS + SSRF check [DOC-16 §2], scope check [R-030],
   robots check [FR-021], and URL-blocklist check ([CFG-037]: a hop target
   matching the blocklist terminates the chain identically to [R-030] —

@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: R-121 said all 304 responses count as success, contradicting the R-144 double-304 PERMANENT/ERR-014 outcome, and AC-104 test)
+
+### Correctness fixes
+
+- The bug hunt that broadened `ERR-014` [DOC-13 §1] to cover the [R-144]
+  double-304 cache-miss outcome, and added [AC-101], fixed the taxonomy row
+  and the [DOC-09 §4] 304 row but never touched the normative honesty rule
+  [DOC-08 §5], [R-121]. That rule still read "304 responses count as
+  success with unchanged payload" — a blanket claim false for the one 304
+  outcome the spec mandates be PERMANENT: a 304 with no usable stored
+  payload whose single permitted unconditional refetch [R-144] also returns
+  304 must land ST-180 with `error_class='ERR-014'` [AC-059], [AC-101]. A
+  literal implementation of R-121 in the response classifier returned
+  UNCHANGED/ST-130 for the second 304, reusing a payload hash that by the
+  rule's own premise does not exist, and reset the Host's
+  `consecutive_failures` [R-112], [R-231] even though a PERMANENT outcome
+  must leave it unchanged — directly contradicting [R-144], [DOC-09 §4]
+  and [AC-101]. The same blanket claim survived in the [DOC-09 §3]
+  parenthetical of [R-130] ("a 304 is … classified earlier, as
+  success-unchanged"). R-121 now distinguishes the two sub-cases — a 304
+  with a usable stored payload is success-unchanged, while a 304 cache miss
+  follows [R-144] to a PERMANENT/`ERR-014` landing on the second 304 — and
+  states the [R-112] counter consequence; [R-130]'s parenthetical now points
+  at both sub-cases instead of asserting that every 304 is
+  success-unchanged. New [AC-104] pins both the ordinary UNCHANGED/304 case
+  and the double-304 PERMANENT case, including the host-counter side effect.
+
 ## Unreleased — 2026-11-19 (bug hunt: R-131 step-3 ERR-018 hop-abort narration still mandated unconditional ST-150 and a DEAD-record backoff floor, and AC-103 test)
 
 ### Correctness fixes

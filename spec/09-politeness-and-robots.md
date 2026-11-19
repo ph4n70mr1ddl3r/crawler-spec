@@ -205,4 +205,4 @@ and inflight < CFG-009, then set
 ## 5. Honesty
 
 - R-120: UA Token format: `[ProductName]/[version] (+[contact-url])`; constant across all requests [CFG-018]. Compression/fingerprint variation is forbidden.
-- R-121: Conditional requests (`If-None-Match`/`If-Modified-Since`) SHOULD be sent on refetches when validators are known; 304 responses count as success with unchanged payload.
+- R-121: Conditional requests (`If-None-Match`/`If-Modified-Since`) SHOULD be sent on refetches when validators are known. A `304` received when a usable stored payload exists is classified as success-unchanged: freshness metadata is refreshed and the old payload hash is reused [DOC-09 §4]. A `304` with no usable stored payload is a cache miss governed by [R-144], not a success: the crawler performs exactly one unconditional refetch in the same attempt, and if that refetch also returns `304` the outcome is PERMANENT with `error_class='ERR-014'` [DOC-09 §4], [DOC-13 §1], [AC-059], [AC-101]. Only the first sub-case resets host `consecutive_failures` [R-112], [R-231].
