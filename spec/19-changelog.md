@@ -6,6 +6,32 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: R-021 resolves relative page links against the final URL instead of a valid `<base href>`, and AC-099 test)
+
+### Correctness fixes
+
+- [R-021] opens by stating that a valid `<base href>` overrides the final URL
+  as the resolution base, and [FR-042]/[AC-040] resolve the page's relative
+  links against that extraction base. Its middle sentence, however, read "A
+  relative `href` is first resolved against the final URL per RFC 3986 §5; the
+  result is valid only if it is an acceptable absolute http(s) URL". The older
+  changelog entry "[R-021] now defines `<base href>` validity" confirms the
+  intended subject is a relative **`<base href>` value**, which must be
+  resolved against the final URL to obtain and validate the absolute base.
+  Read literally as a rule about a page link's relative `href`, it directs the
+  implementation to resolve every relative link against the final URL even
+  when a valid `<base href>` is present — the very behaviour the rule's own
+  first sentence forbids. A fixture with a valid relative base therefore
+  produces links rooted at the final URL instead of the base, failing [AC-040]
+  and contradicting [FR-042], [R-020] and [R-021]'s first clause. [R-021] now
+  separates the two steps explicitly: resolve a relative `<base href>` value
+  against the final URL to form the effective base, then resolve every relative
+  link against that effective base (against the final URL only when no valid
+  base is present), with an invalid base ignored. New [AC-099] pins both steps
+  and the invalid-base fallback, and records that a literal implementation of
+  the former clause fails the valid-base case while still passing the
+  invalid-base case.
+
 ## Unreleased — 2026-11-19 (bug hunt: robots exclusions mislabeled as ingestion/creation events in metrics and AC-098 test)
 
 ### Correctness fixes

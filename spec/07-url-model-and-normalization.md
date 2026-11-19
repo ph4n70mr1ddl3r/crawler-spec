@@ -55,7 +55,7 @@ The output string is the **URL Identity** (primary key, DEC-004).
 ## 3. Cross-host resolution
 
 - R-020: Links found in a page MUST be resolved against the **final URL** of that page's fetch chain (after redirects), not the originally requested identity.
-- R-021: `<base href>` in HTML overrides the final URL as resolution base when present and valid. A relative `href` is first resolved against the final URL per RFC 3986 §5; the result is valid only if it is an acceptable absolute http(s) URL ([R-001], [R-002]). An invalid `<base href>` is ignored, so the final URL remains the resolution base.
+- R-021: `<base href>` in HTML overrides the final URL as resolution base when present and valid. A `<base href>` value that is itself relative is first resolved against the final URL per RFC 3986 §5; the resulting absolute URL is the effective resolution base and is valid only if it is an acceptable absolute http(s) URL ([R-001], [R-002]). Every relative link `href` on the page is resolved against that effective base — the valid `<base href>` when present, otherwise the final URL — never against the final URL while a valid base is present [R-020], [FR-042], [AC-040]. An invalid `<base href>` (including one that resolves to a non-http(s) scheme) is ignored, so the final URL remains the resolution base.
 
 ## 4. Scope predicate
 
