@@ -6,6 +6,30 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: RFC 5952 leading-zero suppression missing from IPv6 normalization step 3 and AC-097 test)
+
+### Correctness fixes
+
+- The v1.33.0 fix that made [DOC-06 §2] step 3 canonicalize IPv6 literals
+  enumerated only three operations — lowercase every hex digit, compress the
+  longest zero run, and retain the brackets — and so still omitted RFC 5952
+  §4.1's suppression of leading zeros within each 16-bit field. That made the
+  algorithm's own canonical-form claim, [R-003]'s examples, and the just-added
+  [AC-096] internally unsatisfiable: lowercasing plus zero-run compression
+  turns `[2001:0DB8::1]` into `[2001:0db8::1]` and
+  `[2001:0DB8:0000:0000:0000:0000:0000:0001]` into `[2001:0db8::1]`, neither
+  equal to `[2001:db8::1]`. A literal implementation of §2 step 3 therefore
+  still produced two URL Identities, two URL Records, two
+  `host_key`/Registrable-Domain values, and a split [CFG-006] per-domain cap
+  for what [R-003] and [AC-096] assert is one resource. Step 3 now explicitly
+  suppresses leading zeros in each 16-bit field (`0DB8`→`db8`, `0011`→`11`,
+  an all-zero field becoming `0` before compression), [R-003] names the
+  suppression sub-step, and the note records that RFC 3986 parsing does
+  neither compression nor suppression. New [AC-097] isolates the missing
+  sub-step with a fully expanded literal that has no compressible zero run,
+  so it fails only on leading zeros even when compression is implemented —
+  distinct from [AC-096]'s combined compression case.
+
 ## Unreleased — 2026-11-19 (bug hunt: IPv6 RFC 5952 canonicalization missing from normative normalization §2 and AC-096 test)
 
 ### Correctness fixes

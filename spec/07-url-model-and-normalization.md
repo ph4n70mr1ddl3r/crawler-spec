@@ -10,7 +10,7 @@ version: 1.33.0
 
 - R-001: Only absolute URLs with scheme ∈ {`http`, `https`} [CFG-003] are acceptable. All others (relative without base, `ftp:`, `javascript:`, `data:`, `mailto:`) MUST be discarded at discovery time with no record.
 - R-002: URLs containing userinfo (`user:pass@host`) MUST be rejected entirely [NFR-016]: at discovery time they are discarded with no record, identically to [R-001]; credentials MUST never be logged or stored [R-320].
-- R-003: IDN hostnames MUST be converted to punycode (IDNA2008/UTS-46) before any use; the original unicode form MAY be kept as display metadata only. IP-literal hostnames are lowercased, and IPv6 literals are canonicalized to their RFC 5952 compressed form by step 3 of the normative normalization algorithm [§2], so `[2001:0DB8::1]`, `[2001:db8::1]`, and `[2001:0db8:0000:0000:0000:0000:0000:0001]` share one URL Identity. The Registrable Domain of an IP-literal Host is the canonical literal string itself [DOC-00].
+- R-003: IDN hostnames MUST be converted to punycode (IDNA2008/UTS-46) before any use; the original unicode form MAY be kept as display metadata only. IP-literal hostnames are lowercased, and IPv6 literals are canonicalized to their RFC 5952 compressed form by step 3 of the normative normalization algorithm [§2] — which lowercases hex digits, suppresses leading zeros within each 16-bit field, and compresses the longest zero run — so `[2001:0DB8::1]`, `[2001:db8::1]`, and `[2001:0db8:0000:0000:0000:0000:0000:0001]` share one URL Identity. The Registrable Domain of an IP-literal Host is the canonical literal string itself [DOC-00].
 
 ## 2. Normalization algorithm (normative)
 
@@ -27,13 +27,16 @@ Given an accepted URL, produce the **Normalized URL** by applying, in order:
 2. Lowercase scheme.
 3. Lowercase hostname (after punycode conversion). For a bracketed IPv6
    literal (RFC 3986 §3.2.2), additionally canonicalize the address to its
-   RFC 5952 compressed lowercase form — lowercase every hex digit, replace
-   the longest run of zero 16-bit fields with `::` (leftmost run on ties,
-   never a single field), and retain the enclosing brackets [R-003]. RFC 3986
-   parsing alone does not compress IPv6 literals, so this step is required for
-   equivalent spellings to share one identity. The canonical literal is the
-   hostname component of the URL Identity and of the Host key, and is the
-   Registrable Domain of an IP-literal Host [DOC-00].
+   RFC 5952 compressed lowercase form: lowercase every hex digit, suppress
+   leading zeros within each 16-bit field (so `0DB8` becomes `db8` and
+   `0011` becomes `11`; a field of all zeros becomes `0` before compression),
+   replace the longest run of zero 16-bit fields with `::` (leftmost run on
+   ties, never a single field), and retain the enclosing brackets [R-003].
+   RFC 3986 parsing alone neither compresses IPv6 literals nor suppresses
+   leading zeros, so this step is required for equivalent spellings to share
+   one identity. The canonical literal is the hostname component of the URL
+   Identity and of the Host key, and is the Registrable Domain of an
+   IP-literal Host [DOC-00].
 4. Remove port if it equals the scheme default (80 for http, 443 for https).
 5. Remove fragment (`#...`) — fragments never participate in URL Identity.
 6. Resolve path dot-segments per RFC 3986 §5.2.4.
