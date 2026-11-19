@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-19 (bug hunt: R-131 step-3 ERR-018 hop-abort narration still mandated unconditional ST-150 and a DEAD-record backoff floor, and AC-103 test)
+
+### Correctness fixes
+
+- The bug hunt that added `[AC-102]` qualified the two `ERR-018`
+  class-definition summaries — the `[DOC-13 §1]` taxonomy row and the
+  `[DOC-09 §4]` classification row — so the hop-abort politeness floor on
+  `next_attempt_mono` applies only to a RETRYABLE ST-150 landing and a
+  budget-exhausted abort lands in ST-180 with a NULL timer. It did not touch
+  the normative hop-dispatch rule itself: `[DOC-09 §3]`, `[R-131]` step 3
+  (untouched since its introduction) still read "source URL → ST-150, with
+  the target Host's window opening acting as an unclamped floor on
+  `next_attempt_mono` `[DOC-13 §3]`". That clause is the source the two
+  summaries were copied from, so the defect survived in the rule that
+  [FR-021] and every redirect-hop implementation follow: with `[CFG-020]=1`
+  an implementation following step 3 literally lands the budget-exhausted
+  `ERR-018` abort in ST-150 with a floored, non-NULL backoff timer,
+  contradicting `[DOC-13 §3]`, `[AC-085]`, `[AC-102]` and the "non-NULL only
+  in ST-150" field-hygiene invariant `[DOC-12 §1]`, `[DOC-11 §1]`, and
+  stranding a record whose `attempts` equals `[CFG-020]` in ST-150 (the
+  ST-150→ST-100 promotion requires `attempts < [CFG-020]`). Step 3 now
+  conditions the ST-150 landing and the window-opening floor on
+  `attempts < [CFG-020]` and sends a budget-exhausted abort to ST-180 with
+  `next_attempt_mono=NULL`, and new `[AC-103]` pins the step-3 narration's
+  agreement with `[DOC-13 §3]` in both the within-budget and
+  budget-exhausted cases.
+
 ## Unreleased — 2026-11-19 (bug hunt: ERR-018 class summaries still mandated unconditional ST-150 and a DEAD-record backoff floor, and AC-102 test)
 
 ### Correctness fixes

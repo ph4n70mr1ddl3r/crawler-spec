@@ -74,8 +74,10 @@ Timeout violations classify ERR-001 (DNS), ERR-002 (connect), ERR-003 (TLS), ERR
      send by more than [CFG-035] (e.g. an adversarially large `Crawl-delay`
      [R-102]), the chain is aborted as RETRYABLE with error_class ERR-018
      instead of holding a fetch worker for the wait [G-4]: source URL →
-     ST-150, with the target Host's window opening acting as an unclamped
-     floor on `next_attempt_mono` [DOC-13 §3]. A capacity wait (all
+     ST-150 with `next_attempt_mono` floored at the target Host's window
+     opening only when `attempts < [CFG-020]`; a budget-exhausted abort lands
+     in ST-180 with `next_attempt_mono=NULL` (the floor never lands on a DEAD
+     record) [DOC-13 §3], [AC-085], [AC-102]. A capacity wait (all
      [CFG-009] target-Host units in use) needs no such threshold: the
      holders are in-flight requests that complete within their timeouts,
      and the waiting task holds no Host unit, so the wait is bounded and
