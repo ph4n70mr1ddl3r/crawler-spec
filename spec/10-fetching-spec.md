@@ -110,7 +110,7 @@ The rows below are evaluated top-down; the first matching row applies.
 | 1xx (interim) | — (never an outcome) | interim responses are consumed by the transport (RFC 9110 §15.2); the attempt continues and the [CFG-014] header timer keeps running until the final status line's header block arrives — a stream yielding no final status before the timer aborts ERR-012 [§2] |
 | Header block > 64 KiB | permanent | reject beyond the fixed 64 KiB cap, ST-180, ERR-016; no payload is persisted; no fetch worker is held [DOC-16 §3] |
 | 200–299 | success | store payload [FR-043] → ST-130 |
-| 304 | success-unchanged | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144]; if that refetch also returns 304 the outcome is PERMANENT/ERR-014 [R-144] |
+| 304 | success-unchanged, or permanent on double-304 cache miss | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144]; if that refetch also returns 304 the outcome is PERMANENT/ERR-014 [R-144] — so the Class is UNCHANGED in the ordinary case, but PERMANENT/ERR-014 on the [R-144] double-304 cache miss, never blanket success-unchanged [AC-108] |
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |
 | 404, 410 | permanent | ST-180, ERR-014 |
 | 418, 451 | permanent | ST-180, ERR-014 |
@@ -123,7 +123,7 @@ The rows below are evaluated top-down; the first matching row applies.
 | 3xx hop target fails SSRF/egress policy | permanent | chain terminates at that hop; source → ST-180, ERR-004, referring Host flagged `suspicious=true`; target never fetched [R-400], [R-402] |
 | 3xx hop delayed > [CFG-035] by target Host politeness | retryable | chain aborts, ERR-018 [R-131]; source → ST-150 with `next_attempt_mono` floored at the target Host's window opening when `attempts < CFG-020`, or ST-180 with `next_attempt_mono=NULL` when the retry budget is exhausted (the floor never lands on a DEAD record) [DOC-13 §3], [AC-085]; no fetch worker is held for the over-threshold wait [AC-055] |
 | 3xx without parsable `Location` | permanent | ST-180, ERR-011 (missing, unparsable, or non-http(s) target [R-130]) |
-| 3xx outside the followable set (e.g. 300) | permanent | ST-180, ERR-011, with or without a `Location` [R-130]; a `304` is not this case — the success-unchanged row above applies |
+| 3xx outside the followable set (e.g. 300) | permanent | ST-180, ERR-011, with or without a `Location` [R-130]; a `304` is not this case — the 304 row above applies (success-unchanged when a usable stored payload exists, PERMANENT/ERR-014 on the [R-144] double-304 cache miss) [AC-108] |
 
 ## 5. Payload handling
 

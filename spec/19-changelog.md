@@ -6,6 +6,35 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 304 row Class cell still blanket-labeled every 304 success-unchanged, contradicting the row's own PERMANENT/ERR-014 double-304 Action, and AC-108 test)
+
+### Correctness fixes
+
+- The bug hunts that qualified the [DOC-09 §4] 304 row's Action cell, [R-121]
+  [DOC-08 §5], the [R-130] parenthetical [DOC-09 §3], the [DOC-13 §1]
+  `ERR-014` definition, and the [DOC-07 §2] transition table for the [R-144]
+  double-304 cache-miss outcome (adding [AC-101], [AC-104], [AC-107]) never
+  touched the **Class** cell of the [DOC-09 §4] 304 row itself. That cell still
+  read `success-unchanged` — a blanket outcome label false for the one 304
+  outcome the spec mandates be PERMANENT: a 304 with no usable stored payload
+  whose single permitted unconditional refetch [R-144] also returns 304 must
+  land ST-180 with `error_class='ERR-014'` [AC-059], [AC-101]. The row is
+  evaluated top-down and its Class column is the outcome class (compare the
+  `permanent`, `retryable`, `per cause` and `— (never an outcome)` cells of the
+  other rows, and the `FetchResult` outcome enum [DOC-09 §6]); a literal
+  implementation reading that Class cell classified the double-304 as
+  SUCCESS/UNCHANGED — reusing a payload hash that by that outcome's own premise
+  does not exist, resetting the Host's `consecutive_failures` [R-112], [R-231]
+  even though a PERMANENT outcome must leave it unchanged, and self-
+  contradicting the very same row's Action cell and the [DOC-07 §2]
+  ST-120→ST-180 permanent-failure edge. The Class cell now states the
+  conditional outcome — UNCHANGED in the ordinary case, PERMANENT/`ERR-014` on
+  the [R-144] double-304 cache miss — and the 304 cross-reference in the '3xx
+  outside the followable set' row no longer calls it unconditionally the
+  'success-unchanged row'. New [AC-108] pins the row's classification in both
+  the ordinary UNCHANGED case and the double-304 PERMANENT case, including the
+  host-counter side effect.
+
 ## Unreleased — 2026-11-20 (bug hunt: DOC-07 §2 transition table still sent every 304 to ST-130/UNCHANGED, contradicting the R-144 double-304 PERMANENT/ERR-014 landing, and AC-107 test)
 
 ### Correctness fixes
