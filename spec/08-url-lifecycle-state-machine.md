@@ -46,8 +46,13 @@ ST-110 ─► ST-120                robots ALLOW confirmed, request sent
 ST-110 ─► ST-190                robots DISALLOW at send-time re-check [R-054], [T-5]
 ST-110 ─► ST-100                send-time robots UNKNOWN (deferral) compensation [R-054], [T-5]
 ST-120 ─► ST-130                success — 2xx with payload stored [FR-043],
-                                or 304 UNCHANGED reusing the existing payload
-                                [R-121], [R-144]
+                                or a 304 with a usable stored payload classified
+                                UNCHANGED, reusing that payload hash [R-121],
+                                [DOC-09 §4]; a 304 with no usable stored payload
+                                is an [R-144] cache miss refetched once in the
+                                same attempt, and a second 304 is PERMANENT/
+                                ERR-014 → ST-180 via the permanent-failure edge
+                                below [AC-059], [AC-101], [AC-104]
 ST-110 ─► ST-150                crash recovery reclassification [R-060],
                                 [DOC-13 §5] (applies from ST-120
                                 identically; request-sent status unknown,

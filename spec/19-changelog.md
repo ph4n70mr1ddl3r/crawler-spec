@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: DOC-07 §2 transition table still sent every 304 to ST-130/UNCHANGED, contradicting the R-144 double-304 PERMANENT/ERR-014 landing, and AC-107 test)
+
+### Correctness fixes
+
+- The bug hunt that qualified [R-121] [DOC-08 §5] and the [DOC-09 §4] 304
+  row for the [R-144] double-304 cache-miss outcome, and added [AC-104],
+  fixed the normative honesty rule and the response-classification table but
+  never touched the [DOC-07 §2] state-transition diagram. That diagram's
+  ST-120→ST-130 success edge still read "or 304 UNCHANGED reusing the existing
+  payload [R-121], [R-144]" — a blanket claim false for the one 304 outcome
+  the spec mandates be PERMANENT. It sent every 304 to ST-130/UNCHANGED even
+  when no usable stored payload exists (nothing to reuse), and mis-cited
+  [R-144], the very rule that mandates a PERMANENT/`ERR-014` landing on a
+  second 304, as authority for the UNCHANGED landing. A literal implementation
+  of that edge returned UNCHANGED/ST-130 for a first-fetch 304 whose
+  unconditional refetch [R-144] also returned 304 — reusing a payload hash
+  that by the outcome's own premise does not exist, resetting the Host's
+  `consecutive_failures` [R-112], [R-231] even though a PERMANENT outcome must
+  leave it unchanged, and self-contradicting the same table's ST-120→ST-180
+  permanent-failure edge [AC-059], [AC-101], [AC-104]. The edge now classifies
+  a 304 exactly like [R-121] and the [DOC-09 §4] row: UNCHANGED/ST-130 only
+  when a usable stored payload exists, otherwise an [R-144] cache miss whose
+  second 304 is PERMANENT/`ERR-014` routed to ST-180 via the permanent-failure
+  edge. New [AC-107] pins the transition table's agreement with the normative
+  304 treatment in both the ordinary UNCHANGED case and the double-304
+  PERMANENT case, including the host-counter side effect.
+
 ## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 429 and 5xx rows mandated unconditional ST-150, ignoring the retry-budget ST-180 landing, and AC-106 test)
 
 ### Correctness fixes
