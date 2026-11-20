@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 200–299 row blanket-labeled every 2xx success/store-payload, contradicting R-143/ERR-008/FR-041's PERMANENT/ERR-008 discard of disallowed non-HTML types, and AC-109 test)
+
+### Correctness fixes
+
+- The [DOC-09 §4] response-classification table is evaluated top-down with
+  the first matching row applying, and its `Class` column feeds the
+  `FetchResult` outcome and completion landing [DOC-09 §6]. The bug hunts
+  that qualified the `304`, `429` and `5xx` rows (adding [AC-104],
+  [AC-106], [AC-107], [AC-108]) never touched the `200–299` row, which
+  still read `success | store payload [FR-043] → ST-130` for every
+  successful status. That blanket claim is false for a `200` serving a
+  non-HTML type outside the effective allowed list [R-143]: [R-143]
+  mandates the payload is discarded and the outcome is `ERR-008`
+  [DOC-13 §1], [FR-041] classifies it PERMANENT/`ERR-008`, the `ERR-008`
+  taxonomy row says "not stored or parsed; ST-180", [AC-029] pins
+  `[CFG-028]=false` + `application/pdf` to no blob and ST-180, and the
+  [DOC-07 §2] ST-120→ST-130 edge is itself qualified "2xx with payload
+  stored." A literal implementation of the former row stored a payload
+  the configuration says MUST be discarded, emitted OUTCOME=SUCCESS and
+  landed the record in ST-130, inflating the Content Store and `pages`
+  accounting and failing [FR-041], [R-143] and [AC-029]. The row is now
+  split into two disjoint cases — HTML or an allowed non-HTML type
+  (`success`, store payload, ST-130) versus a non-HTML type outside the
+  effective allowed list (`permanent`, `ERR-008`, payload discarded,
+  ST-180) — and new [AC-109] pins both the ordinary success case and the
+  disallowed-type PERMANENT case.
+
 ## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 304 row Class cell still blanket-labeled every 304 success-unchanged, contradicting the row's own PERMANENT/ERR-014 double-304 Action, and AC-108 test)
 
 ### Correctness fixes

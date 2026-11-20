@@ -109,7 +109,8 @@ The rows below are evaluated top-down; the first matching row applies.
 |---|---|---|
 | 1xx (interim) | — (never an outcome) | interim responses are consumed by the transport (RFC 9110 §15.2); the attempt continues and the [CFG-014] header timer keeps running until the final status line's header block arrives — a stream yielding no final status before the timer aborts ERR-012 [§2] |
 | Header block > 64 KiB | permanent | reject beyond the fixed 64 KiB cap, ST-180, ERR-016; no payload is persisted; no fetch worker is held [DOC-16 §3] |
-| 200–299 | success | store payload [FR-043] → ST-130 |
+| 200–299, HTML type or type in the effective allowed list [R-143] | success | store payload [FR-043] → ST-130 |
+| 200–299, non-HTML type outside the effective allowed list [R-143] (e.g. any non-HTML type when [CFG-028]=false) | permanent | payload discarded [FR-041] → ST-180 with ERR-008 [DOC-13 §1], never success/ST-130 [AC-109] |
 | 304 | success-unchanged, or permanent on double-304 cache miss | refresh freshness metadata, keep old payload hash [R-121]; if no usable stored payload exists (blob removed by retention, or none ever stored — [R-144]), treat as cache miss and refetch fully [R-144]; if that refetch also returns 304 the outcome is PERMANENT/ERR-014 [R-144] — so the Class is UNCHANGED in the ordinary case, but PERMANENT/ERR-014 on the [R-144] double-304 cache miss, never blanket success-unchanged [AC-108] |
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |
 | 404, 410 | permanent | ST-180, ERR-014 |
