@@ -114,9 +114,9 @@ The rows below are evaluated top-down; the first matching row applies.
 | 401, 403 | permanent | ST-180, ERR-014 (status recorded in fetch_events.http_status); do NOT retry |
 | 404, 410 | permanent | ST-180, ERR-014 |
 | 418, 451 | permanent | ST-180, ERR-014 |
-| 429 | retryable | honor Retry-After [R-111] → ST-150 |
+| 429 | retryable | honor Retry-After [R-111] → ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded when the retry budget is exhausted [DOC-13 §3], [AC-024] |
 | other 4xx | permanent | ST-180, ERR-014 |
-| 5xx | retryable | → ST-150, increments host consecutive_failures |
+| 5xx | retryable | → ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded when the retry budget is exhausted [DOC-13 §3]; increments host `consecutive_failures` [R-112] on either landing |
 | 3xx non-followable (loop/cap/out-of-scope) | per cause | ERR-011, or ERR-015 for out-of-scope targets [R-030] |
 | 3xx hop blocked by target Host robots | permanent | chain terminates at that hop; source → ST-180, ERR-017 [R-131] |
 | 3xx hop target matches the [CFG-037] blocklist | permanent | chain terminates at that hop; source → ST-180, ERR-019 [R-131] |

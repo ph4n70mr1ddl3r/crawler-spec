@@ -6,6 +6,31 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 429 and 5xx rows mandated unconditional ST-150, ignoring the retry-budget ST-180 landing, and AC-106 test)
+
+### Correctness fixes
+
+- The [DOC-09 §4] response-classification table states a landing state in
+  every row, and the [R-131] `ERR-018` row was qualified in an earlier bug
+  hunt so a budget-exhausted hop abort lands in ST-180 with a NULL timer
+  rather than an unconditional ST-150. The two ordinary retryable rows were
+  left unqualified: `429` read "honor `Retry-After` [R-111] → ST-150" and
+  `5xx` read "→ ST-150, increments host `consecutive_failures`". Both
+  contradict the normative [DOC-13 §3] procedure, under which any RETRYABLE
+  outcome with `attempts` ≥ [CFG-020] lands in ST-180 (DEAD) with
+  `urls.last_error_class` recorded, and [FR-052]/[AC-024], which pin the
+  budget-exhausted ST-180 landing for `429`. With [CFG-020]=3, a third
+  consecutive `429` or `5xx` following the table literally re-arms a backoff
+  timer on a record whose `attempts` equals the budget, stranding it in ST-150
+  (the ST-150→ST-100 promotion requires `attempts < [CFG-020]` [DOC-12 §1])
+  and violating the "non-NULL only in ST-150" field hygiene [AC-085], while
+  re-dispatching beyond the budget. Both rows now condition the ST-150 landing
+  on `attempts < [CFG-020]` and name the budget-exhausted ST-180 landing (the
+  `5xx` row retains the [R-112] host-counter increment on either landing,
+  since the outcome stays RETRYABLE); new [AC-106] pins the table's agreement
+  with [DOC-13 §3] and [AC-024] in both the within-budget and
+  budget-exhausted cases.
+
 ## Unreleased — 2026-11-19 (bug hunt: R-121 said all 304 responses count as success, contradicting the R-144 double-304 PERMANENT/ERR-014 outcome, and AC-104 test)
 
 ### Correctness fixes
