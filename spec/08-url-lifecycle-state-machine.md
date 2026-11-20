@@ -203,6 +203,9 @@ holds no units and releases none [R-051].
   retry immediately with no per-URL backoff, contradicting [DOC-13 §5].
   Because dispatch advanced `next_allowed_fetch_at` transactionally
   [FR-012], politeness cannot be violated by this reclassification.
+  The `once_retried_classes` field is preserved across crash recovery since
+  `attempts` is preserved [R-053]; the "yes (once)" gate of [R-232] and
+  [DOC-13 §3] therefore applies on the first retry after restart.
   Host rows are rebuilt in the same recovery pass: `inflight` is reset to 0
   for every Host — exact, not merely conservative: every {ST-110, ST-120}
   record has just been reclassified out of the unit-owning states [R-051],
