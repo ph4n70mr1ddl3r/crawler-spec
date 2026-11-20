@@ -67,11 +67,14 @@ units within their timeouts.
 
 Interpret the HTTP status of the robots request per RFC 9309:
    - `2xx` → parse per RFC 9309. Parsing is error-tolerant (NFR-014):
-     unrecognized or malformed lines are ignored, so a 2xx body always yields
-     a rule set, possibly empty; a 2xx body never yields UNKNOWN — an empty
-     rule set ⇒ ALLOW everything, exactly like `4xx`. Group selection per
-     [R-100]. Only the first 500 KiB of the body is processed (RFC 9309
-     size cap), excess bytes are ignored.
+     unrecognized or malformed lines are ignored, so a 2xx body that decodes
+     successfully always yields a rule set, possibly empty — an empty rule
+     set ⇒ ALLOW everything, exactly like `4xx`. A 2xx body that fails to
+     decode (e.g. a `Content-Encoding` failure) yields no rule set and is a
+     body-decode failure handled by the next bullet ⇒ UNKNOWN and Host
+     deferral, so "never yields UNKNOWN" holds only of bodies that actually
+     decode [AC-110]. Group selection per [R-100]. Only the first 500 KiB of
+     the body is processed (RFC 9309 size cap), excess bytes are ignored.
    - `4xx` (incl. 404) → treat as "allow everything" for this Host.
    - `5xx` / network error / body that fails to decode (e.g. `Content-Encoding`
      failure) / a final status in none of the categories above and not a

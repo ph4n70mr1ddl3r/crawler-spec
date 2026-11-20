@@ -6,6 +6,34 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: DOC-08 §2.3 `2xx` bullet blanket-claimed a 2xx robots body never yields UNKNOWN, contradicting the body-decode-failure UNKNOWN landing, and AC-110 test)
+
+### Correctness fixes
+
+- The [DOC-08 §2.3] status-interpretation table maps a robots.txt final
+  response to a verdict, and its verdict feeds the Host's `robots_state`
+  gate [R-106]. A later review pass (recorded above) deliberately reserved
+  UNKNOWN for "5xx, transport failures, and body-decode failures (e.g.
+  Content-Encoding)", and the `5xx`/network-error bullet of the same table
+  lists "body that fails to decode" as an UNKNOWN trigger. The `2xx`
+  bullet, however, still read "a 2xx body always yields a rule set … a 2xx
+  body never yields UNKNOWN," a leftover blanket label from the earlier
+  "a 2xx body always parses" fix. A `200` robots.txt body carrying a
+  `Content-Encoding` the crawler cannot decode is simultaneously a 2xx body
+  and a body-decode failure, so the two bullets demand opposite verdicts:
+  the blanket clause parses the undecodable bytes as an empty rule set and
+  returns ALLOW, while the decode-failure rule mandates UNKNOWN and Host
+  deferral. A literal implementation of the former defeats fail-closed
+  robots handling [DEC-007], opens the Host to page fetches during what
+  should be a deferral, and contradicts [R-106] (whose "parsed 2xx ⇒ OK"
+  presupposes a body that actually decodes). The `2xx` bullet is now
+  qualified: only a 2xx body that decodes successfully is guaranteed to
+  yield a rule set and never UNKNOWN, while a decode-failed 2xx body is
+  explicitly routed to the next bullet's UNKNOWN/deferral outcome. New
+  [AC-110] pins both the decodable-2xx ALLOW/OK case and the decode-failed
+  2xx UNKNOWN/DEFERRED case, and documents how the former blanket clause
+  re-opens the fail-closed defect.
+
 ## Unreleased — 2026-11-20 (bug hunt: DOC-09 §4 200–299 row blanket-labeled every 2xx success/store-payload, contradicting R-143/ERR-008/FR-041's PERMANENT/ERR-008 discard of disallowed non-HTML types, and AC-109 test)
 
 ### Correctness fixes
