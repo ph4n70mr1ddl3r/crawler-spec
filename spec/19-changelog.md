@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-20 (bug hunt: FR-003 blanket-created ST-100 for every in-scope URL, contradicting trap-filter and enqueue-time-cap ST-190 exclusions, and AC-111 test)
+
+### Correctness fixes
+
+- [FR-003] (DOC-04 §Ingestion & scope) read "For every normalized URL
+  passing the Scope predicate ([DOC-06 §4]) the system MUST create a URL
+  Record in state ST-100." "Passing the Scope predicate" (IN_SCOPE) is not
+  the same as passing all filters: [DOC-06 §5] applies the trap filters
+  (URL blocklist, param blocklist, path budget, depth limit) precisely
+  **to IN_SCOPE URLs**, landing failures in ST-190; [FR-005] records
+  IN_SCOPE discoveries that breach the global/per-domain caps as
+  ST-190/`CAP_REACHED`; and [DOC-07 §2] encodes the split with two distinct
+  creation edges — "filters passed [FR-003]" to ST-100 and "scope/trap/
+  blocklist filter failed … or enqueue-time cap reached [FR-005]" to
+  ST-190. The blanket clause asserted the wrong state (ST-100 instead of
+  ST-190) for a whole class of in-scope URLs; a literal implementation
+  would enqueue and fetch an in-scope URL that matched a trap pattern or
+  breached a cap, defeating [R-040], the [CFG-005]/[CFG-006] hard caps and
+  the ST-190 reason-code accounting. [FR-003] is now qualified to require
+  ST-100 only for new identities that pass scope **and** all trap filters
+  and enqueue-time caps, with in-scope filter/cap failures explicitly
+  routed to ST-190. New [AC-111] pins both the param-blocklist trap case
+  (IN_SCOPE `?sid=` URL ⇒ ST-190/`TRAP_PARAM`, never enqueued) and the
+  [CFG-005] global-cap case (IN_SCOPE discovery ⇒ ST-190/`CAP_REACHED`,
+  non-EXCLUDED count unchanged), and documents how the former blanket
+  clause enqueued and fetched both.
+
 ## Unreleased — 2026-11-20 (bug hunt: DOC-08 §2.3 `2xx` bullet blanket-claimed a 2xx robots body never yields UNKNOWN, contradicting the body-decode-failure UNKNOWN landing, and AC-110 test)
 
 ### Correctness fixes
