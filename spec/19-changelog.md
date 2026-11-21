@@ -6,6 +6,36 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-11 §1 `registrable_domain` schema comment still blanket-defined the column as eTLD+1, contradicting the IP-literal canonical-literal definition of [DOC-00]/[R-003], and AC-119 test)
+
+### Correctness fixes
+
+- [DOC-11 §1]'s `urls.registrable_domain` schema comment described the column
+  as "eTLD+1; per-domain success cap key [FR-005]". Read as the column's
+  definition, that computes a Public Suffix List eTLD+1 for *every* Host. But
+  [DOC-00]'s controlled-vocabulary definition of Registrable Domain states
+  that "for a Host that is an IP literal, the Registrable Domain is the
+  canonical literal string itself [R-003]", and [R-003] reiterates that the
+  Registrable Domain of an IP-literal Host is the canonical literal used for
+  the URL Identity and the `host_key`. That carve-out was added to [DOC-00]
+  and [R-003] when IP-literal seeds were defined, and pinned at the
+  scope/cap-gate boundary by [AC-057] and by the RFC 5952 canonicalization
+  criteria [AC-096], [AC-097] (one scope verdict, one [CFG-006] per-domain
+  accounting key), but the schema comment — the column's authoritative
+  definition — was never qualified. An implementation following it literally
+  has no PSL rule to apply to an IP literal (`127.0.0.1`,
+  `[2001:db8::1]`): the value is implementation-defined (the host is
+  rejected, or a fragment such as `1`/`0.1` is stored), splitting one
+  IP-literal domain across several [CFG-006] cap keys or breaking
+  SEED_DOMAINS scope matching [AC-057], even though it handles name-based
+  hosts correctly. The comment now states the PSL eTLD+1 rule for name-based
+  Hosts and the canonical-literal rule for IP-literal Hosts, citing
+  [DOC-00]/[R-003]; new [AC-119] pins both the name-based case and the
+  IPv4/IPv6-literal cases. This is the same residual-summary defect
+  [AC-089], [AC-104]–[AC-118] corrected in the sibling `urls.last_error_class`,
+  `urls.due_at_mono` and `hosts.pages_crawled` schema comments of the very
+  same [DOC-11 §1] table.
+
 ## Unreleased — 2026-11-21 (bug hunt: [AC-017]/[AC-070] acceptance tests still blanket-landed the URL-level `ERR-010` abort in ST-150, contradicting the budget-conditioned ST-150/ST-180 landing of [DOC-13 §3]/[AC-112]/[AC-115], and AC-118 test)
 
 ### Correctness fixes

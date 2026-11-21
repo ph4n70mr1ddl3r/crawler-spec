@@ -15,7 +15,7 @@ are integers (implementation may map to wall-clock offsets at rest).
 urls (
   url_identity      TEXT PRIMARY KEY,     -- normalized URL [DOC-06]
   host_key          TEXT NOT NULL,        -- (scheme, hostname, port) of the identity [glossary]; host queries, trap-shape rebuild [R-042]
-  registrable_domain TEXT NOT NULL,       -- eTLD+1; per-domain success cap key [FR-005]
+  registrable_domain TEXT NOT NULL,       -- eTLD+1 via the Public Suffix List for a name-based Host [DOC-00]; for an IP-literal Host, the canonical literal string itself [R-003], [DOC-00]; per-domain success cap key [FR-005]
   raw_first_seen    TEXT NOT NULL,        -- first raw form observed
   state             TEXT NOT NULL,        -- ST-nnn code
   exclude_reason    TEXT NULL,            -- for ST-190
