@@ -95,8 +95,11 @@ upsert path applies the same precedence via [R-062].
 
 ## 4. Dead-letter semantics
 
-ST-180 records retain last error class and are excluded from scheduling,
-with exactly two exits. (1) An operator MAY reset a URL to ST-100 via the
+ST-180 records retain the error class of the outcome that entered them
+(except crash-exhausted records, which carry `last_error_class` = NULL because
+the crash wrote no fetch_event and no ERR-nnn class is fabricated [R-060], [§5],
+[DOC-11 §1], [AC-089]) and are excluded from scheduling, with exactly two exits.
+(1) An operator MAY reset a URL to ST-100 via the
 runtime API (explicit, audited action; the reset clears `attempts` to 0 (and with
 it `once_retried_classes`, [R-232]), sets `due_at_mono` := now (the reset URL is
 immediately due), clears the last error class and any stale `next_attempt_mono`

@@ -6,6 +6,33 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-13 §4 dead-letter summary still held "ST-180 records retain last error class", contradicting the classless crash-exhausted ST-180 of [R-060], and AC-121 test)
+
+### Correctness fixes
+
+- [DOC-13 §4]'s dead-letter summary opened with the blanket claim that
+  "ST-180 records retain last error class." That clause was written in
+  v1.0.0. When crash classification was introduced (v1.8.0), [R-060]
+  qualified it: a record whose final allowed attempt was in flight at
+  crash time is reclassified at startup with attempts ≥ [CFG-020] ⇒ ST-180
+  and `last_error_class = NULL`, because the crash wrote no fetch_event and
+  no ERR-nnn class is fabricated. The sibling statements that cite §4 as
+  authority were all qualified — [DOC-13 §5], the [DOC-11 §1]
+  `urls.last_error_class` schema comment ("NULL for crash-exhausted ST-180
+  records [R-060]") and [AC-089] — but §4's opening clause, the authoritative
+  dead-letter summary they point to, was never updated. Read literally it
+  tells an implementer that ST-180 always carries a class, so the
+  crash-exhausted record of (a) either gets a fabricated ERR-nnn class,
+  violating [R-060] and [AC-089], or the mandated NULL is rejected,
+  breaking the schema's documented NULL case. The DEAD set is not uniformly
+  class-bearing. §4 now names the crash exception, and new [AC-121] pins
+  the classless crash-exhausted landing against the class-bearing
+  PERMANENT / budget-exhausted RETRYABLE landings and the operator reset.
+  This is the same residual-summary defect [AC-089], [AC-104]–[AC-120]
+  corrected in [R-060], [DOC-13 §5], the [DOC-11 §1] schema comment and
+  [AC-089] when the crash-classification reclassification was introduced:
+  the dead-letter summary those rules cite as authority was left blanket.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-13 §4 dead-letter summary still held ST-180 "excluded from scheduling forever" with operator reset as the sole exit, contradicting the redirect final-target upsert [R-062], and AC-120 test)
 
 ### Correctness fixes
