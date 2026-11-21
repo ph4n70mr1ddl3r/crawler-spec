@@ -6,6 +6,43 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: [AC-017]/[AC-070] acceptance tests still blanket-landed the URL-level `ERR-010` abort in ST-150, contradicting the budget-conditioned ST-150/ST-180 landing of [DOC-13 §3]/[AC-112]/[AC-115], and AC-118 test)
+
+### Correctness fixes
+
+- [DOC-17]'s `AC-017` and the UNKNOWN branch of `AC-070` — the authoritative
+  acceptance tests for the URL-level `ERR-010` (robots-deferred hop) abort —
+  stated that "the source → ST-150" unconditionally. Read literally, that
+  lands every such abort in ST-150 even when `attempts` has reached
+  `[CFG-020]`. But [DOC-13 §3] conditions *every* RETRYABLE landing on the
+  retry budget: ST-150 with a backoff `next_attempt_mono` while
+  `attempts < [CFG-020]`, and ST-180 with `urls.last_error_class` recorded
+  and `next_attempt_mono=NULL` at exhaustion ([FR-052], [AC-024],
+  [AC-085]). The normative [DOC-09 §3] R-131 narration [AC-115] and the
+  [DOC-13 §1] `ERR-010` taxonomy cell [AC-112] were already qualified to
+  this conditional, and both explicitly cite [AC-017]/[AC-070] as the
+  authority that the abort is RETRYABLE and governed by [DOC-13 §3] —
+  yet the landing clause of those two cited criteria was never updated.
+  An implementation following the former "source → ST-150" clause as
+  authoritative re-arms a backoff timer on a record whose `attempts`
+  equals `[CFG-020]`, re-dispatches the chain beyond the retry budget, and
+  strands a record in ST-150 whose ST-150→ST-100 promotion requires
+  `attempts < [CFG-020]` [DOC-12 §1], violating the "non-NULL
+  `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085]
+  even though it lands the within-budget case correctly. Both criteria
+  now condition the landing on the retry budget (no `Retry-After`, no
+  [ERR-018] target-Host-window floor); new [AC-118] pins both the
+  within-budget ST-150 case (a) and the budget-exhausted ST-180 case (b),
+  including the pre-send UNKNOWN case of [AC-070]. This is the same
+  residual-summary defect [AC-104]–[AC-117] corrected in the [DOC-09 §4]
+  and [DOC-07 §2] tables, [FR-003], the [DOC-13 §1] taxonomy cells, the
+  [DOC-08 §2.3] table, the [DOC-09 §3] R-131 narration, the [DOC-11 §1]
+  schema comments and the binding [DOC-02] `DEC-006`, left in the two
+  acceptance tests themselves: the budget-exhausted ST-180 landing was
+  added to [DOC-13 §3] and propagated to the class-definition tables and
+  narrations, but the two criteria cited as its authority kept their
+  unconditional landing wording.
+
 ## Unreleased — 2026-11-21 (bug hunt: binding decision [DOC-02] `DEC-006` still claimed non-HTML types "are stored (if under caps)", contradicting the [R-143]/[FR-041]/`ERR-008` allow-list store-or-discard rule, and AC-117 test)
 
 ### Correctness fixes
