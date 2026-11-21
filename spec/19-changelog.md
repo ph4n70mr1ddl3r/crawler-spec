@@ -6,6 +6,32 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-11 §1 `pages_crawled` schema comment still claimed fetches were counted "on this host", contradicting the cross-host final-hop attribution of [R-112]/[T-2], and AC-116 test)
+
+### Correctness fixes
+
+- [DOC-11 §1]'s `hosts.pages_crawled` schema comment described the column as
+  "lifetime successful page fetches (SUCCESS|UNCHANGED) on this host". Read as
+  the column's definition, that attributes a successfully committed `pages`
+  row to the Host of that row's own URL identity. But [R-112] mandates that
+  all host-counter effects (`pages_crawled`, `consecutive_failures`) for a
+  redirect chain attribute to the Host of the exchange that produced the
+  outcome — the final hop's Host — with "the source Host's counters
+  unaffected"; [T-2] restates this ("the same Host whose unit is
+  decremented") and commits two `pages` rows for a chain success (the
+  source's and the final target's [R-062]). A literal implementation of the
+  former comment increments `pages_crawled` on both hosts of a cross-host
+  chain A→B, granting Host A an undeserved `+ 50 if pages_crawled > 0`
+  priority bonus [DOC-12 §2] and perturbing priority-ordered dispatch
+  [FR-010], [AC-018], even though it handles same-host fetches correctly.
+  The comment now attributes the counter per [R-112]/[T-2] (final hop's
+  Host for a chain; source Host unaffected), and new [AC-116] pins both the
+  cross-host and same-host cases. This is the same residual-summary defect
+  [AC-089] corrected in the sibling `urls.last_error_class` schema comment
+  of the same [DOC-11 §1] table — that comment was qualified with its
+  [R-062]/[T-2] exceptions while this one was left with its blanket
+  "on this host" wording.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-09 §3 R-131 ERR-010 narration still mandated an unconditional ST-150 landing, ignoring the budget-exhausted ST-180 landing, and AC-115 test)
 
 ### Correctness fixes
