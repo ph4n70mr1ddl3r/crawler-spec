@@ -19,7 +19,7 @@ version: 1.33.0
 | ERR-007 | PAYLOAD_TOO_LARGE | no | [FR-023] |
 | ERR-008 | UNSUPPORTED_TYPE | no | content type outside the effective allowed list ([R-143]: fixed set when [CFG-028]=true, empty when false); not stored or parsed; ST-180 [FR-041] |
 | ERR-009 | PARSE_FAILED | no | recorded on the `pages` row (parse_ok=false, reason); never a FetchResult error_class — parsing is post-fetch [DOC-10 §4] |
-| ERR-010 | ROBOTS_DEFERRED | n/a | host-level for page dispatches: no URL state change, the Host defers [DOC-08 §2.3]. URL-level only as the redirect-hop abort class [R-131] |
+| ERR-010 | ROBOTS_DEFERRED | host-level: n/a; URL-level: yes | host-level for page dispatches: no URL state change, the Host defers [DOC-08 §2.3] — no URL-level retry decision applies (hence `n/a` for that case). URL-level only as the redirect-hop abort class [R-131]: the abort is a RETRYABLE outcome governed by the ordinary [§3] retry procedure — source → ST-150 with a backoff `next_attempt_mono` when `attempts < [CFG-020]`, or ST-180 with `next_attempt_mono=NULL` when the budget is exhausted; no request is sent to the target Host during deferral, and the next attempt re-runs the chain [AC-017], [AC-070] |
 | ERR-011 | REDIRECT_LOOP / TOO_MANY_REDIRECTS | no | also covers 3xx responses with a missing or unparsable `Location`, and hop targets that are not acceptable absolute http(s) URLs after RFC 3986 §5 resolution (e.g. `ftp:`, `data:`, userinfo) [R-130], [DOC-09 §4] |
 | ERR-012 | TIMEOUT_HEADERS / TIMEOUT_TOTAL | yes | |
 | ERR-013 | DECODE_FAILED | yes (once) | [R-140] |

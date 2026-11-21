@@ -6,6 +6,37 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-010 `Retryable=n/a` cell contradicted its URL-level RETRYABLE/ST-150 landing, and AC-112 test)
+
+### Correctness fixes
+
+- [DOC-13 §1]'s error taxonomy table listed `ERR-010` (ROBOTS_DEFERRED)
+  with `Retryable = n/a`. The Notes column already records the URL-level
+  case — "URL-level only as the redirect-hop abort class [R-131]" — but
+  that case is a RETRYABLE outcome: [R-131] aborts the chain as
+  `outcome=RETRYABLE`/`ERR-010` with the source → ST-150 under normal
+  [DOC-13 §3] retry accounting (or ST-180 when [CFG-020] is exhausted),
+  no request sent to the deferred Host, and the next attempt re-running
+  the chain [AC-017], [AC-070]. `n/a` is correct only of the Host-level
+  case (an UNKNOWN verdict for page dispatches, where no URL state change
+  occurs [DOC-08 §2.3]). The changelog entry that introduced the URL-level
+  case updated only ERR-010's Notes and left the `Retryable` cell at `n/a`,
+  so the cell an implementation consults as the class→action mapping
+  still denied any retry semantics to the one URL-level retryable class
+  in the table — every other URL-level retryable class is marked
+  `yes`/`yes (once)`. A literal implementation would neither land the
+  source in ST-150 with backoff nor retry the chain, stranding the record
+  and failing [AC-017], [AC-070], [R-131] and the RETRYABLE branch of
+  [DOC-13 §3], even while handling the ordinary Host-level deferral
+  correctly. The `Retryable` cell is now split into "host-level: n/a;
+  URL-level: yes" with the ST-150/ST-180 landing spelled out, and new
+  [AC-112] pins both cases (including the unchanged
+  `hosts.consecutive_failures` per [R-112]) and documents how the former
+  blanket `n/a` stranded the URL-level abort. This is the same
+  residual-summary defect [AC-104]–[AC-111] corrected in the DOC-09 §4,
+  DOC-07 §2 and DOC-08 §2.3 summary tables and in [FR-003], left in the
+  [DOC-13 §1] taxonomy table.
+
 ## Unreleased — 2026-11-20 (bug hunt: FR-003 blanket-created ST-100 for every in-scope URL, contradicting trap-filter and enqueue-time-cap ST-190 exclusions, and AC-111 test)
 
 ### Correctness fixes
