@@ -6,6 +6,38 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: binding decision [DOC-02] `DEC-006` still claimed non-HTML types "are stored (if under caps)", contradicting the [R-143]/[FR-041]/`ERR-008` allow-list store-or-discard rule, and AC-117 test)
+
+### Correctness fixes
+
+- [DOC-02]'s `DEC-006` — a *binding* design decision ([DOC-02] §intro: "Each
+  decision is binding unless explicitly revised") — stated that "non-HTML
+  types are stored (if under caps) but parsed only for metadata headers."
+  Read as the storage contract, that stores every under-cap non-HTML payload.
+  But [FR-041] mandates storing a non-HTML payload *iff* `[CFG-028]=true`
+  and the type is in the effective allowed list [R-143], with types outside
+  that list classified PERMANENT/`ERR-008` and the payload **discarded**
+  (never stored, never parsed) — [ERR-008]'s "not stored or parsed; ST-180",
+  and the [DOC-09 §4] `200`–`299` row [AC-109]. With `[CFG-028]=false` the
+  effective allowed list is empty [R-143], so *no* non-HTML type is stored;
+  even with `[CFG-028]=true`, types outside the fixed set (e.g.
+  `application/zip`) are discarded. An implementation following the former
+  DEC-006 clause as authoritative would write a blob and commit a ST-130
+  success for a `200` serving `application/pdf` under `[CFG-028]=false` —
+  fabricating a `pages` row the configuration forbids, inflating the Content
+  Store and `pages` accounting, and reusing the ST-130 "2xx with payload
+  stored" success edge [DOC-07 §2] — while failing [FR-041], [R-143] and
+  [AC-029] even though it parses allowed types correctly. The decision now
+  qualifies storage to the [R-143] effective allowed list and spells out the
+  PERMANENT/`ERR-008` discard for out-of-list types; new [AC-117] pins both
+  the allowed-store case (a) and the `[CFG-028]=false` / out-of-list discard
+  case (b). This is the same residual-summary defect [AC-104]–[AC-109],
+  [AC-116] corrected in the [DOC-09 §4] summary table and the [DOC-11 §1]
+  schema comments, left in `DEC-006`: [FR-041] already cites [DEC-006] only
+  for the *parsing* clause, so its blanket storage clause was never
+  qualified when the `CFG-028`/`R-143` allow-list and its `ERR-008` discard
+  were introduced.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-11 §1 `pages_crawled` schema comment still claimed fetches were counted "on this host", contradicting the cross-host final-hop attribution of [R-112]/[T-2], and AC-116 test)
 
 ### Correctness fixes
