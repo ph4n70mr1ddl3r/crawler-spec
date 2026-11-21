@@ -6,6 +6,39 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-09 §3 R-131 ERR-010 narration still mandated an unconditional ST-150 landing, ignoring the budget-exhausted ST-180 landing, and AC-115 test)
+
+### Correctness fixes
+
+- [DOC-09 §3]'s R-131 first paragraph narrated the URL-level `ERR-010`
+  (redirect hop whose target Host is robots-deferred, robots verdict
+  UNKNOWN) abort as "source URL → ST-150 under normal retry accounting
+  [DOC-13 §3]". That is a blanket class→action landing, but `ERR-010`
+  here is a RETRYABLE outcome [AC-017], [AC-070], so at
+  `attempts ≥ [CFG-020]` the normative [DOC-13 §3] procedure lands the
+  record in ST-180 with `urls.last_error_class='ERR-010'`,
+  `urls.next_attempt_mono=NULL` and no backoff timer [AC-024], [AC-085],
+  [DOC-12 §1] — exactly as the [DOC-13 §1] `ERR-010` row now states
+  [AC-112]. A literal implementation of the former clause re-arms a
+  backoff timer on a budget-exhausted record and re-dispatches the chain
+  beyond [CFG-020], stranding a record whose `attempts` equals
+  [CFG-020] in ST-150 (the ST-150→ST-100 promotion requires
+  `attempts < [CFG-020]` [DOC-12 §1]) and violating the "non-NULL
+  `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085],
+  even while handling the within-budget `attempts < [CFG-020]` case
+  correctly. The clause was left an unconditional "→ ST-150" when the
+  budget-exhausted ST-180 branch was added to [DOC-13 §3] and to the
+  class-definition tables, the same residual-summary defect [AC-102]–
+  [AC-114] already corrected in the [DOC-09 §4] `429`/`5xx` rows
+  [AC-106], the R-131 step-3 `ERR-018` narration [AC-103] (which fixed
+  the sibling clause of this very rule) and the [DOC-13 §1] summary
+  cells [AC-112]–[AC-114]. The `ERR-010` narration is now conditioned on
+  the retry budget — ST-150 with a backoff `next_attempt_mono` below
+  budget, ST-180 with `next_attempt_mono=NULL` at budget exhaustion, no
+  `Retry-After` and no [ERR-018] target-Host-window floor — and new
+  [AC-115] pins both landings and documents how the former blanket
+  stranded and double-dispatched the record.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-003 `Retryable=yes (once)` cell contradicted the cert-verification-failure PERMANENT subcase in its own Notes, and AC-114 test)
 
 ### Correctness fixes
