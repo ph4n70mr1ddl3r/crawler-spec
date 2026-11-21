@@ -10,7 +10,7 @@ version: 1.33.0
 
 | ID | Name | Retryable | Notes |
 |----|------|-----------|-------|
-| ERR-001 | DNS_FAILURE | yes | NXDOMAIN is NOT retried (permanent) |
+| ERR-001 | DNS_FAILURE | yes, except NXDOMAIN | transient DNS resolution failures (timeouts [CFG-036], SERVFAIL, etc. — mapped from DNS timeouts [DOC-09 §2]) are RETRYABLE under the ordinary [§3] procedure: ST-150 with a backoff `next_attempt_mono` when `attempts < [CFG-020]`, or ST-180 with `next_attempt_mono=NULL` when the budget is exhausted; an NXDOMAIN (definitive non-existent domain) is PERMANENT — outcome PERMANENT, error_class ERR-001, source → ST-180 immediately with `urls.last_error_class='ERR-001'`, no retry and no backoff timer — per the security-level rule [R-403] (highest precedence [R-000]); the Host's `consecutive_failures` is incremented only for the transient retryable case, not for NXDOMAIN [R-112] |
 | ERR-002 | CONNECT_TIMEOUT / CONN_REFUSED / NET_UNREACH | yes | |
 | ERR-003 | TLS_ERROR | yes (once) | then permanent; cert verification failures are PERMANENT immediately |
 | ERR-004 | SSRF_BLOCKED | no | security; log at WARN [DOC-16] |

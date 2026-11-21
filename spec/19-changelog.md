@@ -6,6 +6,38 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-001 `Retryable=yes` cell contradicted the security-level NXDOMAIN PERMANENT mandate [R-403], and AC-113 test)
+
+### Correctness fixes
+
+- [DOC-13 §1]'s error taxonomy table listed `ERR-001` (DNS_FAILURE)
+  with `Retryable = yes`. That cell is the class→action mapping an
+  implementation consults for a DNS failure, but it is false for one
+  subcase: the row's own Notes state "NXDOMAIN is NOT retried
+  (permanent)", and the security-level rule [R-403] mandates that a
+  definitive NXDOMAIN is PERMANENT — `outcome=PERMANENT`,
+  `error_class='ERR-001'`, source → ST-180 immediately with no retry and
+  no backoff timer. [R-403] is a DOC-16 security rule and therefore has
+  the highest precedence [R-000]; a transient DNS failure (timeouts,
+  SERVFAIL) remains RETRYABLE under the ordinary [DOC-13 §3] procedure,
+  and the Host's `consecutive_failures` is incremented only for that
+  transient case, not for NXDOMAIN [R-112]. The cell was left a blanket
+  `yes` when DNS-resolution timeouts were mapped to ERR-001, so an
+  implementation following it as authoritative retries NXDOMAIN:
+  re-arming a backoff timer and re-dispatching a hostname that will
+  never resolve, reaching ST-180 only after [CFG-020] attempts and
+  incrementing `consecutive_failures` along the way — contradicting
+  [R-403]'s PERMANENT mandate and [R-112]'s counter exclusion, and
+  failing [AC-024] and the NXDOMAIN case even while handling the
+  ordinary transient DNS failure correctly. The `Retryable` cell is now
+  qualified to "yes, except NXDOMAIN" with the transient ST-150/ST-180
+  and NXDOMAIN ST-180 landings spelled out, and new [AC-113] pins both
+  cases and documents how the former blanket `yes` stranded and
+  double-counted the NXDOMAIN record. This is the same residual-summary
+  defect [AC-104]–[AC-112] corrected in the DOC-09 §4, DOC-07 §2 and
+  DOC-08 §2.3 summary tables and in [FR-003], left in the `Retryable`
+  cell of the [DOC-13 §1] taxonomy table.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-010 `Retryable=n/a` cell contradicted its URL-level RETRYABLE/ST-150 landing, and AC-112 test)
 
 ### Correctness fixes
