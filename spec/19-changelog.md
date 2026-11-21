@@ -6,6 +6,35 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-13 §4 dead-letter summary still held ST-180 "excluded from scheduling forever" with operator reset as the sole exit, contradicting the redirect final-target upsert [R-062], and AC-120 test)
+
+### Correctness fixes
+
+- [DOC-13 §4]'s dead-letter summary read: ST-180 records "are excluded from
+  scheduling forever, except: an operator MAY reset a URL to ST-100" and
+  "Automated re-activation of DEAD URLs is forbidden." That was written in
+  v1.0.0. When [R-062]'s redirect final-target completion upsert gained its
+  pre-existing-record semantics in v1.9.0 — a terminal ST-180/ST-190 record is
+  overwritten with the fetch-outcome state (ST-130/ST-150/ST-180) on a
+  completed, gate-verified fetch — the sections that cite [DOC-13 §4] as
+  authority were qualified: [R-062] now states the overwrite "is neither the
+  forbidden automated re-activation of [DOC-13 §4] nor a rediscovery under
+  [FR-051]", and [FR-051] and [R-052] now state the upsert "is not a
+  rediscovery" and is governed by [R-062]. [DOC-13 §4] itself, the summary
+  those rules point to, was never updated: it still presents the audited
+  operator reset as the only exit from ST-180 and still forbids the very
+  transition [R-062] mandates. An implementation following it literally
+  refuses to overwrite a DEAD final target, discarding a gate-verified
+  `pages` row and leaving the resource permanently dead; a RETRYABLE upsert
+  that should land ST-150 is kept in ST-180 with no backoff. The section now
+  names both exits — the operator reset and the [R-062] upsert — and makes
+  clear that a plain rediscovery of a DEAD record still updates
+  `last_seen_at` only [FR-051], [R-052], while automated re-activation is
+  otherwise forbidden; new [AC-120] pins the success, retry and plain-rediscovery
+  cases. This is the same residual-summary defect [AC-089], [AC-104]–[AC-119]
+  corrected in the narrative rules that cite this section, but left in the
+  dead-letter summary they cite.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-11 §1 `registrable_domain` schema comment still blanket-defined the column as eTLD+1, contradicting the IP-literal canonical-literal definition of [DOC-00]/[R-003], and AC-119 test)
 
 ### Correctness fixes

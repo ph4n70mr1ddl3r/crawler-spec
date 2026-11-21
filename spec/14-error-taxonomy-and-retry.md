@@ -95,14 +95,25 @@ upsert path applies the same precedence via [R-062].
 
 ## 4. Dead-letter semantics
 
-ST-180 records retain last error class and are excluded from scheduling forever,
-except: an operator MAY reset a URL to ST-100 via the runtime API (explicit,
-audited action; the reset clears `attempts` to 0 (and with it
-`once_retried_classes`, [R-232]), sets `due_at_mono` := now (the reset URL is
+ST-180 records retain last error class and are excluded from scheduling,
+with exactly two exits. (1) An operator MAY reset a URL to ST-100 via the
+runtime API (explicit, audited action; the reset clears `attempts` to 0 (and with
+it `once_retried_classes`, [R-232]), sets `due_at_mono` := now (the reset URL is
 immediately due), clears the last error class and any stale `next_attempt_mono`
 (a backoff timer must not survive outside ST-150 — the hygiene [R-062]
-establishes for upsert landings), and recomputes priority per
-[DOC-12 §2]). Automated re-activation of DEAD URLs is forbidden.
+establishes for upsert landings), and recomputes priority per [DOC-12 §2]).
+(2) The redirect final-target completion upsert [R-062] overwrites a pre-existing
+terminal record (ST-180 or ST-190) with the fetch-outcome state (ST-130, ST-150,
+or ST-180) once the chain reached that target and scope, robots, SSRF and the
+blocklist were re-checked per hop [R-131]; this is not "forever" because the
+ST-150 landing is a schedulable retry state (bounded by the target's own
+[CFG-020] budget [DOC-07 §4]) and the ST-130 landing progresses to ST-140 and is
+re-admitted to ST-100 only by the ordinary recrawl/rediscovery paths [FR-050],
+[FR-051]. Such an upsert is not the forbidden automated re-activation: it
+records a completed, gate-verified fetch of the final target and never resets
+`attempts` (the attempt is accounted on the source [T-1]), and a plain
+rediscovery of a DEAD record still updates `last_seen_at` only [FR-051], [R-052].
+Apart from these two exits, automated re-activation of DEAD URLs is forbidden.
 
 ## 5. Crash classification
 
