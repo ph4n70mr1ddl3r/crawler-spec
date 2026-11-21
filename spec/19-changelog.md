@@ -6,6 +6,43 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-003 `Retryable=yes (once)` cell contradicted the cert-verification-failure PERMANENT subcase in its own Notes, and AC-114 test)
+
+### Correctness fixes
+
+- [DOC-13 §1]'s error taxonomy table listed `ERR-003` (TLS_ERROR)
+  with `Retryable = yes (once)`. That cell is the class→action mapping
+  an implementation consults for a TLS failure, but it is false for one
+  subcase: the row's own Notes state "cert verification failures are
+  PERMANENT immediately," and certificate verification is mandatory
+  and fail-closed [DOC-09 §1], [DOC-16 §2]. A deterministically invalid
+  certificate (untrusted, expired, or wrong-host) cannot be repaired by
+  retrying, so that subcase MUST be PERMANENT — `outcome=PERMANENT`,
+  `error_class='ERR-003'`, `urls.last_error_class='ERR-003'`, source →
+  ST-180 immediately with no retry, no backoff timer [DOC-13 §4] and no
+  `once_retried_classes` append — leaving the Host's
+  `consecutive_failures` unchanged [R-112], [R-231]. A transient TLS
+  handshake failure (e.g. a [CFG-013] handshake timeout [DOC-09 §2])
+  remains RETRYABLE at most once per attempt cycle under the yes-once
+  gate [R-232] and the ordinary [DOC-13 §3] procedure. The cell was
+  left a blanket `yes (once)` when the yes-once machinery was added, so
+  an implementation following it as authoritative classifies a cert
+  verification failure as retryable: it appends ERR-003 to
+  `once_retried_classes`, re-arms a backoff timer and re-dispatches a
+  handshake that will fail verification again, reaching ST-180 only
+  after the second occurrence (or [CFG-020] attempts) and incrementing
+  `consecutive_failures` along the way — contradicting the fail-closed
+  TLS mandate [DOC-09 §1] and the row's own Notes, and failing [AC-095],
+  [R-112] and the PERMANENT case even while handling the ordinary
+  transient handshake failure correctly. The `Retryable` cell is now
+  qualified to "yes (once), except cert verification failure" with the
+  transient ST-150/ST-180 and cert-failure ST-180 landings spelled out,
+  and new [AC-114] pins both cases and documents how the former
+  blanket `yes (once)` stranded and double-counted the record. This is
+  the same residual-summary defect [AC-104]–[AC-113] corrected in the
+  DOC-09 §4, DOC-07 §2 and DOC-08 §2.3 summary tables and in [FR-003],
+  left in the `Retryable` cell of the [DOC-13 §1] taxonomy table.
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-13 §1 ERR-001 `Retryable=yes` cell contradicted the security-level NXDOMAIN PERMANENT mandate [R-403], and AC-113 test)
 
 ### Correctness fixes
