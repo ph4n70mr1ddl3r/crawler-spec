@@ -6,6 +6,39 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-22 (bug hunt: DOC-09 §4 robots-hop row still blanket-labeled every robots-based hop refusal PERMANENT/ERR-017/ST-180, contradicting the UNKNOWN/deferred RETRYABLE/ERR-010 landing of [R-131], and AC-123 test)
+
+### Correctness fixes
+
+- [DOC-09 §4]'s response-classification table evaluated top-down, first
+  matching row applying, and its `3xx hop blocked by target Host robots` row
+  read `permanent | chain terminates at that hop; source → ST-180, ERR-017
+  [R-131]`. That is a blanket class→action mapping for *every* robots-based
+  hop refusal, but it is false for the UNKNOWN/deferred subcase: [R-131]
+  distinguishes a target whose robots verdict is DISALLOW (PERMANENT,
+  `ERR-017`, source → ST-180, target never fetched) from a target whose verdict
+  is UNKNOWN because the Host is deferred [DOC-08 §2.3]. The latter aborts the
+  chain as a RETRYABLE `ERR-010` outcome governed by the ordinary [DOC-13 §3]
+  retry procedure — source → ST-150 with a backoff `next_attempt_mono` while
+  `attempts < [CFG-020]`, or ST-180 with `urls.last_error_class='ERR-010'` and
+  `next_attempt_mono=NULL` at budget exhaustion — no request sent to the
+  deferred Host, no `Retry-After` and no [ERR-018] target-Host-window floor,
+  next attempt re-running the chain from the source, `consecutive_failures`
+  unchanged [R-112]. The URL-level retryable case was added to [R-131] and
+  qualified in the [DOC-13 §1] `ERR-010` row [AC-112], the R-131 narration
+  [AC-115], and the [AC-017]/[AC-070] acceptance tests [AC-118] — but the
+  [DOC-09 §4] row those rules' cross-references point at was never split, so it
+  still denies any retry semantics to the one robots-hop outcome that carries
+  them. A literal implementation of that row classifies the UNKNOWN/deferred
+  abort as PERMANENT/`ERR-017`/ST-180: it never re-dispatches the chain,
+  lands a RETRYABLE outcome as a permanent DEAD record, and fails [AC-017],
+  [AC-070], [AC-112], [AC-115], [AC-118] and [R-131] even though it handles the
+  ordinary DISALLOW case correctly. The row is now split into the DISALLOW
+  PERMANENT/`ERR-017` case and the UNKNOWN RETRYABLE/`ERR-010` case with the
+  budget-conditioned landing spelled out; new [AC-123] pins both cases. This
+  is the same residual-summary defect [AC-104]–[AC-122] corrected in the
+  `304`, `429`, `5xx` and `200`–`299` rows of the very same [DOC-09 §4] table.
+
 ## Unreleased — 2026-11-22 (bug hunt: DOC-13 §4 dead-letter summary residual clause and AC-122 test)
 
 ### Correctness fixes
