@@ -8,7 +8,11 @@ version: 1.33.0
 
 ## Unreleased — 2026-11-22 (bug hunt: DOC-09 §4 robots-hop row still blanket-labeled every robots-based hop refusal PERMANENT/ERR-017/ST-180, contradicting the UNKNOWN/deferred RETRYABLE/ERR-010 landing of [R-131], and AC-123 test)
 
-### Correctness fixes
+### Clarification fixes
+
+- The [DOC-11 §1] `hosts.pages_crawled` schema comment cross-reference: the column comment now explicitly reinforces [AC-116] prohibition against reading it as "lifetime successful page fetches on this host"; the comment's attribution per [R-112] to the final hop's Host for cross-chain attribution is now explicitly called out, preventing misinterpretation that could grant undeserved priority bonuses [DOC-12 §2] or perturb dispatch ordering [FR-010].
+
+- [DOC-09 §4]'s response-classification table evaluated top-down, first
 
 - [DOC-09 §4]'s response-classification table evaluated top-down, first
 ## Unreleased — 2026-11-22 (bug hunt: CFG-030/CFG-005 ST-190 counting disjointness and AC-124 test and AC-125 test and AC-126 test)

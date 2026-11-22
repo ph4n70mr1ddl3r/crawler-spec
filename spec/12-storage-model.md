@@ -83,7 +83,7 @@ hosts (
   next_allowed_fetch_at_mono INT NOT NULL DEFAULT 0,
   inflight          INT  NOT NULL DEFAULT 0,
   consecutive_failures INT NOT NULL DEFAULT 0,
-  pages_crawled     INT  NOT NULL DEFAULT 0,   -- lifetime successful page fetches (SUCCESS|UNCHANGED) attributed to this Host per [R-112]: the final hop's Host for a cross-host redirect chain — the source Host's counters are unaffected by that chain's source page row [T-2]; priority input [DOC-12 §2]
+  pages_crawled     INT  NOT NULL DEFAULT 0,   -- lifetime successful page fetches (SUCCESS|UNCHANGED) attributed to this Host per [R-112]: the final hop's Host for a cross-host redirect chain — the source Host's counters are unaffected by that chain's source page row [T-2]; priority input [DOC-12 §2]. Per [AC-116], this column MUST NOT be read as "lifetime successful page fetches on this host" attributing page rows to the row's own Host identity; counter effects attribute solely to the Host of the exchange that produced the outcome: the final hop's Host for a redirect chain, or the requesting Host when no response arrived (a timeout).
   suspicious        BOOL NOT NULL DEFAULT FALSE   -- set by R-402 [DOC-16 §2]
 )
 
