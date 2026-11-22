@@ -6,6 +6,16 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-22 (bug hunt: DOC-13 §4 dead-letter summary residual clause and AC-122 test)
+
+### Correctness fixes
+
+- The [DOC-13 §4] dead-letter summary's two-lawful-exits clause ("An operator MAY reset a URL to ST-100 via the runtime API" and "the redirect final-target completion upsert [R-062]") MUST be understood as complementary, not exclusive: both paths operate independently — the operator reset is an audited manual action, the upsert is an automatic gate-verified chain completion. An implementation that treats the upsert as "forbidden automated re-activation" or that refuses to move a pre-existing ST-180 record out of ST-180 without an audited operator action violates [R-062], [FR-051], [R-052] and [AC-026], [AC-061], [AC-079], [AC-087], [AC-093], [AC-120], [AC-121] — the DEAD set is not uniformly class-bearing or uniformly exit-restricted. This expands on [AC-121]'s pin of the classless crash-exhausted landing, ensuring the two named exits of §4 are the only automation-permitted exit routes, and neither blocks the other.
+
+- AC-122: The [DOC-13 §4] dead-letter summary names exactly two exits from ST-180, and both are necessary for a conformant implementation. (a) An audited operator MAY reset a URL to ST-100 via the runtime API — this clears `attempts` to 0, sets `due_at_mono` := now, clears `last_error_class` and any stale `next_attempt_mono`, and recomputes priority per [DOC-12 §2]. (b) The redirect final-target completion upsert [R-062] overwrites a pre-existing terminal record (ST-180 or ST-190) with the fetch-outcome state (ST-130, ST-150, or ST-180) once the chain reached that target and its gates were re-checked per hop [R-131]; this is not "automated re-activation" but a gate-verified fetch record that progress ST-180→ST-130→ST-140→ST-100 via ordinary recrawl/rediscovery paths. Both exits are required: omitting the upsert path leaves ST-180 records permanently stuck when a redirect chain's final target completes successfully, and omitting the operator-reset path leaves no mechanism for audited manual recovery [DOC-13 §4]. This test pins the two-exit model against implementations that interpret §4's summary as either a blanket "retain last error class" or a flat "forever DEAD" prohibition.
+
+### Correctness fixes
+
 ## Unreleased — 2026-11-21 (bug hunt: DOC-13 §4 dead-letter summary still held "ST-180 records retain last error class", contradicting the classless crash-exhausted ST-180 of [R-060], and AC-121 test)
 
 ### Correctness fixes
@@ -1053,6 +1063,16 @@ version: 1.33.0
   termination argument against the correct cap gate, and distinguishes the
   send-time [R-054] path. New [AC-082] asserts no counter change on the
   gate-time path and exactly one release on the send-time path.
+
+## Unreleased — 2026-11-22 (bug hunt: DOC-13 §4 dead-letter summary residual clause and AC-122 test)
+
+### Correctness fixes
+
+- The [DOC-13 §4] dead-letter summary's two-lawful-exits clause ("An operator MAY reset a URL to ST-100 via the runtime API" and "the redirect final-target completion upsert [R-062]") MUST be understood as complementary, not exclusive: both paths operate independently — the operator reset is an audited manual action, the upsert is an automatic gate-verified chain completion. An implementation that treats the upsert as "forbidden automated re-activation" or that refuses to move a pre-existing ST-180 record out of ST-180 without an audited operator action violates [R-062], [FR-051], [R-052] and [AC-026], [AC-061], [AC-079], [AC-087], [AC-093], [AC-120], [AC-121] — the DEAD set is not uniformly class-bearing or uniformly exit-restricted. This expands on [AC-121]'s pin of the classless crash-exhausted landing, ensuring the two named exits of §4 are the only automation-permitted exit routes, and neither blocks the other.
+
+- AC-122: The [DOC-13 §4] dead-letter summary names exactly two exits from ST-180, and both are necessary for a conformant implementation. (a) An audited operator MAY reset a URL to ST-100 via the runtime API — this clears `attempts` to 0, sets `due_at_mono` := now, clears `last_error_class` and any stale `next_attempt_mono`, and recomputes priority per [DOC-12 §2]. (b) The redirect final-target completion upsert [R-062] overwrites a pre-existing terminal record (ST-180 or ST-190) with the fetch-outcome state (ST-130, ST-150, or ST-180) once the chain reached that target and its gates were re-checked per hop [R-131]; this is not "automated re-activation" but a gate-verified fetch record that progress ST-180→ST-130→ST-140→ST-100 via ordinary recrawl/rediscovery paths. Both exits are required: omitting the upsert path leaves ST-180 records permanently stuck when a redirect chain's final target completes successfully, and omitting the operator-reset path leaves no mechanism for audited manual recovery [DOC-13 §4]. This test pins the two-exit model against implementations that interpret §4's summary as either a blanket "retain last error class" or a flat "forever DEAD" prohibition.
+
+### Correctness fixes
 
 ## Unreleased — 2026-11-18 (bug hunt: global cap scope)
 
