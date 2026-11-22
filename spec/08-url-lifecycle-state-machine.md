@@ -92,10 +92,11 @@ ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
                                  independently of recrawl eligibility
                                  [R-221], [R-222], [AC-072]
 ST-180 ─► ST-100                operator reset via runtime API [DOC-13 §4]
-                                (audited; attempts := 0, due_at_mono := now,
-                                last error class and any stale
-                                next_attempt_mono cleared, priority
-                                recomputed per [DOC-12 §2])
+                                 (audited; attempts := 0, due_at_mono := now,
+                                 `once_retried_classes` cleared per
+                                 [R-232], last error class and any stale
+                                 next_attempt_mono cleared, priority
+                                 recomputed per [DOC-12 §2])
 {ST-100, ST-130, ST-140, ST-150,
   ST-180, ST-190} ─► ST-130/ST-150/ST-180
                                  redirect final-target upsert onto a

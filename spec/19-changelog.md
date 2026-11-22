@@ -21,6 +21,7 @@ version: 1.33.0
   [R-131]`. That is a blanket class→action mapping for *every* robots-based
 - New [AC-125] pins the deterministic shape-counter rebuild at startup from URL Records via `host_key` index [R-042], verifying that excluded ST-190/`TRAP_PATH_BUDGET` records are included in the counter just as ST-100 records are, and that the global cap [CFG-005] correctly excludes ST-190 from the non-EXCLUDED count.
 - New [AC-126] pins the enqueue-time global-cap vs per-domain-cap dualism with ST-100/ST-150 coexistence: the global cap [CFG-005] counts non-EXCLUDED states inclusive of ST-100 and ST-150, while the per-domain check [CFG-006] and dispatch-time gate [FR-011(e)] exclude both ST-100 and ST-150 from successes(D)+inflight(D) evaluation, making the gate authoritative only after records transition into {ST-130,ST-140}.
+- New [AC-128] pins the once_retried_classes field clearing on DEAD → ST-100 operator reset: the runtime API clears `once_retried_classes` when `attempts` resets to 0 [R-232], resetting the yes-once gate for subsequent retries; the ST-150	 → ST-100 backoff-elapsed transition [AC-127] preserves the field, creating a distinct field-hygiene invariant between the two exits.
   hop refusal, but it is false for the UNKNOWN/deferred subcase: [R-131]
   distinguishes a target whose robots verdict is DISALLOW (PERMANENT,
   `ERR-017`, source → ST-180, target never fetched) from a target whose verdict
