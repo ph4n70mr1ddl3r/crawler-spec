@@ -64,12 +64,15 @@ ST-110 ─► ST-180                crash recovery reclassification with the
 ST-120 ─► ST-150                retryable failure [DOC-13 §3]
 ST-120 ─► ST-180                permanent failure or retry budget exhausted
 ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
-                                 (due_at_mono := next_attempt_mono);
-                                 The `once_retried_classes` field is preserved
-                                 across this transition since `attempts` is preserved
-                                 [R-053]; the "yes (once)" gate of [R-232] and
-                                 [DOC-13 §3] therefore applies on the first retry
-                                 after the backoff elapses, consistent with [R-060].
+                                  (due_at_mono := next_attempt_mono); The `once_retried_classes`
+                                  field is preserved across this transition since `attempts` is
+                                  preserved [R-053]; the "yes (once)" gate of [R-232] and
+                                  [DOC-13 §3] therefore applies on the first retry after the
+                                  backoff elapses, consistent with [R-060]: the field is not
+                                  cleared, reordered, or modified by this transition, and any
+                                  subsequently encountered same-class RETRYABLE outcome will
+                                  be subject to the once-retried-classes gate before the
+                                  budget check, potentially resulting in PERMANENT/ST-180.
 ST-150 ─► ST-180                attempts = [CFG-020]
                                 (defensive: unreachable in practice — the
                                 budget is evaluated at failure time
