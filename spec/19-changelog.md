@@ -11,6 +11,7 @@ version: 1.33.0
 ### Correctness fixes
 
 - [DOC-09 §4]'s response-classification table evaluated top-down, first
+## Unreleased — 2026-11-22 (bug hunt: CFG-030/CFG-005 ST-190 counting disjointness and AC-124 test)
   matching row applying, and its `3xx hop blocked by target Host robots` row
   read `permanent | chain terminates at that hop; source → ST-180, ERR-017
   [R-131]`. That is a blanket class→action mapping for *every* robots-based
