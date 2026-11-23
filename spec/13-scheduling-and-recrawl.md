@@ -147,7 +147,9 @@ UNKNOWN timeouts).
 
 ## 4. Freshness & recrawl
 
-On success, a page's next recrawl time:
+On a successful completion — outcome SUCCESS (2xx) or UNCHANGED (a `304`
+with a usable stored payload [R-121], including the UNCHANGED branch of the
+[R-144] cache-miss refetch) — a page's next recrawl time:
 
 If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch).
 Likewise a `Cache-Control: no-store` success installs no recrawl due time
