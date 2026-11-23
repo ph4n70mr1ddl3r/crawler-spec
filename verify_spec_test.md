@@ -55,6 +55,47 @@ Row 17 in the DOC-09 §4 table has been verified to have correct budget conditio
 
 Both rows correctly specify `urls.next_attempt_mono=NULL` when the retry budget is exhausted, aligning them with the `ERR-018` row and [R-131] step-3 narration.
 
+## 3. DOC-13 §3 Retry Procedure: once_retried_classes gate precedence
+
+The [DOC-13 §3] retry decision procedure has a critical gate: the "yes (once)" class check [R-232] is evaluated **first**, before the retry budget check [CFG-020]. This means:
+
+- If a RETRYABLE outcome's error class is already in `urls.once_retried_classes`, the outcome is PERMANENT/ST-180 **regardless of budget** — even when `attempts < [CFG-020]`.
+- If the class is not yet listed, it is appended to `urls.once_retried_classes` [T-2], and the normal budget/backoff path applies: ST-150 when `attempts < [CFG-020]`, ST-180 (DEAD) when budget exhausted.
+
+This gate precedence is mandated by [R-232] and is tested by multiple acceptance criteria:
+
+- **AC-093**: A RETRYABLE redirect final-target upsert [R-062] whose outcome class is already listed in the target's `once_retried_classes` lands the target in ST-180 (PERMANENT), not ST-150, regardless of [CFG-020].
+- **AC-024**: Two consecutive RETRYABLE ERR-003 outcomes with [CFG-020]=5 reach DEAD at the second occurrence; after a success and recrawl promotion, the class is eligible for one retry again.
+- **AC-087**: The [CFG-030] path-shape guard caps admissions, not the number of URL Records sharing a shape, because excluded ST-190 records are themselves created and counted.
+- **AC-084**: A RETRYABLE redirect final-target upsert [R-062] onto a pre-existing non-ST-180 record sets the target's `last_error_class` to the outcome's class and leaves it non-NULL until the target's own next successful completion clears it [T-2].
+
+### Verification
+
+The DOC-13 §3 procedure flow is:
+
+1. **Check "once" classes** (`ERR-003`, `ERR-013`):
+   - If class ∈ `urls.once_retried_classes` → ST-180 (DEAD), outcome PERMANENT, `error_class := class`
+   - Else: append class to `urls.once_retried_classes` [T-2]; fall through
+2. **Check budget** (`attempts ≥ [CFG-020]`):
+   - If budget exhausted → ST-180 (DEAD), `error_class` recorded
+   - Else: compute backoff delay, `state → ST-150, next_attempt_mono = now + delay`
+3. **ERR-018 floor** (only on ST-150 path):
+   - `next_attempt_mono = max(next_attempt_mono, target_host.next_allowed_fetch_at)`
+
+The "once" class check takes absolute precedence over the budget check. An implementation that checks the budget first and only then evaluates the "once" class would land second (and subsequent) `ERR-003`/`ERR-013` outcomes in ST-150 even when the class is already listed, violating [R-232], [R-062], and AC-093.
+
+| Scenario | CFG-020 | `once_retried_classes` state | Outcome | State |
+|---|---|---|---|---|
+| First ERR-003 | 5 | empty → appends ERR-003 → fall through | RETRYABLE, append class | ST-150 with backoff |
+| Second ERR-003 (same cycle) | 5 | [ERR-003] already listed | PERMANENT | ST-180 (DEAD) |
+| Second ERR-003 after success+recrawl | 5 | [] (cleared by [R-052]) → appends ERR-003 → fall through | RETRYABLE, append class | ST-150 with backoff |
+
+**AC-093 compliance check:** A RETRYABLE redirect final-target upsert [R-062] whose outcome class is already listed in the target's `once_retried_classes` MUST land the target in ST-180 (PERMANENT), not ST-150, regardless of [CFG-020]. An implementation landing RETRYABLE outcomes in ST-150 even when the class is already listed violates [R-232] and [R-062], and AC-052's partition assertion would fail because the `excluded`/`dropped` bucket assignment would diverge from `exclusions_total`.
+
+**AC-024 compliance check:** Two consecutive RETRYABLE ERR-003 outcomes with [CFG-020]=5 drive `attempts` to 2; the second is the budget-exhausting outcome only if the "once" gate does NOT intervene. Per [R-232], the "once" gate takes precedence: the second ERR-003 lands ST-180 (DEAD) even though `attempts=2 < [CFG-020]=5`. After a success and recrawl promotion ([R-052] resets `attempts=0`, clears `once_retried_classes` [R-232]), the class is eligible for one retry again.
+
+Both rows correctly specify that the `once_retried_classes` gate is evaluated first, before the budget check, aligning with [R-232] and [R-062].
+
 ## Conclusion
 
-All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The specification is conformant.
+All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The specification is conformant.
