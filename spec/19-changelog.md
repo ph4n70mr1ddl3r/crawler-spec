@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-24 (bug hunt: AC-137 cited the undefined [R-009] rule, and AC-138 test for the [R-112] host-counter increment on budget-exhausted 429/5xx landings)
+
+### Clarification fixes
+
+- [DOC-17]'s [AC-137] case (a) — the [CFG-009]=1 3-hop-same-Host redirect fixture of the [DOC-00] Per-Host Concurrency entry — stated that a per-request metering implementation "would see 3 concurrent requests against H, violate [R-009], [FR-011(a)] and INV-3". No rule [R-009] exists in the KB: the R-0xx block is exhausted at [R-001]–[R-003] ([DOC-06 §1]), and [DOC-06 §2]'s rules run R-010/R-011, so R-004–R-009 are unassigned — every document is required to use the controlled vocabulary "exactly", and an acceptance criterion must not cite a rule that resolves to nothing. The citation now names the existing authorities for the same violation: [R-051] (a task holds at most one Host unit), [FR-011(a)] (the per-Host concurrency gate) and INV-3 (in-flight fetches to a Host never exceed Per-Host Concurrency).
+- New [AC-138] pins the [R-112] host-counter consequence of the [DOC-09 §4] `429` and `5xx` rows that [AC-106] and [AC-136] state: the `hosts.consecutive_failures` increment fires on *either* landing — with [CFG-020]=2 a second consecutive `429` lands ST-180 with `urls.last_error_class='ERR-005'`, `urls.next_attempt_mono=NULL`, and the host counter incremented (backoff doubling [DOC-08 §4]) — and that a [R-062] redirect final-target upsert applies *no* host-counter effect to its pre-existing target, all host-side effects attributing to the Host of the exchange that produced the outcome [R-112], [AC-116]. An implementation that ties the increment to the ST-150 landing skips it on budget-exhausted 429/5xx landings, understating the host's dynamic backoff; one that applies the source attempt's counters to the upsert target double-attributes them.
+
 ## Unreleased — 2026-11-24 (bug hunt: DOC-00 Per-Host Concurrency defined in requests, contradicting the task/unit basis of [R-051], [R-131], [R-212], [AC-011]/[AC-035], and AC-137 test)
 
 ### Clarification fixes
