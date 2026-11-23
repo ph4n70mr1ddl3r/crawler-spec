@@ -17,10 +17,24 @@ version: 1.33.0
 | ST-140 | DONE | Parsed, extracted, artifacts stored. Fetch cycle complete; may re-enter ST-100 via recrawl [FR-050] or rediscovery refresh [FR-051], or be overwritten by [R-062] upsert. |
 | ST-150 | RETRY_WAIT | Retryable failure; backoff timer running. |
 | ST-180 | DEAD | Retries exhausted or permanent error. |
-| ST-190 | EXCLUDED | Never crawled; reason code required. |
+| ST-190 | EXCLUDED | Not eligible for crawling; reason code required. Not a statement about fetch history: creation-time exclusions have never been fetched, but gate-time exclusions fire after dispatch selection and [R-103] sweeps already-fetched ST-150 records (with a counted attempt [R-053]) here, and a terminal ST-190 record may later be overwritten by the redirect final-target upsert [R-062]. |
 
 Reason codes for ST-190: `OUT_OF_SCOPE`, `ROBOTS_DISALLOW`, `ROBOTS_UNKNOWN_TIMEOUT`,
 `TRAP_PARAM`, `TRAP_PATH_BUDGET`, `DEPTH_LIMIT`, `CAP_REACHED`, `BLOCKLIST`.
+
+The former "Never crawled" gloss was inaccurate: it held only for records
+created directly in ST-190 by the scope/trap/cap filters ([DOC-06 §5], [FR-005]).
+The gate-time exclusions fire on an ST-100 candidate ([FR-031] at dispatch
+selection, [R-054] at send time with the [T-1] attempt increment rolled back
+because no request was sent), so they send no request in the current cycle;
+but [R-103] sweeps ST-150 records — each already fetched at least once, with
+`attempts ≥ 1` [R-053] — into ST-190/`ROBOTS_UNKNOWN_TIMEOUT`. Such a swept
+record keeps its fetch_events and may even carry a stored page from an earlier
+completed cycle (ST-140 → ST-100 recrawl [FR-050] → retryable failure → ST-150
+→ sweep). ST-190 is also not a permanent landing: [R-062] overwrites a
+pre-existing ST-190 record with a fetch-outcome state (ST-130/ST-150/ST-180),
+clearing its `exclude_reason`. The §2 transition table is authoritative for
+the full set of entry and exit edges [R-000].
 
 *State-dependent rules reference specific states by ID. Notably:
 - R-050: Only ST-100 records are visible to the Scheduler.

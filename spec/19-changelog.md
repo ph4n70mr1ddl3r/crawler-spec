@@ -6,6 +6,28 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: DOC-07 §1 ST-190 "Never crawled" gloss contradicted the [R-103] ST-150→ST-190 sweep and the [R-062] ST-190 overwrite, and AC-130 test)
+
+### Clarification fixes
+
+- [DOC-07 §1]'s ST-190 meaning cell still read "Never crawled", a v1.0.0 gloss
+  that predates two later rules. [R-103] sweeps ST-150 records — each with at
+  least one counted fetch attempt [R-053] — into ST-190/`ROBOTS_UNKNOWN_TIMEOUT`,
+  and such a record can even carry a stored `pages` row from an earlier
+  completed cycle (ST-140 → ST-100 recrawl [FR-050] → retryable failure →
+  ST-150 → sweep). [R-062] additionally overwrites pre-existing ST-190 records
+  with a fetch-outcome state, clearing `exclude_reason`, so ST-190 is neither
+  "never crawled" nor a permanent landing. The gloss now states the accurate
+  invariant (not eligible for crawling; reason code required) together with
+  the specific entry paths; per [R-000] the §2 transition table remains
+  authoritative for the full set of edges.
+- New [AC-130] pins the swept-ST-150 case: a fetched record with a fetch_event
+  and `attempts=1` moves to ST-190/`ROBOTS_UNKNOWN_TIMEOUT` after a continuous
+  robots failure, with its attempt history — and, in the stronger variant, its
+  stored page — preserved, and remains overwritable by [R-062]. An
+  implementation that skips ST-150 in the [R-103] sweep because "those were
+  already crawled" fails [DOC-07 §2]'s `ST-150 ─► ST-190` edge.
+
 ## Unreleased — 2026-11-23 (bug hunt: NFR-011 "inflight counts rebuilt conservatively" contradicted [R-060]'s exact-zero restart rebuild, and AC-129 test)
 
 ### Clarification fixes
