@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: DOC-11 §1 `last_seen_at` "most recent rediscovery" contradicted the [R-062] upsert that also updates it without being a rediscovery, and AC-134 test)
+
+### Clarification fixes
+
+- [DOC-11 §1]'s `urls.last_seen_at` schema comment still read "most recent rediscovery [FR-051], [INV-5]", a v1.0.0 gloss that became incomplete when [R-062]'s redirect final-target completion upsert was qualified as explicitly **not** a rediscovery that nonetheless updates this column. The note was added to [INV-5] [DOC-03] and to [R-062] [DOC-07 §4] — twice, in the 1.32.0 and 1.33.0 changelog entries — yet the column's authoritative definition in the same [DOC-11 §1] table was never qualified, even though its three sibling comments were: `urls.last_error_class` [AC-089], `hosts.pages_crawled` [AC-116] and `urls.registrable_domain` [AC-119]. Per [R-000], the topic-doc rules [R-062]/[INV-5] override the stale column gloss. The comment now defines the column as a most-recent-sighting timestamp updated both by every rediscovery [FR-051] and by a [R-062] upsert onto a pre-existing record (which is not a rediscovery but still updates it), states that it is not a claim a rediscovery occurred, and recalls its retention-basis role [DOC-11 §6].
+- New [AC-134] pins that a [R-062] upsert onto a pre-existing, never-rediscovered terminal record (ST-180/`ERR-014` or ST-190/`CAP_REACHED`) — reached through a gate-verified redirect chain [R-131] — MUST update that record's `last_seen_at` to the chain-completion sighting time, with all other field effects exactly those [R-062]/[T-2] name and no rediscovery `attempts`/`priority` reset [R-052]. Ordinary rediscovery still updates the column only [FR-051], [AC-058], and the column remains the retention basis when set [DOC-11 §6]. An implementation following the former comment literally skips the update for the non-rediscovery upsert, contradicting [R-062]'s "field effects are: `last_seen_at` updated" and [INV-5]'s "is not a rediscovery: it updates `last_seen_at`", failing [AC-026], [AC-083] and [AC-120] even though it handles ordinary rediscovery correctly. This is the same residual-summary defect [AC-089], [AC-104]–[AC-133] corrected in the sibling schema comments of the very same [DOC-11 §1] table, left in the `last_seen_at` column definition those rules cite.
+
 ## Unreleased — 2026-11-23 (bug hunt: NFR-007 "every fetch writes a structured log line" contradicted the crash/send-time-abort rules [R-060]/[T-5] — a counted attempt emits no fetch log — and AC-133 test)
 
 ### Clarification fixes

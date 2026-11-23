@@ -31,7 +31,7 @@ urls (
   once_retried_classes TEXT NOT NULL DEFAULT '[]', -- JSON array: yes-once error classes [R-232] already retried in the current attempt cycle; cleared when attempts resets to 0
   due_at_mono       INT NULL,             -- scheduler key component; NULL for one-shot records ([CFG-025]=0, [R-221] no-store) that have no recrawl due time
   last_fetch_mono   INT NULL,             -- completion time of the most recent fetch attempt (set in [T-2])
-  last_seen_at      TEXT NULL,            -- most recent rediscovery [FR-051], [INV-5]
+  last_seen_at      TEXT NULL,            -- most recent sighting: updated by every rediscovery [FR-051], [INV-5] AND by a redirect final-target completion upsert [R-062] onto a pre-existing record, which is not a rediscovery but still updates this column [INV-5], [DOC-07 §4], [AC-134]; NOT a statement that a rediscovery occurred; retention basis when set, else updated_at [§6]
   created_at        TEXT NOT NULL,
   updated_at        TEXT NOT NULL
 )
