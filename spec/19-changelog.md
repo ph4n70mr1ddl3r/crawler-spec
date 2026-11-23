@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: DOC-12 §4 recrawl formula "Otherwise" blanket-installed a due time for every success with [CFG-025]>0, contradicting [R-221]'s no-store `due_at_mono` = NULL one-shot carve-out, and AC-135 test)
+
+### Clarification fixes
+
+- [DOC-12 §4]'s freshness/recrawl formula still read "If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch). Otherwise: … `due_at_mono = fetch_complete_mono + interval`", a v1.1.0 blanket whose sole stated carve-out was [CFG-025]=0. The `Cache-Control: no-store` carve-out was added later in v1.31.0 to [R-221], mechanically restated in [T-2] and the [DOC-11 §1] `urls.due_at_mono` schema comment ("NULL for one-shot records ([CFG-025]=0, [R-221] no-store)"), and pinned by [AC-072], but §4 — the authoritative place an implementer computes a recrawl due time — was never qualified: its "Otherwise" branch prescribes `fetch_complete_mono + interval` for a no-store success with [CFG-025]>0, while [R-221] prescribes `due_at_mono` = NULL for that very completion. Per [R-000], the specific [R-221] rule wins over the level-4 §4 prose. The formula now names both one-shot carve-outs ([CFG-025]=0 and [R-221] no-store) before its "Otherwise" branch.
+- New [AC-135] pins that a `200 OK` with `Cache-Control: no-store` under [CFG-025]>0 is fetched/stored/extracted normally [FR-043], [T-4] but leaves `urls.due_at_mono` NULL, suppresses the ST-140→ST-100 due-time promotion [DOC-12 §1] and stays terminal until a rediscovery refresh [FR-051], [R-052]; by contrast a plain 2xx/UNCHANGED-304 success installs the jittered due time and returns to ST-100 when due [FR-050], [AC-033], [AC-072]. An implementation following the former §4 "Otherwise" branch literally computes a due time for the no-store success, promotes and refetches it, contradicting [R-221], [T-2], the [DOC-11 §1] schema comment, [NFR-004]/[AC-086] and [AC-072] even though it handles [CFG-025]=0 and ordinary successes correctly. This is the same residual-summary defect [AC-089], [AC-104]–[AC-134] corrected elsewhere, left in the §4 formula those rules cite as the definition of a recrawl due time.
+
 ## Unreleased — 2026-11-23 (bug hunt: DOC-11 §1 `last_seen_at` "most recent rediscovery" contradicted the [R-062] upsert that also updates it without being a rediscovery, and AC-134 test)
 
 ### Clarification fixes

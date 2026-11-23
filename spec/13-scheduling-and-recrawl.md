@@ -150,6 +150,9 @@ UNKNOWN timeouts).
 On success, a page's next recrawl time:
 
 If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch).
+Likewise a `Cache-Control: no-store` success installs no recrawl due time
+(`due_at_mono` = NULL) even when [CFG-025]>0 — it is one-shot for recrawl
+purposes [R-221], [AC-072], [AC-135].
 Otherwise:
 
 ```
