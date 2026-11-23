@@ -24,7 +24,7 @@ Targets are for reference hardware: 4 vCPU, 8 GiB RAM, SSD, 100 Mbps.
 | NFR-008 | Portability | No OS-specific features beyond POSIX + standard sockets; must run on Linux/macOS. |
 | NFR-009 | Testability | Every component (C1–C9) testable in isolation via injected fake transports/stores; network fixtures recorded in HAR-like format. |
 | NFR-010 | Durability | Acknowledged state changes survive process kill -9 at any instant (write-ahead or atomic commits). No lost discoveries. |
-| NFR-011 | Safety on restart | Restart NEVER violates politeness: persisted `next_allowed_fetch_at` honored; inflight counts rebuilt conservatively. |
+| NFR-011 | Safety on restart | Restart NEVER violates politeness: persisted `next_allowed_fetch_at` honored; `inflight` counts rebuilt to exactly 0 for every Host [R-060] — a precise rebuild, not a conservative over-estimate: every {ST-110, ST-120} record has just been reclassified out of the unit-owning states at restart and all robots exchanges died with the process, so a non-zero "conservative" count would strand Host slots forever (each crashed task is gone and no [T-2] will release its slot) and deadlock dispatch, violating INV-3. |
 | NFR-012 | Idempotency | Re-running ingestion of the same seed set produces no duplicate work. |
 | NFR-013 | Security posture | All SSRF/trap guards fail closed: unknown ⇒ block [DOC-16]. |
 | NFR-014 | Compliance | robots.txt handling conforms to RFC 9309 semantics for the groups matching UA Token. |

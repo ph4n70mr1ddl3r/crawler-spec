@@ -6,6 +6,23 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: NFR-011 "inflight counts rebuilt conservatively" contradicted [R-060]'s exact-zero restart rebuild, and AC-129 test)
+
+### Clarification fixes
+
+- [DOC-05] NFR-011 still required `inflight` counts to be "rebuilt conservatively"
+  on restart, but [R-060] [DOC-07 §4] mandates a precise rebuild to exactly 0
+  for every Host — "exact, not merely conservative". A conservative over-count
+  would strand Host slots forever (crashed {ST-110, ST-120} tasks and robots
+  exchanges are gone and no [T-2] will release their slots), deadlocking
+  dispatch and violating INV-3 that NFR-011 exists to protect. Per [R-000] the
+  topic-doc rule [R-060] overrides the general-doc requirement, so NFR-011 now
+  states the exact-zero rebuild and its rationale.
+- New [AC-129] pins the restart inflight rebuild to exact-zero: two in-flight
+  ST-110 fetches plus one in-flight robots exchange at kill -9 leave every
+  `hosts.inflight = 0` after recovery, politeness preserved, and fresh dispatches
+  admitted immediately; a conservative non-zero rebuild fails.
+
 ## Unreleased — 2026-11-22 (bug hunt: DOC-09 §4 robots-hop row still blanket-labeled every robots-based hop refusal PERMANENT/ERR-017/ST-180, contradicting the UNKNOWN/deferred RETRYABLE/ERR-010 landing of [R-131], and AC-123 test)
 
 ### Clarification fixes
