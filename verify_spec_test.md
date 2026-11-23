@@ -96,6 +96,18 @@ The "once" class check takes absolute precedence over the budget check. An imple
 
 Both rows correctly specify that the `once_retried_classes` gate is evaluated first, before the budget check, aligning with [R-232] and [R-062].
 
+## DOC-00 Per-Host Concurrency Definition
+
+The [DOC-00] controlled-vocabulary entry for **Per-Host Concurrency** MUST define the metered quantity as in-flight HTTP tasks (units) held against one Host — not individual HTTP requests — exactly as its sibling **Global Concurrency** entry already does. The per-Host unit is the task's single unit [R-051], transferred sequentially across redirect hops [R-131] (the source Host's unit is released when its response arrives) and plus one unit per in-flight robots.txt exchange [DOC-08 §2.2] [AC-011], [AC-035], [R-212].
+
+### Verification
+
+The [DOC-00] **Per-Host Concurrency** entry has been verified to have the correct task/unit basis:
+
+- **Fixed entry:** "Max simultaneous in-flight HTTP tasks (units) held against one Host — a dispatched fetch task's single per-Host unit [R-051], which a redirect-hop chain moves sequentially from the source Host to each following Host (the source Host's unit is released when its response arrives [R-131], so a multi-hop task holds at most one Host unit at any time), plus one unit per in-flight robots.txt exchange [DOC-08 §2.2]; it counts tasks/units, not individual HTTP requests [AC-011], [AC-035], [R-212]. MUST be ≥1."
+
+**AC-137 compliance check:** The entry MUST NOT read "Max simultaneous in-flight HTTP requests to one Host (initial requests, redirect hops [R-131], robots.txt exchanges)". That wording meters [CFG-009] in individual HTTP requests, contradicting [R-051]'s "a task never holds two Host units", [R-131]'s release-before-acquire step 1, [R-212]'s unit accounting and [AC-011]/[AC-035] ("per-host inflight counts concurrent tasks, not individual HTTP requests"). An implementation following the former wording meters [CFG-009] in requests: with [CFG-009]=1 and a fetch task following a 3-hop redirect chain whose three `Location` targets are all on the same Host H, it would see 3 concurrent requests against H, violating [R-051], [R-131], [R-212], [FR-011(a)] and INV-3, and would abort or serialize the chain — even though it handles single-request fetches and robots exchanges correctly. The fixed entry names the same components (redirect hops, robots exchanges) whose units are the task's single per-Host unit, not one request each, and cites [AC-011], [AC-035] and [R-212] as authority for the task/unit basis. This is the same residual-summary defect [AC-089], [AC-104]–[AC-136] corrected in [R-051], [R-131], [R-212] and [AC-011]/[AC-035], left in the [DOC-00] controlled-vocabulary entry every document is required to use "exactly".
+
 ## Conclusion
 
-All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The specification is conformant.
+All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The DOC-00 Per-Host Concurrency entry is defined in tasks/units, not individual HTTP requests, consistent with [R-051], [R-131], [R-212] and [AC-011]/[AC-035]. The specification is conformant.

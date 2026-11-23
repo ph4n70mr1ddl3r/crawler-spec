@@ -6,6 +6,12 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-24 (bug hunt: DOC-00 Per-Host Concurrency defined in requests, contradicting the task/unit basis of [R-051], [R-131], [R-212], [AC-011]/[AC-035], and AC-137 test)
+
+### Clarification fixes
+
+- [DOC-00]'s controlled-vocabulary entry for **Per-Host Concurrency** still read "Max simultaneous in-flight HTTP requests to one Host (initial requests, redirect hops [R-131], robots.txt exchanges)". The sibling **Global Concurrency** entry in the same table was already task-based ("Max simultaneous in-flight HTTP tasks across all Hosts", a fetch task's single unit [T-1]..[T-2] spanning its hops [R-131] plus robots exchanges), and the normative rules agree: [R-051] "a task never holds two Host units", [R-131]'s release-before-acquire protocol (step 1: the responding Host's unit is released when its response arrives, so a multi-hop chain occupies at most one Host unit at a time), [R-212]'s unit accounting, and [T-2]'s single `hosts.inflight−1` per attempt. [AC-011] and [AC-035] pin it explicitly: "per-host inflight counts concurrent tasks, not individual HTTP requests". The entry is now defined in tasks/units, naming the same components (the task's per-Host unit [R-051] — transferred sequentially across redirect hops [R-131] — and robots.txt exchanges [DOC-08 §2.2]) while stating they are metered as units, not individual requests. An implementation following the former wording meters [CFG-009] in individual HTTP requests: a [CFG-009]=1 task following a 3-hop same-Host chain would see 3 concurrent requests against that Host and abort or serialize the chain, violating [R-051], [R-131], [R-212], [FR-011(a)] and INV-3 [AC-035] even though it handles single-request fetches and robots exchanges correctly. This is the same residual-summary defect [AC-089], [AC-104]–[AC-136] corrected in [R-051], [R-131], [R-212] and [AC-011]/[AC-035], left in the [DOC-00] entry every document is required to use "exactly". New [AC-137] pins the task/unit basis with the [CFG-009]=1 3-hop-same-Host case (a) and the two-task case (b).
+
 ## Unreleased — 2026-11-24 (bug hunt: DOC-09 §4 429 row missing urls.next_attempt_mono=NULL, contradicting AC-106 and [R-131])
 
 ### Clarification fixes
