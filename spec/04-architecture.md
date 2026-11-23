@@ -78,8 +78,11 @@ version: 1.33.0
 - Worker pool of size `global_concurrency` [CFG-010].
 - Performs DNS resolution + SSRF checks [DOC-16 §2], HTTP exchange with all
   timeout/retry rules [DOC-09], redirect following within caps.
-- Returns a FetchResult with exactly the fields defined in [DOC-09 §6]. Never
-  parses bodies beyond content-type sniffing for caps.
+- Returns a FetchResult with exactly the fields defined in [DOC-09 §6] for every
+  attempt that reaches a classified outcome [FR-025]; a crash mid-fetch or a
+  send-time robots abort [R-054], [T-5] produces no FetchResult (and no
+  `fetch_events` row), and startup recovery [R-060] MUST NOT synthesize one
+  [AC-132]. Never parses bodies beyond content-type sniffing for caps.
 
 ### C6 EXTRACTOR
 - For each successful fetch of a parseable type: decode charset, parse HTML,

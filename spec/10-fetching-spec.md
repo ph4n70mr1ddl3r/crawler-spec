@@ -160,7 +160,8 @@ The rows below are evaluated top-down; the first matching row applies.
 
 ## 6. FetchResult contract
 
-Every attempt returns exactly:
+Every attempt that reaches a classified outcome returns exactly one FetchResult
+[FR-025]:
 
 ```json
 {
@@ -180,6 +181,24 @@ Every attempt returns exactly:
 ```
 
 Scheduler consumes outcomes per [DOC-13].
+
+The qualifier is load-bearing: "every attempt" in this section means every
+attempt that reaches a classified outcome, not every attempt counted at dispatch
+[T-1], [R-053]. An attempt interrupted by a crash returns NO FetchResult: the
+process died before any outcome could be classified, and startup reclassification
+[R-060], [DOC-13 §5] MUST NOT synthesize a FetchResult, an `http_status`,
+timings, or an ERR-nnn class — `urls.last_error_class` stays NULL for a
+crash-exhausted ST-180 record [AC-121], [AC-089] — just as [T-2] writes no
+`fetch_events` row for it [FR-025], [AC-131]. A send-time robots abort [R-054]
+returns no FetchResult either: no request was sent, the [T-1] increment is
+rolled back by [T-5], and the attempt is not counted at all [R-053], [AC-016].
+A robots.txt exchange is likewise not a page fetch — it yields a gate verdict
+(ALLOW/DISALLOW/UNKNOWN) rather than a URL FetchResult and creates no
+`fetch_events` row [DOC-08 §2.2]. Redirect hops [R-131] and a same-attempt
+[R-144] cache-miss refetch are folded into that one FetchResult (and its one
+`fetch_events` row) via `redirect_chain`/`final_url_identity`/`http_status`
+[R-133], [FR-025], never reported as additional FetchResults or `attempts`
+increments [AC-132].
 
 - R-145: For redirect chains, `timings_ms.total` spans the entire chain
   (including per-hop politeness waits); `dns`/`connect`/`tls`/`ttfb` refer to

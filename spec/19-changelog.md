@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: DOC-09 §6 "Every attempt returns exactly" contradicted the crash/send-time-abort rules [R-060]/[T-5] — a counted attempt yields no FetchResult — and AC-132 test)
+
+### Clarification fixes
+
+- [DOC-09 §6]'s FetchResult contract still read "Every attempt returns exactly:", a v1.0.0 blanket that the immediately preceding [FR-025] fix [AC-131] cites as the definition of "a classified FetchResult" while leaving the qualifier unstated in the contract itself. A crash mid-fetch counts the attempt at dispatch [T-1], [R-053] but produces no outcome before the process dies: [R-060], [DOC-13 §5] forbid fabricating a FetchResult, an `http_status`, timings, or an ERR-nnn class (the crash-exhausted ST-180 keeps `last_error_class=NULL` [AC-121], [AC-089]), and [T-2]/[FR-025] write no `fetch_events` row for it [AC-131]. A send-time robots abort [R-054], [T-5] likewise sends no request and writes no row (and is not a counted attempt [R-053]), and a robots.txt exchange yields a gate verdict rather than a URL FetchResult [DOC-08 §2.2]. The contract is now qualified to attempts that reach a classified outcome, with redirect hops [R-131] and the same-attempt [R-144] refetch folded into that single result [R-133]; [DOC-03]'s C5 FETCHER contract is qualified the same way.
+- New [AC-132] pins the four cases: no synthesized FetchResult at crash recovery, none for a send-time robots abort, none for a robots exchange, and exactly one for a chain/refetch attempt (never extra results or `attempts` increments). An implementation following the former clause literally invents an outcome, status, timings, and error class for an attempt that never reached a classification, reopening the defect [AC-131] closed even though it emits correct results for ordinary completions.
+
 ## Unreleased — 2026-11-23 (bug hunt: FR-025 "record every attempt as a fetch_event" contradicted the crash rule [R-060]/[DOC-13 §5] — a counted attempt writes no row — and AC-131 test)
 
 ### Clarification fixes
