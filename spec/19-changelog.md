@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: FR-025 "record every attempt as a fetch_event" contradicted the crash rule [R-060]/[DOC-13 §5] — a counted attempt writes no row — and AC-131 test)
+
+### Clarification fixes
+
+- [DOC-04]'s FR-025 still read "The system MUST record every attempt as a fetch_event ...", a blanket obligation that cannot hold for an attempt interrupted by a crash: [T-1] counts the attempt [R-053], [DOC-13 §2], but the process dies before [T-2] can commit a `fetch_event`, and [R-060]/[DOC-13 §5] explicitly state that the crash wrote no fetch_event and no ERR-nnn class is fabricated (hence the classless crash-exhausted ST-180 [AC-121], [AC-089]). Per [R-000], the topic-doc crash rules [R-060], [DOC-13 §5] override the general-doc FR. FR-025 is now qualified to every attempt that reaches a classified FetchResult [DOC-09 §6], with the crash case, the send-time robots abort [R-054]/[T-5] (which rolls back the increment and is not a counted attempt [R-053]), and the one-row-per-attempt accounting for redirect chains [R-133] and same-attempt [R-144] refetches spelled out.
+- New [AC-131] pins the crash case: a kill -9 in ST-110/ST-120 leaves `attempts` incremented but produces no `fetch_events` row, and startup recovery [R-060] must not fabricate a row or an error class; the first attempt that actually completes writes exactly one row. It also pins the send-time robots abort (no row, no counted attempt [AC-016]) and the redirect-chain/refetch one-row-per-attempt invariant. An implementation following the former FR-025 clause either invents an audit row and error class for a crashed attempt or writes a contentless placeholder, corrupting the `fetch_events` trail [DOC-11 §1].
+
 ## Unreleased — 2026-11-23 (bug hunt: DOC-07 §1 ST-190 "Never crawled" gloss contradicted the [R-103] ST-150→ST-190 sweep and the [R-062] ST-190 overwrite, and AC-130 test)
 
 ### Clarification fixes
