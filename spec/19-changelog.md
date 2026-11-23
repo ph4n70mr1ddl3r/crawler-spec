@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-24 (bug hunt: DOC-09 §4 429 retryable row omitted consecutive_failures increment, contradicting the 5xx row and [R-112], and AC-136 test)
+
+### Clarification fixes
+
+- [DOC-09 §4]'s response-classification table evaluated top-down, with the `429` retryable row previously lacking the `hosts.consecutive_failures` increment mention that the `5xx` row already included — creating an inconsistency across retryable-status rows. The `429` row stated "honor Retry-After [R-111] → ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded when the retry budget is exhausted [DOC-13 §3], [AC-024]" without noting the [R-112] counter increment, while the `5xx` row explicitly included "increments host `consecutive_failures` [R-112] on either landing" [AC-106]. Per [R-000], the specific [R-112] rule wins over the level-4 §4 prose. The `429` row now reads "honor Retry-After [R-111] → ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded and `hosts.consecutive_failures` incremented [R-112] when the retry budget is exhausted [FR-052], [AC-024]".
+
+- New [AC-136] pins that the [DOC-09 §4] response-classification table's `429` retryable row MUST state the landing conditioned on the retry budget and the `hosts.consecutive_failures` increment, exactly like the [DOC-09 §4] `5xx` row: a `429` honors `Retry-After` [R-111] → ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded and `hosts.consecutive_failures` incremented [R-112] when the retry budget is exhausted [FR-052], [AC-024]. An implementation following the former 429 row clause "honor Retry-After [R-111] → ST-150" without the `consecutive_failures` increment would fail to increment the host counter on budget-exhausted 429 landings, diverging from the [R-112] invariant and contradicting the same table's 5xx row which explicitly increments it — even though it correctly honors `Retry-After` within budget. This test pins the consistent counter-increment contract across all retryable-status rows of the same table.
 ## Unreleased — 2026-11-23 (bug hunt: DOC-12 §4 recrawl formula "Otherwise" blanket-installed a due time for every success with [CFG-025]>0, contradicting [R-221]'s no-store `due_at_mono` = NULL one-shot carve-out, and AC-135 test)
 
 ### Clarification fixes
