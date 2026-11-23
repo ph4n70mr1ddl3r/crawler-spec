@@ -45,7 +45,14 @@ Histograms: `fetch_duration_ms` (by outcome), `payload_size_bytes`.
 
 One JSON line per event on stdout. Required fields: `ts`, `level`, `component`
 (C1–C9), `event`. Fetch logs add: `url_identity`, `attempt`, `outcome`,
-`error_class`, `http_status`, `timings_ms`.
+`error_class`, `http_status`, `timings_ms`. Exactly one fetch log line is emitted
+per attempt that reaches a classified outcome [DOC-09 §6], [AC-133]: redirect
+hops [R-131] and the same-attempt [R-144] refetch are folded into that one line
+[R-133], never emitted as extra log lines. An attempt interrupted by a crash
+[R-060] or a send-time robots abort [R-054], [T-5] emits NO fetch log line —
+no `outcome`/`error_class`/`http_status`/`timings_ms` exist for it and they MUST
+NOT be synthesized [DOC-09 §6], [AC-131], [AC-132]. A robots.txt exchange yields
+a gate verdict, not a page fetch, and creates no fetch log line [DOC-08 §2.2].
 
 - R-241: No payload bodies in logs [NFR-016]; userinfo redacted [R-002].
 - R-242: Log level from [CFG-032]; `debug` MAY add scheduler decision traces.

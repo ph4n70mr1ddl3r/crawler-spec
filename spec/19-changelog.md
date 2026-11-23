@@ -6,6 +6,13 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-23 (bug hunt: NFR-007 "every fetch writes a structured log line" contradicted the crash/send-time-abort rules [R-060]/[T-5] — a counted attempt emits no fetch log — and AC-133 test)
+
+### Clarification fixes
+
+- [DOC-05]'s NFR-007 still read "every fetch writes a structured log line [DOC-15]", a v1.0.0 general-doc blanket that the two immediately preceding bug hunts left untouched: [FR-025] [AC-131] and [DOC-09 §6] [AC-132] were qualified to attempts that reach a classified outcome, but NFR-007 — the general-doc observability target those topic docs implement — kept the unqualified "every fetch". The [DOC-15 §2] fetch-log fields (`outcome`, `error_class`, `http_status`, `timings_ms`) only exist for an attempt that reached a classified outcome: a crash mid-fetch counts the attempt at dispatch [T-1], [R-053] but produces none of them before the process dies, and [R-060], [DOC-13 §5] and [DOC-09 §6] forbid synthesizing them (the crash-exhausted ST-180 keeps `urls.last_error_class=NULL` [AC-121], [AC-089]); a send-time robots abort [R-054], [T-5] sends no request and is not a counted attempt [R-053], and a robots.txt exchange yields a gate verdict, not a page fetch [DOC-08 §2.2]. NFR-007 is now qualified to every fetch that reaches a classified outcome, with redirect hops [R-131] and the same-attempt [R-144] refetch folded into that one log line [R-133]; [DOC-15 §2] is qualified the same way.
+- New [AC-133] pins the four cases: no synthesized fetch log at crash recovery, none for a send-time robots abort, none for a robots exchange, and exactly one for a chain/refetch attempt (never extra log lines). An implementation following the former NFR-007 clause literally invents an `outcome`, `error_class`, `http_status`, and `timings_ms` for an attempt that never reached a classification, reopening the defect [AC-131]/[AC-132] closed even though it emits correct lines for ordinary completions. This is the same residual-summary defect [AC-104]–[AC-132] corrected in [FR-025] and [DOC-09 §6], left in the general-doc observability target.
+
 ## Unreleased — 2026-11-23 (bug hunt: DOC-09 §6 "Every attempt returns exactly" contradicted the crash/send-time-abort rules [R-060]/[T-5] — a counted attempt yields no FetchResult — and AC-132 test)
 
 ### Clarification fixes
