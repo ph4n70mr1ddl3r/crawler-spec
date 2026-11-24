@@ -172,8 +172,9 @@ if validators present and server returned 304 on a refetch:
                   // computation references — it is the authoritative source for the
                   // consecutive UNCHANGED tally that drives the interval doubling
                   // behavior, and it endures across restarts via the URL record persist
-                  // store; any full (non-304) 2xx success resets it (and the
-                  // multiplier) to 0/1
+                  // store
+                  // any full (non-304) 2xx success resets the consecutive_unchanged count
+                  // and the multiplier to base_interval (0/1)
                   // Retry-After never affects recrawl intervals
 due_at_mono     = fetch_complete_mono + interval
 ```
