@@ -156,6 +156,25 @@ The [DOC-12 §4] trigger has been verified to cover the UNCHANGED outcome:
 
 **AC-139 compliance check:** (a) With [CFG-025]>0, an UNCHANGED `304` completion MUST install `due_at_mono = fetch_complete_mono + interval` with the 304 multiplier (doubling per consecutive UNCHANGED, capped at 4 × [CFG-025], count in `urls.consecutive_unchanged` [DOC-11 §1], deterministic jitter [NFR-006]) — the ST-140→ST-100 due-time promotion [DOC-12 §1] fires at that due time and the URL is refetched [FR-050], [AC-072], [AC-033]. (b) A PERMANENT outcome ([R-144] double-304 cache miss [ERR-014], [AC-059], [AC-101]) lands ST-180 with `urls.last_error_class='ERR-014'` and `urls.due_at_mono` NULL: the §4 "Otherwise" branch computes `due_at_mono` for successful completions only. An implementation following the former "On success" trigger literally skips the UNCHANGED completion of (a): no due time is installed, the due-time promotion has no trigger, the URL is never recrawled, and `urls.consecutive_unchanged` grows without ever driving the 304 multiplier — a deterministic schedule divergence [NFR-006], [AC-033] — even though it handles plain 2xx recrawl and the [R-144] PERMANENT case of (b) correctly.
 
+## AC-094: is_seed Idempotency
+
+An idempotent `is_seed` update on a pre-existing URL Record — config-seed re-ingestion on restart [NFR-012] or a runtime seed injection [FR-006] for an identity that already has a record — increments `urls_discovered_total{duplicate}` exactly once and never `urls_discovered_total{ingested}` [DOC-15 §1], [AC-032], [AC-058], [AC-090]. Creating a genuinely new URL Record (including a redirect final-target upsert that creates its target [R-062]) still increments `ingested`, and a re-ingestion that finds no pre-existing record is `ingested`, not `duplicate`. Because `ingested` and `duplicate` are disjoint buckets of an exact four-bucket partition [AC-052], [AC-091], an implementation following the former `ingested` clause that listed "(or an existing record's `is_seed` flag updated idempotently)" as an `ingested` event would either double-count the re-ingestion or mis-bucket it, breaking the partition and contradicting [FR-006] and [AC-090].
+
+### Verification
+
+- **AC-094 compliance check:** A re-ingestion of a seed whose identity already has a URL Record increments `urls_discovered_total{duplicate}` exactly once and does not increment `urls_discovered_total{ingested}`. A runtime seed injection for an identity that already has a record similarly increments only the `duplicate` bucket. Creating a genuinely new URL Record (including a redirect final-target upsert [R-062] that creates its target) increments `ingested`. A re-ingestion that finds no pre-existing record is `ingested`, not `duplicate`.
+
+### Test Scenarios
+
+| Scenario | Action | `urls_discovered_total{ingested}` | `urls_discovered_total{duplicate}` |
+|---|---|---|---|
+| Config seed re-ingestion on restart | Identity already has a record; `is_seed=true` updated idempotently | 0 | +1 |
+| Runtime seed injection (existing record) | Identity already has a record; runtime injection | 0 | +1 |
+| New URL discovery (new identity) | Truly new URL Record created | +1 | 0 |
+| Redirect final-target upsert (new target) | Upsert creates new target record | +1 | 0 |
+
+Both rows correctly specify that `ingested` and `duplicate` are disjoint buckets of an exact four-bucket partition [AC-052], [AC-091], and that `duplicate` is incremented only when an existing record's `is_seed` flag is updated idempotently [AC-094].
+
 ## Conclusion
 
-All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The DOC-00 Per-Host Concurrency entry is defined in tasks/units, not individual HTTP requests, consistent with [R-051], [R-131], [R-212] and [AC-011]/[AC-035]. The DOC-12 §4 recrawl formula's trigger covers both successful outcomes — SUCCESS and UNCHANGED — while a PERMANENT outcome installs no recrawl due time [AC-139]. The specification is conformant.
+All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The DOC-00 Per-Host Concurrency entry is defined in tasks/units, not individual HTTP requests, consistent with [R-051], [R-131], [R-212] and [AC-011]/[AC-035]. The DOC-12 §4 recrawl formula's trigger covers both successful outcomes — SUCCESS and UNCHANGED — while a PERMANENT outcome installs no recrawl due time [AC-139]. The `urls_discovered_total` four-bucket partition is exact and disjoint, with `ingested` and `duplicate` correctly separated per [AC-094], [AC-091], [AC-090]. The specification is conformant.
