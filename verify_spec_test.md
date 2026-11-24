@@ -55,6 +55,22 @@ Row 17 in the DOC-09 §4 table has been verified to have correct budget conditio
 
 Both rows correctly specify `urls.next_attempt_mono=NULL` when the retry budget is exhausted, aligning them with the `ERR-018` row and [R-131] step-3 narration.
 
+**AC-024 compliance check (429 subset):** With [CFG-020]=5, five consecutive `429` responses drive `attempts` to 5; the fifth is the budget-exhausting outcome, which MUST produce state ST-180, `urls.last_error_class='ERR-005'`, `fetch_events.http_status=429`, and no backoff timer — not ST-150 with a re-armed timer. A 429 `Retry-After` honored unclamped within budget [DOC-13 §3] does not prevent the ST-180 landing when `attempts ≥ [CFG-020]`. An implementation re-arming a backoff timer on budget-exhausted 429 landings would strand records in ST-150 whose `attempts` equals [CFG-020] (the ST-150→ST-100 promotion requires `attempts < [CFG-020]` [DOC-12 §1]) and violating the "non-NULL `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085], even though it honors `Retry-After` and the host-counter increment correctly within budget.
+
+## 429 Retry-After and Budget Exhaustion Interaction
+
+With [CFG-020]=3 and a sequence of three consecutive `429` responses where each includes a `Retry-After` header:
+
+- **First 429** (`attempts=1 < [CFG-020]`): The outcome lands in ST-150 with `urls.next_attempt_mono` set per the `Retry-After` value unclamped [R-111], [DOC-13 §3]. The host's `consecutive_failures` is incremented [R-112].
+- **Second 429** (`attempts=2 < [CFG-020]`): The outcome lands in ST-150 with `urls.next_attempt_mono` updated per the new `Retry-After` value. The host's `consecutive_failures` is incremented again [R-112].
+- **Third 429** (`attempts=3 ≥ [CFG-020]`): The budget is exhausted. The outcome lands in ST-180 with `urls.last_error_class='ERR-005'`, `urls.next_attempt_mono=NULL`, and `fetch_events.http_status=429`. The host's `consecutive_failures` is incremented one final time [R-112]. A `Retry-After` header present on this response is **not** honored (the budget-exhausted path does not apply Retry-After), consistent with [DOC-13 §3] and [AC-085]. The record is DEAD and will not be retried until an operator reset [DOC-13 §4] or redirect final-target upsert [R-062] re-admits it.
+
+An implementation that re-arms a backoff timer on the budget-exhausted ST-180 landing, or that honors `Retry-After` on the budget-exhausted path, would violate the "non-NULL `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085] and the AC-024 assertion that three consecutive `429` outcomes reach DEAD at the third occurrence.
+
+## 5xx Rows Budget Conditioning Deeper Comparison
+
+The [DOC-09 §4] 5xx row states: `→ ST-150 when `attempts < CFG-020`, or ST-180 with `urls.last_error_class` recorded and `urls.next_attempt_mono=NULL` when the retry budget is exhausted [DOC-13 §3]; increments host `consecutive_failures` [R-112] on either landing`. Differs from the 429 row only in that it does not include `honor Retry-After [R-111]` since 5xx responses do not carry a `Retry-After` header per [R-111]. The budget conditioning, `next_attempt_mono=NULL` on exhaustion, and `consecutive_failures` increment on either landing are identical between the two rows, as verified by [AC-136].
+
 ## 3. DOC-13 §3 Retry Procedure: once_retried_classes gate precedence
 
 The [DOC-13 §3] retry decision procedure has a critical gate: the "yes (once)" class check [R-232] is evaluated **first**, before the retry budget check [CFG-020]. This means:

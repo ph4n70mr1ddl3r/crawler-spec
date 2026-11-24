@@ -6,6 +6,12 @@ version: 1.33.0
 
 # Changelog
 
+## Unreleased — 2026-11-24 (bug hunt: 429 Retry-After + budget exhaustion interaction test and AC-024/AC-136 verification)
+
+### Clarification fixes
+
+- The [DOC-09 §4] response-classification table's `429` and `5xx` retryable rows both state budget-conditioned landings with `urls.next_attempt_mono=NULL` when the retry budget is exhausted, as required by AC-106 and AC-136. The `429` row additionally specifies it honors `Retry-After` [R-111] unclamped within budget [DOC-13 §3]. A literal implementation re-arming a backoff timer on budget-exhausted 429 landings would strand records in ST-150 with `attempts ≥ [CFG-020]`, violating the "non-NULL `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085] and the AC-024 assertion that three consecutive `429` outcomes reach DEAD at the third occurrence. New verification in [verify_spec_test.md] documents the 429 Retry-After + budget exhaustion interaction across three consecutive responses, confirming that `Retry-After` is honored only within budget and not on the budget-exhausted ST-180 landing.
+
 ## Unreleased — 2026-11-24 (bug hunt: DOC-12 §4 recrawl formula "On success" trigger left the UNCHANGED 304 outcome uncovered, and AC-139 test)
 
 ### Clarification fixes
