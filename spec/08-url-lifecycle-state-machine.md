@@ -88,13 +88,15 @@ ST-150 ─► ST-100                backoff elapsed, attempts < [CFG-020]
                                   be subject to the once-retried-classes gate before the
                                   budget check, potentially resulting in PERMANENT/ST-180.
 ST-150 ─► ST-180                attempts = [CFG-020]
-                                (defensive: unreachable in practice — the
-                                budget is evaluated at failure time
-                                [DOC-13 §3], so ST-150 records always hold
-                                attempts < [CFG-020]); `next_attempt_mono`
-                                cleared (field hygiene — a backoff timer
-                                must not survive outside ST-150
-                                [DOC-12 §1])
+                              (defensive: unreachable in practice —
+                              the retry budget [CFG-020] is evaluated
+                              at failure time [DOC-13 §3] during fetch
+                              classification, and the invariant [DOC-12 §1]
+                              ensures every ST-150 record holds
+                              attempts < [CFG-020]; `next_attempt_mono`
+                              cleared (field hygiene — a backoff timer
+                              must not survive outside ST-150
+                              [DOC-12 §1])
 ST-150 ─► ST-190                host robots-unknown timeout [R-103]
 ST-130 ─► ST-140                extraction complete
 ST-140 ─► ST-100                recrawl due [FR-050], or rediscovery refresh
