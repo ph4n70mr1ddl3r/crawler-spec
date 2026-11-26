@@ -227,8 +227,6 @@ The [DOC-12 §4] freshness/recrawl formula's trigger MUST cover the UNCHANGED ou
 | no-store success with [CFG-025]=0 | 0 | N/A | `due_at_mono` = NULL, stays ST-140 | terminal until rediscovery |
 | no-store success with [CFG-025]>0 | 5 | N/A | `due_at_mono` = NULL, stays ST-140 | terminal until rediscovery |
 
-Both rows correctly specify that the DOC-12 §4 formula covers the UNCHANGED outcome: an UNCHANGED `304` completion under [CFG-025]>0 installs `due_at_mono` with the 304 multiplier (doubling per consecutive UNCHANGED, capped at 4 × [CFG-025]) and the ST-140→ST-100 due-time promotion fires at that due time and the URL is refetched exactly as a plain 2xx success does [AC-072], [AC-033], while a PERMANENT outcome ([R-144] double-304 cache miss) lands ST-180 with `urls.last_error_class='ERR-014'` and `urls.due_at_mono` NULL — the §4 "Otherwise" branch computes `due_at_mono` for successful completions only. An implementation of the former SUCCESS-only trigger that skips UNCHANGED completions fails this test even though it handles plain 2xx recrawl and the [R-144] PERMANENT case correctly. This is the same residual-summary defect [AC-089], [AC-104]–[AC-138] corrected elsewhere, left in the §4 formula whose own 304-multiplier comment names the outcome the "On success" trigger never covered.
-
 ## AC-131: FR-025 crash-safety — counted attempts interrupted by crash write no fetch_event
 
 The [FR-025] MUST NOT blanket-assert that "every attempt" is recorded as a `fetch_event`: a counted attempt interrupted by a crash writes no row, exactly as [R-060], [DOC-13 §5] and the classless crash-exhausted ST-180 landing [AC-121], [AC-089] require.
