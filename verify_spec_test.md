@@ -298,7 +298,22 @@ The [DOC-08 §2.3] status-interpretation table's `2xx` bullet MUST NOT blanket-a
 
 An implementation following the former blanket clause "a 2xx body never yields UNKNOWN — an empty rule set ⇒ ALLOW everything" literally parses the undecodable bytes as an empty rule set, returns ALLOW and opens the Host to page fetches — defeating the fail-closed robots policy [DEC-007] and contradicting the same table's `5xx`/network-error/body-decode-failure bullet, [R-106]'s "a parsed 2xx response ⇒ OK" (a decode-failed body is never parsed), and the normative decision recorded in the changelog that UNKNOWN is reserved for 5xx, transport failures and body-decode failures — even though it handles the ordinary decodable-2xx case of (a) correctly. This violates [AC-013], [R-106] and [DEC-007] even though it handles the ordinary decodable-2xx case of (a) correctly.
 
-## Conclusion
+## AC-140: ST-150→ST-100 transition clears next_attempt_mono field hygiene
 
-All retryable rows in the DOC-09 §4 response classification table have consistent budget conditioning (next_attempt_mono=NULL when budget exhausted), as required by AC-106, AC-136, and AC-085. The DOC-13 §3 `once_retried_classes` gate is evaluated before the budget check, per [R-232], ensuring that yes-once error classes (ERR-003, ERR-013) land ST-180 (DEAD) regardless of remaining budget. The DOC-00 Per-Host Concurrency entry is defined in tasks/units, not individual HTTP requests, consistent with [R-051], [R-131], [R-212] and [AC-011]/[AC-035]. The DOC-12 §4 recrawl formula's trigger covers both successful outcomes — SUCCESS and UNCHANGED — while a PERMANENT outcome installs no recrawl due time [AC-139]. The `urls_discovered_total` four-bucket partition is exact and disjoint, with `ingested` and `duplicate` correctly separated per [AC-094], [AC-091], [AC-090]. The specification is conformant.
+The [DOC-07 §2] ST-150→ST-100 transition (backoff elapsed, `attempts < [CFG-020]`) MUST clear `urls.next_attempt_mono` to NULL, preserving the [AC-085] field-hygiene invariant that `next_attempt_mono` is non-NULL only in ST-150. The transition sets `due_at_mono := next_attempt_mono` before clearing, so the scheduler retains the correct due time for the re-dispatched record.
+
+### Verification
+
+- **ST-150→ST-100 clearing test:** A URL record in ST-150 with `next_attempt_mono` set to a future time elapses its backoff and transitions to ST-100. After the transition, `due_at_mono` is set to the prior `next_attempt_mono` value and `next_attempt_mono` is NULL. The record is immediately dispatchable via the scheduler [R-050]. An implementation that omits `next_attempt_mono := NULL` on the ST-150→ST-100 transition would leave a stale backoff timer active in ST-100, violating the "non-NULL `next_attempt_mono` only in ST-150" field-hygiene invariant [AC-085] and potentially preventing the record from being re-dispatched or incorrectly re-queuing it with a spurious backoff.
+
+- **ST-150→ST-100 with once_retried_classes preservation:** The `once_retried_classes` field is preserved across the ST-150→ST-100 transition [R-053], [DOC-07 §2], consistent with the "yes (once)" gate of [R-232] and [DOC-13 §3] applying on the first retry after the backoff elapses. The `next_attempt_mono` clearing is independent of `once_retried_classes` preservation.
+
+| Scenario | `next_attempt_mono` before transition | `due_at_mono` after transition | `next_attempt_mono` after transition |
+|---|---|---|---|
+| ST-150→ST-100 backoff elapsed | set (future) | set to prior value | NULL |
+| ST-150→ST-100 with `once_retried_classes` | set (future) | set to prior value | NULL |
+
+**AC-140 compliance check:** The ST-150→ST-100 transition (backoff elapsed, `attempts < [CFG-020]`) MUST clear `urls.next_attempt_mono` to NULL after setting `due_at_mono := next_attempt_mono`. An implementation omitting this clear would leave `next_attempt_mono` non-NULL in ST-100, violating [AC-085] and the [DOC-12 §1] field-hygiene invariant that a backoff timer must not survive outside ST-150 [R-062], even though it correctly sets `due_at_mono` for scheduler dispatch.
+
+Both rows correctly specify that `next_attempt_mono` is cleared on the ST-150→ST-100 transition, aligning with the [AC-085] field-hygiene invariant and the [DOC-12 §1] invariant that `next_attempt_mono` is non-NULL only in ST-150.
 
