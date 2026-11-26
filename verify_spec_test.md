@@ -128,6 +128,24 @@ The [R-062] redirect final-target upsert path applies the same [DOC-13 §3] retr
 
 **AC-024 compliance verification:** Two consecutive RETRYABLE ERR-003 outcomes on a redirect chain's final target with [CFG-020]=5: the first outcome appends ERR-003 to the target's `once_retried_classes` and lands ST-150 (within budget); the second outcome finds the class already listed and lands ST-180 (DEAD) even though `attempts=2 < [CFG-020]=5`. After a success and recrawl promotion ([R-052] resets `attempts=0`, clears `once_retried_classes` [R-232]), the class is eligible for one retry again.
 
+## AC-095: once_retried_classes gate on directly fetched URLs
+
+The [DOC-13 §3] retry procedure's "once_retried_classes" gate takes precedence over the budget check even for directly fetched URLs (no redirect chain). This ensures consistent behavior whether the RETRYABLE outcome arises from a direct fetch or from a redirect chain's final target.
+
+- **First occurrence** of a "once" class (ERR-003 / ERR-013) on a directly fetched URL: The class is appended to the target's `once_retried_classes` [DOC-11 §1, R-232], and the normal budget check applies: if `attempts < [CFG-020]` the target lands in ST-150 with `next_attempt_mono` mirroring the source's backoff; if `attempts ≥ [CFG-020]` the target lands in ST-180 (DEAD) with `next_attempt_mono=NULL`.
+
+- **Second occurrence** of the same "once" class (within the same attempt cycle, directly fetched): The class is already listed in the target's `once_retried_classes`, so the "once" gate takes precedence: the outcome is PERMANENT, the target lands in ST-180 regardless of `attempts` relative to `[CFG-020]`, and `urls.last_error_class` is set to that class [R-062], [R-232].
+
+- **After success + recrawl promotion** ([R-052]): The `once_retried_classes` list is cleared when `attempts` resets to 0, and the target is re-admitted to ST-100. A subsequent RETRYABLE "once" class outcome on first re-dispatch lands ST-150 (class appended, budget check applies), while a second occurrence would land ST-180 since the class is once again listed.
+
+**AC-095 compliance verification:** A RETRYABLE ERR-003 outcome on a directly fetched URL (no redirect chain, source-host dispatch) whose class is already listed in the target's `once_retried_classes` MUST land the target in ST-180 (PERMANENT), not ST-150, regardless of [CFG-020]. An implementation failing to apply the "once" gate on the direct-fetch path would violate [R-232] and produce inconsistent behavior versus the redirect-chain path [AC-093]. This is the directly-fetched-URL counterpart of [AC-093], which covers the same gate on redirect final-target upserts.
+
+| Scenario | CFG-020 | `once_retried_classes` state | Outcome | State |
+|---|---|---|---|---|
+| First "once" class occurrence (direct fetch) | 5 | empty → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
+| Second "once" class occurrence (same cycle, direct fetch) | 5 | class already listed | PERMANENT | ST-180 (DEAD) |
+| First "once" class after success+recrawl (direct fetch) | 5 | [] (cleared by [R-052]) → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
+
 | Scenario | CFG-020 | `once_retried_classes` state | Outcome | State |
 |---|---|---|---|---|
 | First "once" class occurrence | 5 | empty → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
