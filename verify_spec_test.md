@@ -234,9 +234,10 @@ The [DOC-12 §4] freshness/recrawl formula's trigger MUST cover the UNCHANGED ou
 |---|---|---|---|---|
 | First UNCHANGED 304 | 5 | 0 → 1 | RETRYABLE, interval doubled | ST-140→ST-100 when due |
 | Second UNCHANGED 304 (same cycle) | 5 | 1 → 2 | interval ×2, capped at 4×base | ST-140→ST-100 when due |
-| Third UNCHANGED 304 (same cycle) | 5 | 2 → 3 | interval ×4, capped at 4×base | ST-140→ST-100 when due |
-| Fourth UNCHANGED 304 (same cycle) | 5 | 3 → 4 | interval ×8, capped at 4×base | ST-140→ST-100 when due |
+| Third UNCHANGED 304 (same cycle) | 5 | 2 → 3 | interval stays at 4×base (capped) | ST-140→ST-100 when due |
+| Fourth UNCHANGED 304 (same cycle) | 5 | 3 → 4 | interval stays at 4×base (capped) | ST-140→ST-100 when due |
 | Fifth UNCHANGED 304 (same cycle) | 5 | 4 → 4 (capped) | interval stays at 4×base | ST-140→ST-100 when due |
+| UNCHANGED 304 after cap reset via success+recrawl | 5 | [] (cleared by [R-052]) → 1 | RETRYABLE, interval starts at base, then doubles to 2×base | ST-140→ST-100 when due |
 | First UNCHANGED 304 after success+recrawl | 5 | [] (cleared by [R-052]) → 1 | RETRYABLE, interval starts anew | ST-140→ST-100 when due |
 | Plain 2xx success (no 304) | 5 | N/A (resets to 0) | interval based on base only | ST-140→ST-100 when due |
 | no-store success with [CFG-025]=0 | 0 | N/A | `due_at_mono` = NULL, stays ST-140 | terminal until rediscovery |
