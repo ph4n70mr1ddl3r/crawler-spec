@@ -160,12 +160,14 @@ The [DOC-13 §3] retry procedure's "once_retried_classes" gate takes precedence 
 | First "once" class occurrence (direct fetch) | 5 | empty → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
 | Second "once" class occurrence (same cycle, direct fetch) | 5 | class already listed | PERMANENT | ST-180 (DEAD) |
 | First "once" class after success+recrawl (direct fetch) | 5 | [] (cleared by [R-052]) → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
+| First "once" class occurrence with budget exhaustion (direct fetch) | 1 | empty → appends class → fall through (budget exhausted) | PERMANENT | ST-180 (DEAD) |
 
 | Scenario | CFG-020 | `once_retried_classes` state | Outcome | State |
 |---|---|---|---|---|
 | First "once" class occurrence | 5 | empty → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
 | Second "once" class occurrence (same cycle) | 5 | class already listed | PERMANENT | ST-180 (DEAD) |
 | First "once" class after success+recrawl | 5 | [] (cleared by [R-052]) → appends class → fall through | RETRYABLE, append class | ST-150 with backoff |
+| First "once" class occurrence with budget exhaustion (direct fetch) | 1 | empty → appends class → fall through (budget exhausted) | PERMANENT | ST-180 (DEAD) |
 
 Both rows correctly specify that the `once_retried_classes` gate is evaluated first, before the budget check, aligning with [R-232] and [R-062].
 
