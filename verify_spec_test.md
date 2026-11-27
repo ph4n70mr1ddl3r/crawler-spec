@@ -123,8 +123,11 @@ Both rows correctly specify that the `once_retried_classes` gate is evaluated fi
 | First ERR-003 (budget not exhausted) | 5 | empty → appends ERR-003 → fall through | RETRYABLE, append class | ST-150 (not applicable) |
 | Second ERR-003 (same cycle, class listed) | 5 | [ERR-003] already listed | PERMANENT | `error_class := ERR-003` ✓ |
 | Budget-exhausted RETRYABLE (once gate passed) | 5 | class not listed, appended, then budget exhausted | ST-180 (DEAD) | `error_class := class` ✓ |
+| First RETRYABLE ERR-002 (budget exhausted) | 5 | N/A (not a "once" class) | ST-180 (DEAD) | `error_class := ERR-002` ✓ |
 
 **AC-136 compliance verification:** Both the 429 and 5xx rows of the DOC-09 §4 table correctly specify `urls.last_error_class` recorded on the budget-exhausted ST-180 landing, aligning with the DOC-13 §3 procedure's `error_class := class` assignment. An implementation following the former 429/5xx row clause '→ ST-150' without the budget-conditioned ST-180 branch would fail to set `urls.last_error_class` and violate [AC-085] and [AC-136].
+
+The `error_class := class` assignment on the budget-exhausted path applies to all RETRYABLE outcomes, not just "once" classes. With [CFG-020]=2, two consecutive `5xx` responses on a Host: the first lands ST-150 with the host's `consecutive_failures` incremented [R-112]; the second — `attempts=2 ≥ [CFG-020]` — lands ST-180 with `urls.last_error_class='ERR-006'`, `urls.next_attempt_mono=NULL`, and `hosts.consecutive_failures` incremented again [R-112] (now 2, doubling the host-level dynamic backoff [DOC-08 §4]). An implementation omitting `error_class := class` on the budget-exhausted ST-180 landing would leave `urls.last_error_class` undefined, violating [AC-085] and [AC-136].
 
 Both rows correctly specify `urls.next_attempt_mono=NULL` when the retry budget is exhausted, aligning them with the `ERR-018` row and [R-131] step-3 narration.
 
