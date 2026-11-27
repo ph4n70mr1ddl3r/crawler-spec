@@ -329,8 +329,7 @@ The [DOC-07 §2] ST-150→ST-100 transition (backoff elapsed, `attempts < [CFG-0
 | Scenario | `next_attempt_mono` before transition | `due_at_mono` after transition | `next_attempt_mono` after transition | `once_retried_classes` preserved |
 |---|---|---|---|---|
 | ST-150→ST-100 backoff elapsed | set (future) | set to prior value | NULL | Yes |
-| ST-150→ST-100 with `once_retried_classes` | set (future) | set to prior value | NULL | Yes |
-
+| ST-150→ST-100 with `once_retried_classes` preserved across cycles | set (future) | set to prior value | NULL | Yes |
 **AC-140 compliance check:** The ST-150→ST-100 transition (backoff elapsed, `attempts < [CFG-020]`) MUST clear `urls.next_attempt_mono` to NULL after setting `due_at_mono := next_attempt_mono`. An implementation omitting this clear would leave `next_attempt_mono` non-NULL in ST-100, violating [AC-085] and the [DOC-12 §1] field-hygiene invariant that a backoff timer must not survive outside ST-150 [R-062], even though it correctly sets `due_at_mono` for scheduler dispatch.
 
 Both rows correctly specify that `next_attempt_mono` is cleared on the ST-150→ST-100 transition, aligning with the [AC-085] field-hygiene invariant and the [DOC-12 §1] invariant that `next_attempt_mono` is non-NULL only in ST-150.
