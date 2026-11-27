@@ -97,8 +97,8 @@ The DOC-13 §3 procedure flow is:
    - If class ∈ `urls.once_retried_classes` → ST-180 (DEAD), outcome PERMANENT, `error_class := class`
    - Else: append class to `urls.once_retried_classes` [T-2]; fall through
 2. **Check budget** (`attempts ≥ [CFG-020]`):
-   - If budget exhausted → ST-180 (DEAD), `error_class` recorded
-   - Else: compute backoff delay, `state → ST-150, next_attempt_mono = now + delay`
+    - If budget exhausted → ST-180 (DEAD), `error_class := class`
+    - Else: compute backoff delay, `state → ST-150, next_attempt_mono = now + delay`
 3. **ERR-018 floor** (only on ST-150 path):
    - `next_attempt_mono = max(next_attempt_mono, target_host.next_allowed_fetch_at)`
 
@@ -115,6 +115,18 @@ The "once" class check takes absolute precedence over the budget check. An imple
 **AC-024 compliance check:** Two consecutive RETRYABLE ERR-003 outcomes with [CFG-020]=5 drive `attempts` to 2; the second is the budget-exhausting outcome only if the "once" gate does NOT intervene. Per [R-232], the "once" gate takes precedence: the second ERR-003 lands ST-180 (DEAD) even though `attempts=2 < [CFG-020]=5`. After a success and recrawl promotion ([R-052] resets `attempts=0`, clears `once_retried_classes` [R-232]), the class is eligible for one retry again.
 
 Both rows correctly specify that the `once_retried_classes` gate is evaluated first, before the budget check, aligning with [R-232] and [R-062].
+
+**AC-136/AC-106 compliance verification (budget-exhausted `error_class` setting):** The DOC-13 §3 retry procedure's budget-exhausted path (`attempts ≥ [CFG-020]` after the once-class gate passes) MUST set `error_class := class` on the ST-180 landing, consistent with the "once" gate path (`error_class := class`) and the PERMANENT outcome path (`urls.last_error_class` recorded). An implementation that omits this explicit setting would leave `urls.last_error_class` undefined on budget-exhausted ST-180 records, violating the schema invariant [DOC-11 §1], [AC-085], and the acceptance criteria [AC-106], [AC-136] which require `urls.last_error_class` recorded on either landing (ST-150 or ST-180). The first RETRYABLE ERR-003 outcome with [CFG-020]=5 appends the class and lands ST-150 with backoff; the second consecutive ERR-003 on the same cycle finds the class already listed and lands ST-180 with `error_class := ERR-003` — the explicit class assignment on the DEAD landing is what distinguishes it from a generic ST-180 with no class recorded.
+
+| Scenario | CFG-020 | `once_retried_classes` state | Outcome | `error_class` set? |
+|---|---|---|---|---|
+| First ERR-003 (budget not exhausted) | 5 | empty → appends ERR-003 → fall through | RETRYABLE, append class | ST-150 (not applicable) |
+| Second ERR-003 (same cycle, class listed) | 5 | [ERR-003] already listed | PERMANENT | `error_class := ERR-003` ✓ |
+| Budget-exhausted RETRYABLE (once gate passed) | 5 | class not listed, appended, then budget exhausted | ST-180 (DEAD) | `error_class := class` ✓ |
+
+**AC-136 compliance verification:** Both the 429 and 5xx rows of the DOC-09 §4 table correctly specify `urls.last_error_class` recorded on the budget-exhausted ST-180 landing, aligning with the DOC-13 §3 procedure's `error_class := class` assignment. An implementation following the former 429/5xx row clause '→ ST-150' without the budget-conditioned ST-180 branch would fail to set `urls.last_error_class` and violate [AC-085] and [AC-136].
+
+Both rows correctly specify `urls.next_attempt_mono=NULL` when the retry budget is exhausted, aligning them with the `ERR-018` row and [R-131] step-3 narration.
 
 ## DOC-13 §3 Retry Procedure: once_retried_classes gate with [R-062] upsert path
 

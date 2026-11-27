@@ -48,7 +48,7 @@ on RETRYABLE outcome:
           → ST-180 (DEAD) — outcome is PERMANENT, error_class := class
       else:
           append class to urls.once_retried_classes  // persisted by [T-2]; fall through
-  if attempts ≥ CFG-020:            → ST-180 (DEAD), error_class recorded
+  if attempts ≥ CFG-020:            → ST-180 (DEAD), error_class := class
   else:
     delay = CFG-022 × CFG-023^(attempts−1)
     delay = delay × (1 + U(−1, +1)×CFG-024)     // full jitter band, seeded by
