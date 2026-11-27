@@ -123,7 +123,7 @@ Both rows correctly specify that the `once_retried_classes` gate is evaluated fi
 | First ERR-003 (budget not exhausted) | 5 | empty → appends ERR-003 → fall through | RETRYABLE, append class | ST-150 (not applicable) |
 | Second ERR-003 (same cycle, class listed) | 5 | [ERR-003] already listed | PERMANENT | `error_class := ERR-003` ✓ |
 | Budget-exhausted RETRYABLE (once gate passed) | 5 | class not listed, appended, then budget exhausted | ST-180 (DEAD) | `error_class := class` ✓ |
-| First RETRYABLE ERR-002 (budget exhausted) | 5 | N/A (not a "once" class) | ST-180 (DEAD) | `error_class := ERR-002` ✓ |
+| First RETRYABLE ERR-002 (budget exhausted) | 2 | N/A (not a "once" class) | ST-180 (DEAD) | `error_class := ERR-002` ✓ |
 
 **AC-136 compliance verification:** Both the 429 and 5xx rows of the DOC-09 §4 table correctly specify `urls.last_error_class` recorded on the budget-exhausted ST-180 landing, aligning with the DOC-13 §3 procedure's `error_class := class` assignment. An implementation following the former 429/5xx row clause '→ ST-150' without the budget-conditioned ST-180 branch would fail to set `urls.last_error_class` and violate [AC-085] and [AC-136].
 
