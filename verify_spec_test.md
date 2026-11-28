@@ -409,3 +409,25 @@ Input URL with multiple normalization steps: `https://EXAMPLE.COM:80/%2F/./path#
 
 Both rows correctly specify that [DOC-06 §2] URL normalization covers the 50-case vector set, producing correct URL identity and dedup, consistent with [R-003]/[AC-001].
 
+## AC-001/AC-096: percent-encoding hex digits normalize to lowercase, not uppercase
+
+The [DOC-06 §2] normative algorithm step 1(a) MUST lowercase the two hex digits of every `%XX` — it MUST NOT uppercase them. The algorithm's case convention MUST agree with the normative 50-case vector set [DOC-06 §2‑50], which specifies lowercase hex output (`%AB` → `%ab`), and with the [AC-096] verification table, whose "Uppercase hex letters" row expects `https://example.com/%AB/CD/` → `https://example.com/%ab/CD/`. A percent-encoded reserved octet that is **not** decoded (e.g. `%3F`, `%26`) also carries lowercase hex in the resulting identity, since step 1(a) applies to every surviving `%XX` triplet.
+
+This pins the case convention that step 1(a) and the vector set must share. A literal implementation of the former step 1(a) clause "uppercase the two hex digits of every `%XX`" would produce `https://example.com/%AB/CD/` for the vector-set case (b), diverging from the expected `https://example.com/%ab/CD/`. Because normalization is a pure function [R-010] that feeds URL Identity [DEC-004], this divergence splits a single resource into two identities (`%AB` vs. `%ab`): one seed/discovery form deduped under one identity and the same raw URL with opposite hex case deduped under another, violating [R-011] and failing [AC-001]'s normalization-vector check even though every other normalization step is correct.
+
+### Verification
+
+| Scenario | Input URL | Expected Canonical Form | Normalized? |
+|---|---|---|---|
+| Uppercase hex reserved octet, no decode | `https://example.com/%AB/CD/` | `https://example.com/%ab/CD/` | Yes |
+| Mixed-case hex that decodes (`%2f`) | `https://example.com/%2f/path` | `https://example.com//path` | Yes |
+| Uppercase hex that decodes (`%2F`) | `https://example.com/%2F/path` | `https://example.com//path` | Yes |
+| Uppercase hex reserved octet left encoded (`%3F`) | `https://example.com/a%3Fb` | `https://example.com/a%3fb` | Yes — `%3F` is a reserved octet, left encoded per step 1(c), its hex digits lowercased to `%3f` by step 1(a) |
+| Pure-function repeat | `https://example.com/%AB/CD/` (called twice) | `https://example.com/%ab/CD/` both times | Yes |
+
+**AC-001 compliance check:** [AC-001]'s 50-case normalization vector set lists "uppercase hex" as a case category — meaning uppercase-hex **input** must be normalized to the canonical lowercase form. With the former step 1(a) "uppercase" convention, the vector-set case (b) output would retain `%AB`, contradicting the expected `%ab` and breaking [AC-001]'s exact-match assertion.
+
+**AC-096 compliance check:** The [AC-096] "Uppercase hex letters" row and the vector-set case (b) both require `https://example.com/%AB/CD/` → `https://example.com/%ab/CD/` (lowercase only). The [DOC-06 §2] step 1(a) normative algorithm is the sole authority that governs how every surviving `%XX` triplet is cased; it MUST lowercase, matching the vector set. An implementation following the former "uppercase" clause would produce non-canonical identities for any URL containing a percent-encoded reserved octet that survives normalization, failing [AC-096].
+
+Both specifications — the step 1(a) algorithm text and the vector-set/AC-096 case expectations — now agree that percent-encoding hex digits normalize to lowercase, consistent with [R-010], [R-011] and [AC-001].
+

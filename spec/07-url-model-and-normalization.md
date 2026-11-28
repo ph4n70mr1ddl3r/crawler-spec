@@ -17,7 +17,8 @@ version: 1.33.0
 Given an accepted URL, produce the **Normalized URL** by applying, in order:
 
 1. Parse per RFC 3986; percent-normalize the path and query components per
-   RFC 3986 §6.2.2: (a) uppercase the two hex digits of every `%XX`;
+   RFC 3986 §6.2.2: (a) lowercase the two hex digits of every `%XX`
+   (so `%AB` normalizes to `%ab`);
    (b) decode `%XX` only when it encodes a character in the unreserved set
    ALPHA / DIGIT / `-._~`, or when `%XX` is `%2F` (decodes to `/`);
    (c) leave percent-encoded reserved octets (`%3F`, `%26`) encoded and leave
