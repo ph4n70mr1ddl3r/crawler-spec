@@ -373,6 +373,7 @@ The [DOC-06 §2] URL normalization function normalizes each seed URL through a 5
 | Default port stripping | `https://example.com:80/` | `https://example.com/` | Yes |
 | Dot-segment removal | `https://example.com/./path` | `https://example.com/path` | Yes |
 | Fragment preservation | `https://example.com/page#section` | `https://example.com/page` | Yes |
+| Fragment removal with combined normalization | `https://example.com/page#section` with `%2F` in path | `https://example.com/page` | Yes | Verifies fragment removal persists when other normalization steps (percent-encoding, port stripping, dot-segments) are applied |
 | IDN ACE prefix | `https://münchen.de/` | `https://xn--mnchen-3ya.de/` | Yes |
 | Uppercase host lowercasing | `https://EXAMPLE.COM/` | `https://example.com/` | Yes |
 | Empty path normalization | `https://example.com` | `https://example.com/` | Yes |
@@ -384,6 +385,7 @@ Input URL with multiple normalization steps: `https://EXAMPLE.COM:80/%2F/./path#
 | Scenario | Input URL | Expected Canonical Form | Normalized? |
 |---|---|---|---|
 | Combined normalization steps | `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` | `https://example.com//path` | Yes |
+| Fragment removal in combined normalization | `https://example.com/path#section` | `https://example.com/path` | Yes | Fragment removed even with other normalization steps applied |
 
 Both rows correctly specify that [DOC-06 §2] URL normalization covers the 50-case vector set, producing correct URL identity and dedup, consistent with [R-003]/[AC-001].
 
