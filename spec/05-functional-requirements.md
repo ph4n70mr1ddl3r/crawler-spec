@@ -46,7 +46,7 @@ reason code applies). A runtime seed violating [V-4] MUST be rejected with an er
 ## Robots & politeness (C4)
 
 - FR-030: While a Host's `robots_state` = INITIAL (i.e., before any authoritative verdict exists for that Host [R-106]), the system MUST obtain an authoritative robots verdict via [DOC-08 §2] (acquisition is single-flight per Host and initiated lazily [R-105]); UNKNOWN ⇒ defer, never fetch.
-- FR-031: DISALLOW verdicts MUST move the URL Record to ST-190/`ROBOTS_DISALLOW` without fetching.
+- FR-031: A DISALLOW verdict on the robots gate for an initial fetch, a recrawl, or a send-time re-check [DOC-08 §3], [R-054] MUST move the URL Record to ST-190/`ROBOTS_DISALLOW` without fetching. A DISALLOW verdict on a redirect hop target is not an ST-190 exclusion: [R-131] terminates the chain PERMANENT with `error_class='ERR-017'`, lands the source URL in ST-180 with `urls.last_error_class='ERR-017'` and `urls.next_attempt_mono=NULL`, records the refused hop in the source's `redirect_chain`, and creates no URL Record for the unfetched target [ERR-017], [R-062], [DOC-09 §4], [AC-015], [AC-061(c)], [AC-123(a)].
 - FR-032: Effective Delay per Host = max([CFG-007], group crawl_delay if present, dynamic backoff if enabled) — all terms unit-normalized to milliseconds per [DOC-08 §4].
 
 ## Extraction & storage (C6/C7/C8)
