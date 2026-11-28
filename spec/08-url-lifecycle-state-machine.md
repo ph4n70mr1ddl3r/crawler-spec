@@ -36,9 +36,7 @@ pre-existing ST-190 record with a fetch-outcome state (ST-130/ST-150/ST-180),
 clearing its `exclude_reason`. The §2 transition table is authoritative for
 the full set of entry and exit edges [R-000].
 
-*State-dependent rules reference specific states by ID. Notably:
-- R-050: Only ST-100 records are visible to the Scheduler.
-- R-051: ST-110/ST-120 records own one global unit each, held from [T-1] until the first transition out of {ST-110, ST-120}, plus at most one per-Host unit...
+State-dependent rules reference specific states by ID; their authoritative definitions are collected in [§3].
 
 ## 2. Transitions
 
