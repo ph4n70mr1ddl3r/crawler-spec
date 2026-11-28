@@ -271,6 +271,26 @@ With [CFG-038]=true and [CFG-020]=2, a seed whose first fetch returns a retryabl
 
 **AC-130 compliance check:** With [CFG-038]=true and [CFG-020]=2, a seed whose first fetch returns a retryable `503` lands ST-150 with `attempts=1`, `next_attempt_mono` set, and one `fetch_events` row; before its backoff elapses its Host's robots responses fail for ≥ [CFG-040], and the [R-103] sweep moves the record to ST-190 with `exclude_reason='ROBOTS_UNKNOWN_TIMEOUT'`, `next_attempt_mono=NULL`, `attempts=1` preserved, and the `fetch_events` row intact — a demonstrably crawled record in a state whose former gloss said "Never crawled". The first attempt that actually completes — a `200`, or a classified retryable/permanent failure — then emits exactly one fetch log line carrying `url_identity`, `attempt`, `outcome`, `error_class`, `http_status`, and `timings_ms` [DOC-15 §2]. A send-time robots abort [R-054] into ST-190/`ROBOTS_DISALLOW` or back to ST-100 sends no request and rolls the [T-1] increment back [T-5], so it is not a counted attempt [R-053], [AC-016], and emits no fetch log line. A robots.txt exchange yields a gate verdict (ALLOW/DISALLOW/UNKNOWN), not a page fetch, and emits no fetch log line [DOC-08 §2.2]. A redirect chain [R-131] and a same-attempt [R-144] 304 cache-miss refetch each emit exactly one fetch log line for the whole attempt — hops and the refetch reported on that one line via `outcome`, `http_status`, and the final URL [R-133], [FR-025] — never extra log lines. An implementation following the former [DOC-07 §1] clause "Never crawled" literally would either (a) refuse to move an already-crawled ST-150 record into ST-190 via the [R-103] sweep, or (b) treat ST-190 as permanently excluded, blocking the [R-062] upsert overwrite — failing [R-103], [R-062], [FR-050] and [DOC-07 §2] even though it handles the former "Never crawled" gloss correctly for creation-time exclusions.
 
+## AC-124: path-shape trap cap and global cap disjoint ST-190 counting
+
+The [CFG-030] path-shape guard and [CFG-005] global cap have disjoint ST-190 counting semantics: ST-190/`TRAP_PATH_BUDGET` records are excluded from the [CFG-005] global cap count per [FR-005(1)(A)] but counted toward the [CFG-030] path-shape guard counter per [R-042]. With [CFG-030]=2 on one Host and [CFG-005]=3, after 2 distinct identities with shape `/page/N` are admitted as ST-100, the 3rd distinct candidate with that shape is recorded ST-190/`TRAP_PATH_BUDGET`; the global cap check does NOT trigger since ST-190 is excluded from the global cap count, leaving the non-EXCLUDED record count at 2. The in-memory shape counter reads 3 (2 ST-100 + 1 ST-190), and further candidates with that shape continue producing ST-190 records without bound while the admitted count stays at 2. This test pins the disjoint ST-190 counting semantics, verifying that (a) ST-190 records increase the shape admission counter but do not increment the global cap budget, and (b) the global cap [CFG-005] solely counts non-EXCLUDED states (any state except ST-190), maintaining its invariant that the system-wide total of non-EXCLUDED records never exceeds [CFG-005].
+
+### Verification
+
+- **AC-124 compliance check:** With [CFG-030]=2 on one Host and [CFG-005]=3, after 2 distinct identities with shape `/page/N` are admitted as ST-100, the 3rd distinct candidate with that shape is recorded ST-190/`TRAP_PATH_BUDGET`; the global cap check does NOT trigger since ST-190 is excluded from the global cap count, leaving the non-EXCLUDED record count at 2. The in-memory shape counter reads 3 (2 ST-100 + 1 ST-190), and further candidates with that shape continue producing ST-190 records without bound while the admitted count stays at 2. An implementation that counts ST-190 records toward the global cap would prematurely cap the domain, and one that excludes them from the shape counter would produce a different counter value after restart, breaking [R-042] and [AC-087].
+
+### Test Scenarios
+
+| Scenario | CFG-030 | CFG-005 | Shape | `urls_discovered_total{excluded}` | shape counter | Non-EXCLUDED count |
+|---|---|---|---|---|---|---|
+| 2 ST-100 + 1 ST-190 with shape `/page/N` | 2 | 3 | `/page/N` | 1 | 3 (2 + 1) | 2 |
+| 4th candidate with shape `/page/N` after 2 ST-100 admitted | 2 | 3 | `/page/N` | 2 | 3 (2 + 1) | 2 |
+| 5th candidate with shape `/page/N` after 2 ST-100 admitted | 2 | 3 | `/page/N` | 3 | 3 (2 + 1) | 2 |
+
+Both rows correctly specify that ST-190 records increase the shape admission counter but do not increment the global cap budget [FR-005(1)(A)], and that the global cap [CFG-005] solely counts non-EXCLUDED states [AC-081].
+
+---
+
 ## AC-134: `urls.last_seen_at` not read as "most recent rediscovery"
 
 The [DOC-11 §1] `urls.last_seen_at` column MUST NOT be read per its former schema comment as the "most recent rediscovery [FR-051], [INV-5]": that holds only of an update caused by a rediscovery, but a redirect final-target completion upsert [R-062] onto a pre-existing record also updates `last_seen_at` even though it is explicitly **not** a rediscovery [INV-5], [FR-051], [R-052]. The column is a most-recent-sighting timestamp, not a claim that a rediscovery occurred.
