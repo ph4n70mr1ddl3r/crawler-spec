@@ -65,8 +65,11 @@ output. Each vector case must produce the exact expected output:
   lowercased).
 - **(b) Uppercase hex**: `https://example.com/%AB/CD/` normalizes to
   `https://example.com/%ab/CD/` (lowercase only).
-- **(c) Default port**: `https://example.com:80/` normalizes to
-  `https://example.com/`.
+- **(c) Default port**: `https://example.com:443/` normalizes to
+  `https://example.com/`, and `http://example.com:80/` normalizes to
+  `http://example.com/`. A non-default port such as `https://example.com:80/`
+  is retained in the identity — port 80 is the default for `http`, not for
+  `https` — and is rejected by the egress policy [R-401].
 - **(d) Dot-segments**: `https://example.com/./path` normalizes to
   `https://example.com/path` (RFC 3986).
 - **(e) Fragment**: `https://example.com/page#section` normalizes to

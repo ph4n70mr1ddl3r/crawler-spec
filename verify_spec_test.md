@@ -377,7 +377,7 @@ With an in-scope IP-literal seed, `http://[2001:0DB8:0000:0000:0000:0000:0000:00
 
 ## AC-096: URL normalization — 50-case vector set
 
-The [DOC-06 §2] URL normalization function normalizes each seed URL through a 50-case vector set, ensuring the output identity exactly matches the expected canonical form. The function is pure: repeated calls with the same input always produce the same output. The vector set covers percent-encoding preservation and unreserved decoding, uppercase hex letter normalization, default port stripping, dot-segment removal, fragment canonicalization, IDN (Internationalized Domain Name) handling, uppercase host normalization, and empty path handling. (a) Percent-encoding: `https://example.com/%2F/path` normalizes to `https://example.com//path` (tilde-percent-encoding preserved) while `https://example.com/%2f/path` normalizes to `https://example.com//path` (lowercase hex). (b) Uppercase hex: `https://example.com/%AB/CD/` normalizes to `https://example.com/%ab/CD/` (lowercase only, mid-field hex letters lowercased). (c) Default port: `https://example.com:80/` normalizes to `https://example.com/`. (d) Dot-segments: `https://example.com/./path` normalizes to `https://example.com/path` (RFC 3986). (e) Fragment canonicalization: `https://example.com/page#section` normalizes to
+The [DOC-06 §2] URL normalization function normalizes each seed URL through a 50-case vector set, ensuring the output identity exactly matches the expected canonical form. The function is pure: repeated calls with the same input always produce the same output. The vector set covers percent-encoding preservation and unreserved decoding, uppercase hex letter normalization, default port stripping, dot-segment removal, fragment canonicalization, IDN (Internationalized Domain Name) handling, uppercase host normalization, and empty path handling. (a) Percent-encoding: `https://example.com/%2F/path` normalizes to `https://example.com//path` (tilde-percent-encoding preserved) while `https://example.com/%2f/path` normalizes to `https://example.com//path` (lowercase hex). (b) Uppercase hex: `https://example.com/%AB/CD/` normalizes to `https://example.com/%ab/CD/` (lowercase only, mid-field hex letters lowercased). (c) Default port: `https://example.com:443/` normalizes to `https://example.com/` and `http://example.com:80/` normalizes to `http://example.com/`; `https://example.com:80/` retains `:80` because 80 is not the default port for `https` [R-401]. (d) Dot-segments: `https://example.com/./path` normalizes to `https://example.com/path` (RFC 3986). (e) Fragment canonicalization: `https://example.com/page#section` normalizes to
   `https://example.com/page` (fragment removed, as fragments never participate
   in URL Identity). (f) IDN: `https://münchen.de/` normalizes to `https://xn--mnchen-3ya.de/` (ACE prefix). (g) Uppercase host: `https://EXAMPLE.COM/` normalizes to `https://example.com/`. (h) Empty path: `https://example.com` normalizes to `https://example.com/`. An implementation that omits any of these normalization steps produces URL Identities that diverge from the canonical form, violating [R-003] and failing [AC-001]'s normalization-vector check even though it handles the ordinary case correctly.
 
@@ -390,7 +390,9 @@ The [DOC-06 §2] URL normalization function normalizes each seed URL through a 5
 | Percent-encoding lowercase hex | `https://example.com/%2F/path` | `https://example.com//path` | Yes |
 | Percent-encoding mixed case hex | `https://example.com/%2f/path` | `https://example.com//path` | Yes |
 | Uppercase hex letters | `https://example.com/%AB/CD/` | `https://example.com/%ab/CD/` | Yes |
-| Default port stripping | `https://example.com:80/` | `https://example.com/` | Yes |
+| Default port stripping (https) | `https://example.com:443/` | `https://example.com/` | Yes |
+| Default port stripping (http) | `http://example.com:80/` | `http://example.com/` | Yes |
+| Non-default port retained | `https://example.com:80/` | `https://example.com:80/` | Yes — 80 is not the https default; rejected [R-401] |
 | Dot-segment removal | `https://example.com/./path` | `https://example.com/path` | Yes |
 | Fragment preservation | `https://example.com/page#section` | `https://example.com/page` | Yes |
 | Fragment removal with combined normalization | `https://example.com/page#section` with `%2F` in path | `https://example.com/page` | Yes | Verifies fragment removal persists when other normalization steps (percent-encoding, port stripping, dot-segments) are applied |
@@ -400,11 +402,11 @@ The [DOC-06 §2] URL normalization function normalizes each seed URL through a 5
 
 **AC-096 edge case: combined normalization**
 
-Input URL with multiple normalization steps: `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` MUST normalize to `https://example.com//path` — uppercase host lowercased, default port 80 stripped, percent-encoding lowercase hex, dot-segment removed. Fragment is removed per step 5 of the normative algorithm, as fragments never participate in URL Identity. An implementation that normalizes each step correctly but in the wrong order, or that skips a step, produces a non-canonical identity that fails [AC-001].
+Input URL with multiple normalization steps: `https://EXAMPLE.COM:443/%2F/./path#FRAGMENT` MUST normalize to `https://example.com//path` — uppercase host lowercased, default port 443 stripped, percent-encoding lowercase hex, dot-segment removed. Fragment is removed per step 5 of the normative algorithm, as fragments never participate in URL Identity. An implementation that normalizes each step correctly but in the wrong order, or that skips a step, produces a non-canonical identity that fails [AC-001].
 
 | Scenario | Input URL | Expected Canonical Form | Normalized? |
 |---|---|---|---|
-| Combined normalization steps | `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` | `https://example.com//path` | Yes |
+| Combined normalization steps | `https://EXAMPLE.COM:443/%2F/./path#FRAGMENT` | `https://example.com//path` | Yes |
 | Fragment removal in combined normalization | `https://example.com/path#section` | `https://example.com/path` | Yes | Fragment removed even with other normalization steps applied |
 
 Both rows correctly specify that [DOC-06 §2] URL normalization covers the 50-case vector set, producing correct URL identity and dedup, consistent with [R-003]/[AC-001].
@@ -558,4 +560,28 @@ The defect is mechanical and is checked against the canonical forms: one definit
 **[README] / [DOC-00] vocabulary check:** The fix changes only the stray §1 fragment; no requirement is added, removed or rewritten. The §1 note now reads "State-dependent rules reference specific states by ID; their authoritative definitions are collected in [§3]" — a pointer that names no `R-nnn` ID, so ID uniqueness holds and every rule reference in the KB continues to resolve to a single definition. This is the same principle as the [AC-144] patch-marker fix: the normative content was already correct in its authoritative location, but a stray artefact in a secondary location made an implementer consult a malformed duplicate.
 
 **Reader/implementer impact check:** §1 is the first place a reader looks after the state table, and its fragment was both visually broken (a literal `*` and an ellipsis instead of prose) and substantively incomplete. Removing it restores the document to the structure its own §2/§3 cross-references assume — §2 is authoritative for the entry/exit edges [R-000] and §3 for the state-dependent rules — and leaves [R-000]'s precedence resolution unaffected because there is no longer a second rule text to resolve against.
+
+## AC-001/AC-146: default-port vector case stripped a non-default port (`https:80`)
+
+The [DOC-06 §2] step-4 rule is "Remove port if it equals the scheme default (80 for http, 443 for https)", and the [DOC-00] Host definition repeats that the effective port is "the URL's explicit port if present, else the scheme default (80 for `http`, 443 for `https`)" and that [DOC-06 §2] "strips only default ports from identities". The [DOC-16] egress rule [R-401] restricts ports to those same scheme defaults (80 for `http`, 443 for `https`), with any other port ⇒ ERR-004. The normative 50-case vector set [DOC-06 §2‑50] case (c), however, described the "Default port" case as `https://example.com:80/` → `https://example.com/` — stripping `:80` from an `https` URL even though 80 is not the `https` default. The same wrong fixture was duplicated in the [AC-096] verification rows and in its combined-normalization row (`https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` → `https://example.com//path`), so both the spec and its test encoded the contradiction.
+
+This is a real identity defect, not a documentation nit: normalization is a pure function [R-010] that feeds URL Identity [DEC-004] and the Host key. Stripping `:80` from an `https` identity makes that raw URL dedup [R-011] with `https://example.com/` (which fetches on 443), even though [R-401] requires the `:80` form to be rejected as a non-default port ⇒ ERR-004. An implementation that follows the algorithm/glossary/security rule and an implementation that follows the vector set therefore disagree about whether one URL is two identities, one scope verdict and one Host key, or a rejected egress violation.
+
+### Verification
+
+| Scenario | Input URL | Expected Canonical Form | Normalized? |
+|---|---|---|---|
+| https default port stripped | `https://example.com:443/` | `https://example.com/` | Yes — 443 is the `https` default |
+| http default port stripped | `http://example.com:80/` | `http://example.com/` | Yes — 80 is the `http` default |
+| https with the http default port retained | `https://example.com:80/` | `https://example.com:80/` | Yes — port retained, non-default ⇒ ERR-004 [R-401] |
+| Combined normalization with https default port | `https://EXAMPLE.COM:443/%2F/./path#FRAGMENT` | `https://example.com//path` | Yes |
+| Purity of the port rule | `https://example.com:443/` (called twice) | `https://example.com/` both times | Yes [R-010] |
+
+**AC-001 compliance check:** [AC-001] requires the default-port case of the normalization vector to match the expected identity exactly. With the former case (c), the expected identity for `https://example.com:80/` was `https://example.com/`, which no implementation honoring step 4, the [DOC-00] Host definition or [R-401] can produce. After the fix, case (c) uses the actual scheme defaults (`https:443`, `http:80`) and explicitly retains `https:80`, so a literal implementation of the vector agrees with the normative algorithm and the exact-match assertion is satisfiable.
+
+**AC-096 compliance check:** The [AC-096] vector table and combined-normalization row duplicated the same wrong `https://example.com:80/` fixture, so a conformance suite built from the test document would have asserted the contradictory identity. Both rows now use `https://example.com:443/` (and `http://example.com:80/` for the http case), and a non-default-port row pins the retention behavior; the combined case uses `https://EXAMPLE.COM:443/%2F/./path#FRAGMENT` → `https://example.com//path`.
+
+**[R-401] / egress check:** Retaining `:80` on an `https` identity is what lets the egress policy classify the connection attempt as ERR-004. A vector that stripped it first would hand the fetcher a portless `https` identity (port 443) and the request would be attempted against a port the raw URL never named, violating the fail-closed port restriction [R-401] and the [CFG-042] fixture carve-out (which exists precisely because non-default ports are otherwise blocked).
+
+**Reader/implementer impact check:** [DOC-06 §2] is the normative algorithm, the vector set is its worked example, and [AC-001]/[AC-096] are its acceptance tests; all three now agree on which ports are defaults. No requirement is added or removed — the fix corrects the example and its test fixtures to the scheme-default rule already stated in step 4, [DOC-00] and [R-401], leaving the precedence order [R-000] untouched.
 
