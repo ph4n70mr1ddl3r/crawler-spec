@@ -431,3 +431,30 @@ This pins the case convention that step 1(a) and the vector set must share. A li
 
 Both specifications — the step 1(a) algorithm text and the vector-set/AC-096 case expectations — now agree that percent-encoding hex digits normalize to lowercase, consistent with [R-010], [R-011] and [AC-001].
 
+## AC-141: FR-050 "eligible for recrawl after `recrawl_interval_s`" MUST carve out [CFG-025]=0
+
+The [DOC-04] FR-050 MUST NOT blanket-assert that "pages successfully fetched become eligible for recrawl after `recrawl_interval_s × (1 ± jitter)` [CFG-025], [CFG-026]" with carve-outs limited to freshness headers: the zero-interval case [CFG-025]=0 means **never recrawl** — no recrawl due time is installed (`urls.due_at_mono`=NULL) and the record is one-shot for its fetch cycle [CFG-025], [DOC-12 §4], [NFR-004], [AC-086], [DOC-11 §1]. That carve-out is not a freshness-header behavior, so FR-050's "unless the response's freshness headers dictate otherwise per [DOC-12 §4] (`Cache-Control: no-store` suppresses the recrawl due time entirely [R-221]; the 304-unchanged multiplier lengthens the interval, delaying the next recrawl [DOC-12 §4])" parenthetical did not cover it, even though [DOC-12 §4] itself opens with "If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch)".
+
+- (a) With [CFG-025]>0, a plain `200 OK` success (or an UNCHANGED `304` [R-121]) installs `due_at_mono = fetch_complete_mono + interval` with the deterministic [CFG-026] jitter and the 304 multiplier, and the ST-140→ST-100 due-time promotion [DOC-12 §1] refetches the URL when due [FR-050], [AC-033], [AC-072]. Freshness-header carve-outs still apply: `Cache-Control: no-store` suppresses the due time entirely [R-221], [AC-135], and each consecutive UNCHANGED `304` lengthens the interval up to 4 × base [DOC-12 §4].
+- (b) With [CFG-025]=0, a `200 OK` on an ordinary cacheable page is fetched, stored [FR-043] and extracted [T-4] normally, but [T-2] installs **no** recrawl due time: `urls.due_at_mono`=NULL, the ST-140→ST-100 due-time promotion never fires, and the record stays ST-140 (terminal for its fetch cycle [DOC-07 §2]) until a rediscovery refresh ([CFG-021]=true) re-admits it [FR-051], [R-052], [AC-086], [AC-072]. The [DOC-11 §1] `due_at_mono` schema comment ("NULL for one-shot records ([CFG-025]=0, [R-221] no-store)") and [NFR-004]'s "no recrawl due time is installed, so a URL is fetched at most once per fetch cycle" already pin this case.
+
+An implementation following the former FR-050 clause literally computes `interval = 0 × (1 ± jitter) = 0` for [CFG-025]=0, installs `due_at_mono = fetch_complete_mono` immediately, the ST-140→ST-100 due-time promotion fires on the next scheduler iteration, and the URL is refetched forever — violating [CFG-025]'s "0 = never recrawl", [DOC-12 §4]'s "If [CFG-025]=0 the URL is never scheduled for recrawl (one-shot fetch)", [NFR-004]'s "no recrawl due time is installed", the [DOC-11 §1] `due_at_mono` schema comment, and [AC-086] — even though it handles both freshness-header carve-outs (no-store, 304 multiplier) correctly. This is the same residual-summary defect [AC-089], [AC-104]–[AC-140] corrected elsewhere: the detailed rules and schema comment carry the [CFG-025]=0 carve-out while the FR-050 summary enumerates only freshness-header exceptions.
+
+### Verification
+
+| Scenario | CFG-025 | Response | `urls.due_at_mono` after [T-2] | ST-140→ST-100 promotion |
+|---|---|---|---|---|
+| Plain 2xx success | 604800 (>0) | `200 OK`, cacheable | `fetch_complete_mono + interval` (jittered [CFG-026]) | refetch when due [FR-050] |
+| UNCHANGED 304 | 604800 (>0) | `304` with usable stored payload [R-121] | `fetch_complete_mono + interval` (304 multiplier ≤4×) | refetch when due [AC-139] |
+| no-store success | 604800 (>0) | `200 OK` + `Cache-Control: no-store` | NULL [R-221] | suppressed [AC-135] |
+| Zero-interval success | 0 | `200 OK`, cacheable | NULL | suppressed — terminal ST-140 [AC-086] |
+| Zero-interval + rediscovery refresh | 0 | `200 OK`, then rediscovered ([CFG-021]=true) | NULL (no auto recrawl; refresh sets `due_at_mono := now` [R-052]) | refresh only, not auto-recrawl [AC-086] |
+
+**AC-141 compliance check:** With [CFG-025]=0, a successful completion MUST leave `urls.due_at_mono`=NULL and the record MUST stay in ST-140 (terminal) with no ST-140→ST-100 due-time promotion and no automatic recrawl, regardless of whether freshness headers are present. An implementation that evaluates FR-050's `recrawl_interval_s × (1 ± jitter)` formula at [CFG-025]=0 installs an immediate due time and refetches the URL forever, failing [CFG-025], [DOC-12 §4], [NFR-004], [AC-086] and the [DOC-11 §1] schema comment even though it handles the no-store and 304 carve-outs correctly.
+
+**AC-086 compliance check:** [AC-086]'s one-shot bound is per fetch cycle: a second fetch of the same identity is permitted only via a rediscovery refresh ([CFG-021]=true, [FR-051], [R-052]) or an operator DEAD reset — never via an automatic recrawl due time. With [CFG-025]=0, FR-050 MUST NOT be read to install such a due time; the refresh edge sets `due_at_mono := now` explicitly [R-052], which is distinct from a formula-installed recrawl time and remains live for one-shot records [AC-086].
+
+**AC-135 compliance check:** The no-store carve-out [R-221] and the [CFG-025]=0 carve-out are independent and both MUST be excluded by FR-050: no-store suppresses the due time even when [CFG-025]>0 [AC-135], while [CFG-025]=0 suppresses it for every success. FR-050 MUST name both, not just the freshness-header one.
+
+FR-050 now agrees with its authoritative siblings — [CFG-025] ("0 = never recrawl"), [DOC-12 §4] ("If [CFG-025]=0 the URL is never scheduled for recrawl"), [NFR-004], [AC-086], and the [DOC-11 §1] `due_at_mono` schema comment — that a zero recrawl interval installs no due time, consistent with [R-221], [FR-050] and [AC-072].
+

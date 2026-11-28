@@ -60,7 +60,7 @@ reason code applies). A runtime seed violating [V-4] MUST be rejected with an er
 
 ## Recrawl & lifecycle
 
-- FR-050: Pages successfully fetched become eligible for recrawl after `recrawl_interval_s × (1 ± jitter)` [CFG-025], [CFG-026], unless the response's freshness headers dictate otherwise per [DOC-12 §4] (`Cache-Control: no-store` suppresses the recrawl due time entirely [R-221]; the 304-unchanged multiplier lengthens the interval, delaying the next recrawl [DOC-12 §4]).
+- FR-050: Pages successfully fetched become eligible for recrawl after `recrawl_interval_s × (1 ± jitter)` [CFG-025], [CFG-026], except when [CFG-025]=0 (never recrawl: no recrawl due time is installed, `urls.due_at_mono`=NULL, and the record is one-shot for its fetch cycle [DOC-12 §4], [NFR-004], [AC-086], [DOC-11 §1]) or when the response's freshness headers dictate otherwise per [DOC-12 §4] (`Cache-Control: no-store` suppresses the recrawl due time entirely [R-221]; the 304-unchanged multiplier lengthens the interval, delaying the next recrawl [DOC-12 §4]).
 - FR-051: Rediscovery of an existing terminal-success URL sets `last_seen_at`; if [CFG-021]=true it also moves the record back to ST-100 (due_at_mono := now, attempts := 0, priority recomputed per [R-052], [R-201]). Rediscovery of a record in any other state updates `last_seen_at` only and MUST NOT change its state: DEAD and EXCLUDED records are never re-activated automatically [DOC-13 §4], and scope/trap verdicts are final [R-031], [R-041]. The redirect
   final-target completion upsert [R-062] is not a rediscovery: its effects
   on a pre-existing target record are governed by [R-062].
