@@ -357,7 +357,9 @@ With an in-scope IP-literal seed, `http://[2001:0DB8:0000:0000:0000:0000:0000:00
 
 ## AC-096: URL normalization — 50-case vector set
 
-The [DOC-06 §2] URL normalization function normalizes each seed URL through a 50-case vector set, ensuring the output identity exactly matches the expected canonical form. The function is pure: repeated calls with the same input always produce the same output. The vector set covers percent-encoding preservation and unreserved decoding, uppercase hex letter normalization, default port stripping, dot-segment removal, fragment canonicalization, IDN (Internationalized Domain Name) handling, uppercase host normalization, and empty path handling. (a) Percent-encoding: `https://example.com/%2F/path` normalizes to `https://example.com//path` (tilde-percent-encoding preserved) while `https://example.com/%2f/path` normalizes to `https://example.com//path` (lowercase hex). (b) Uppercase hex: `https://example.com/%AB/CD/` normalizes to `https://example.com/%ab/CD/` (lowercase only, mid-field hex letters lowercased). (c) Default port: `https://example.com:80/` normalizes to `https://example.com/`. (d) Dot-segments: `https://example.com/./path` normalizes to `https://example.com/path` (RFC 3986). (e) Fragment: `https://example.com/page#section` normalizes to `https://example.com/page#section` (fragment preserved, but fragment spelling lowercased and reserved chars percent-encoded per RFC 3986). (f) IDN: `https://münchen.de/` normalizes to `https://xn--mnchen-3ya.de/` (ACE prefix). (g) Uppercase host: `https://EXAMPLE.COM/` normalizes to `https://example.com/`. (h) Empty path: `https://example.com` normalizes to `https://example.com/`. An implementation that omits any of these normalization steps produces URL Identities that diverge from the canonical form, violating [R-003] and failing [AC-001]'s normalization-vector check even though it handles the ordinary case correctly.
+The [DOC-06 §2] URL normalization function normalizes each seed URL through a 50-case vector set, ensuring the output identity exactly matches the expected canonical form. The function is pure: repeated calls with the same input always produce the same output. The vector set covers percent-encoding preservation and unreserved decoding, uppercase hex letter normalization, default port stripping, dot-segment removal, fragment canonicalization, IDN (Internationalized Domain Name) handling, uppercase host normalization, and empty path handling. (a) Percent-encoding: `https://example.com/%2F/path` normalizes to `https://example.com//path` (tilde-percent-encoding preserved) while `https://example.com/%2f/path` normalizes to `https://example.com//path` (lowercase hex). (b) Uppercase hex: `https://example.com/%AB/CD/` normalizes to `https://example.com/%ab/CD/` (lowercase only, mid-field hex letters lowercased). (c) Default port: `https://example.com:80/` normalizes to `https://example.com/`. (d) Dot-segments: `https://example.com/./path` normalizes to `https://example.com/path` (RFC 3986). (e) Fragment canonicalization: `https://example.com/page#section` normalizes to
+  `https://example.com/page` (fragment removed, as fragments never participate
+  in URL Identity). (f) IDN: `https://münchen.de/` normalizes to `https://xn--mnchen-3ya.de/` (ACE prefix). (g) Uppercase host: `https://EXAMPLE.COM/` normalizes to `https://example.com/`. (h) Empty path: `https://example.com` normalizes to `https://example.com/`. An implementation that omits any of these normalization steps produces URL Identities that diverge from the canonical form, violating [R-003] and failing [AC-001]'s normalization-vector check even though it handles the ordinary case correctly.
 
 ### Verification
 
@@ -370,18 +372,18 @@ The [DOC-06 §2] URL normalization function normalizes each seed URL through a 5
 | Uppercase hex letters | `https://example.com/%AB/CD/` | `https://example.com/%ab/CD/` | Yes |
 | Default port stripping | `https://example.com:80/` | `https://example.com/` | Yes |
 | Dot-segment removal | `https://example.com/./path` | `https://example.com/path` | Yes |
-| Fragment preservation | `https://example.com/page#section` | `https://example.com/page#section` | Yes |
+| Fragment preservation | `https://example.com/page#section` | `https://example.com/page` | Yes |
 | IDN ACE prefix | `https://münchen.de/` | `https://xn--mnchen-3ya.de/` | Yes |
 | Uppercase host lowercasing | `https://EXAMPLE.COM/` | `https://example.com/` | Yes |
 | Empty path normalization | `https://example.com` | `https://example.com/` | Yes |
 
 **AC-096 edge case: combined normalization**
 
-Input URL with multiple normalization steps: `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` MUST normalize to `https://example.com//path#fragment` — uppercase host lowercased, default port 80 stripped, percent-encoding lowercase hex, dot-segment removed, fragment lowercased. An implementation that normalizes each step correctly but in the wrong order, or that skips a step, produces a non-canonical identity that fails [AC-001].
+Input URL with multiple normalization steps: `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` MUST normalize to `https://example.com//path` — uppercase host lowercased, default port 80 stripped, percent-encoding lowercase hex, dot-segment removed. Fragment is removed per step 5 of the normative algorithm, as fragments never participate in URL Identity. An implementation that normalizes each step correctly but in the wrong order, or that skips a step, produces a non-canonical identity that fails [AC-001].
 
 | Scenario | Input URL | Expected Canonical Form | Normalized? |
 |---|---|---|---|
-| Combined normalization steps | `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` | `https://example.com//path#fragment` | Yes |
+| Combined normalization steps | `https://EXAMPLE.COM:80/%2F/./path#FRAGMENT` | `https://example.com//path` | Yes |
 
 Both rows correctly specify that [DOC-06 §2] URL normalization covers the 50-case vector set, producing correct URL identity and dedup, consistent with [R-003]/[AC-001].
 

@@ -69,8 +69,8 @@ output. Each vector case must produce the exact expected output:
 - **(d) Dot-segments**: `https://example.com/./path` normalizes to
   `https://example.com/path` (RFC 3986).
 - **(e) Fragment**: `https://example.com/page#section` normalizes to
-  `https://example.com/page#section` (fragment preserved, but fragment
-  spelling lowercased and reserved chars percent-encoded per RFC 3986).
+  `https://example.com/page` (fragment removed, as fragments never
+  participate in URL Identity).
 - **(f) IDN**: `https://münchen.de/` normalizes to `https://xn--mnchen-3ya.de/`
   (ACE prefix).
 - **(g) Uppercase host**: `https://EXAMPLE.COM/` normalizes to
