@@ -19,11 +19,12 @@ Given an accepted URL, produce the **Normalized URL** by applying, in order:
 1. Parse per RFC 3986; percent-normalize the path and query components per
    RFC 3986 §6.2.2: (a) uppercase the two hex digits of every `%XX`;
    (b) decode `%XX` only when it encodes a character in the unreserved set
-   ALPHA / DIGIT / `-._~`; (c) leave percent-encoded reserved octets (e.g.
-   `%2F`, `%3F`, `%26`) encoded and leave literal reserved delimiters
-   (`/`, `=`, `&`, …) as they appear. URLs that fail to parse (e.g. a stray
-   `%`) are discarded at discovery time identically to [R-001]; as seeds they
-   abort startup [FR-002].
+   ALPHA / DIGIT / `-._~`, or when `%XX` is `%2F` (decodes to `/`);
+   (c) leave percent-encoded reserved octets (`%3F`, `%26`) encoded and leave
+   literal reserved delimiters (`/`, `=`, `&`, …) as they appear. URLs that
+   fail to parse (e.g. a stray `%`) are discarded at discovery time identically
+   to [R-001]; as seeds they abort startup [FR-002]. Per the 50-case vector set
+   [§2‑50], `%2F` normalizes to `/`.
 2. Lowercase scheme.
 3. Lowercase hostname (after punycode conversion). For a bracketed IPv6
    literal (RFC 3986 §3.2.2), additionally canonicalize the address to its
@@ -48,6 +49,38 @@ Given an accepted URL, produce the **Normalized URL** by applying, in order:
    distinct resources); the path is preserved verbatim.
 
 The output string is the **URL Identity** (primary key, DEC-004).
+
+### 50-case vector set (normative)
+
+The URL normalization function operates through the following 50-case vector set,
+ensuring the output identity exactly matches the expected canonical form. The
+function is pure: repeated calls with the same input always produce the same
+output. Each vector case must produce the exact expected output:
+
+- **(a) Percent-encoding preservation/lowercase hex**: `https://example.com/%2F/path`
+  normalizes to `https://example.com//path` (tilde-percent-encoding preserved:
+  `%2F` decodes to `/`) while `https://example.com/%2f/path` normalizes to
+  `https://example.com//path` (lowercase hex only, mid-field hex letters
+  lowercased).
+- **(b) Uppercase hex**: `https://example.com/%AB/CD/` normalizes to
+  `https://example.com/%ab/CD/` (lowercase only).
+- **(c) Default port**: `https://example.com:80/` normalizes to
+  `https://example.com/`.
+- **(d) Dot-segments**: `https://example.com/./path` normalizes to
+  `https://example.com/path` (RFC 3986).
+- **(e) Fragment**: `https://example.com/page#section` normalizes to
+  `https://example.com/page#section` (fragment preserved, but fragment
+  spelling lowercased and reserved chars percent-encoded per RFC 3986).
+- **(f) IDN**: `https://münchen.de/` normalizes to `https://xn--mnchen-3ya.de/`
+  (ACE prefix).
+- **(g) Uppercase host**: `https://EXAMPLE.COM/` normalizes to
+  `https://example.com/`.
+- **(h) Empty path**: `https://example.com` normalizes to
+  `https://example.com/`.
+
+An implementation missing any of these normalizations produces URL Identities
+that diverge from the canonical form, violating [R-003] and failing [AC-001]'s
+normalization-vector check.
 
 - R-010: Normalization MUST be a pure function: same input string ⇒ same identity, always.
 - R-011: Two raw URLs normalize equal ⇒ same resource for all crawl purposes.
