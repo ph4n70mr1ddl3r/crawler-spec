@@ -334,3 +334,26 @@ The [DOC-07 §2] ST-150→ST-100 transition (backoff elapsed, `attempts < [CFG-0
 
 Both rows correctly specify that `next_attempt_mono` is cleared on the ST-150→ST-100 transition, aligning with the [AC-085] field-hygiene invariant and the [DOC-12 §1] invariant that `next_attempt_mono` is non-NULL only in ST-150.
 
+## AC-097: IPv6 canonicalization — suppress leading zeros
+
+The [DOC-06 §2] step-3 IPv6 canonicalization suppresses leading zeros within each 16-bit field (RFC 5952 §4.1), not merely hex-letter case and zero-run compression [R-003]. With an in-scope IP-literal seed (served by the local fixture under [CFG-042]=true [R-405]), the fully expanded literal `http://[2001:0DB8:0011:0022:0033:0044:0055:0066]/x` and its canonical form `http://[2001:db8:11:22:33:44:55:66]/x` MUST normalize to one URL Identity — each field's leading `0` is dropped (`0DB8` ⇒ `db8`, `0011` ⇒ `11`) — yielding one URL Record (dedup [R-011], [DEC-004]), one `host_key`, one Registrable Domain (the canonical literal string [DOC-00]), hence one scope verdict [R-030] and one [CFG-006] per-domain accounting key. This example has no run of two or more zero fields, so `::` compression is not involved: a literal implementation of step 3 that lowercases hex digits and compresses zero runs but does not suppress leading zeros produces `[2001:0db8:0011:0022:0033:0044:0055:0066]` for the first form, which differs from the canonical `[2001:db8:11:22:33:44:55:66]` and therefore splits identity and dedup, violating [R-003]/[R-011] and failing [AC-001]'s normalization-vector check even though it passes [AC-096]'s compression case.
+
+### Verification
+
+**AC-097 compliance check:** With an in-scope IP-literal seed, the fully expanded literal `http://[2001:0DB8:0011:0022:0033:0044:0055:0066]/x` and its canonical form `http://[2001:db8:11:22:33:44:55:66]/x` MUST normalize to one URL Identity — each field's leading `0` is dropped (`0DB8` ⇒ `db8`, `0011` ⇒ `11`) — yielding one URL Record, one `host_key`, one Registrable Domain, hence one scope verdict and one [CFG-006] per-domain accounting key. A literal implementation of step 3 that lowercases hex digits and compresses zero runs but does not suppress leading zeros produces `[2001:0db8:0011:0022:0033:0044:0055:0066]` for the first form, which differs from the canonical `[2001:db8:11:22:33:44:55:66]` and therefore splits identity and dedup, violating [R-003]/[R-011] and failing [AC-001]'s normalization-vector check even though it passes [AC-096]'s compression case.
+
+| Scenario | Input URL | Canonical Form | Same Identity? |
+|---|---|---|---|
+| Fully expanded IPv6 with leading zeros, no compression | `http://[2001:0DB8:0011:0022:0033:0044:0055:0066]/x` | `http://[2001:db8:11:22:33:44:55:66]/x` | Yes |
+| Compression not involved, leading zeros dropped | `http://[2001:0DB8:0011:0022:0033:0044:0055:0066]/x` | `http://[2001:db8:11:22:33:44:55:66]/x` | Yes |
+
+**AC-097 edge case: mixed hex-case and leading zeros**
+
+With an in-scope IP-literal seed, `http://[2001:0DB8:0000:0000:0000:0000:0000:0001]/x` normalizes to `http://[2001:db8::1]/x` per RFC 5952 — the `0DB8` field drops its leading zero, and the four consecutive zero fields compress to `::`. A literal implementation that only lowercases hex but does not suppress leading zeros would yield `[2001:0db8:0000:0000:0000:0000:0000:0001]`, splitting the identity and failing [AC-001].
+
+| Scenario | Input URL | Canonical Form | Same Identity? |
+|---|---|---|---|
+| Mixed hex-case with compression | `http://[2001:0DB8:0000:0000:0000:0000:0000:0001]/x` | `http://[2001:db8::1]/x` | Yes |
+
+Both rows correctly specify that IPv6 canonicalization suppresses leading zeros within each 16-bit field per RFC 5952 §4.1, yielding correct URL identity and dedup, consistent with [R-003]/[R-011] and [AC-001].
+
